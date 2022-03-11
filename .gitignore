@@ -129,3 +129,7 @@ dmypy.json
 .pyre/
 
 test_keys/
+keyfile_test
+test_key
+test_key.pub
+test*.pub
