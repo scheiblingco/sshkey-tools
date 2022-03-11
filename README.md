@@ -8,3 +8,17 @@ Tools for managing OpenSSH keypairs and certificates
 - https://dev.to/aaronktberry/generating-encrypted-key-pairs-in-python-69b
 - https://cryptography.io/en/latest/hazmat/primitives/asymmetric/rsa/
 - 
+
+
+# Get actual pubkey from file
+```python
+decode_string = lambda x: unpack('>I', x[:4])[0]+4
+
+with open('ssh_user.pub', 'r') as f:
+    pub_data = f.read()
+
+_, bin = bin[4:stsz(bin)], bin[stsz(bin):]
+_, bin = bin[4:stsz(bin)], bin[stsz(bin):]
+pubkey, bin = bin[4:stsz(bin)], bin[stsz(bin):]
+```
+

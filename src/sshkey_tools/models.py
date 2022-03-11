@@ -17,8 +17,8 @@ class KeyData:
             raise FileAccessException(e)   
         
     @classmethod
-    def from_string(cls, key_data: str) -> None:
-        return cls(key_data=key_data)
+    def from_string(cls, key_data: str, password: str = None) -> None:
+        return cls(key_data=key_data, password=password)
         
     def to_file(self, path: str, overwrite: bool = False) ->  None:
         if self.key_data is None:

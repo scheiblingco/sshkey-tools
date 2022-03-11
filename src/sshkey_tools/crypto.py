@@ -11,11 +11,19 @@ class Algorithm:
     
     @classmethod
     def load_private_key(self, key_data: bytes, password: str = None):
-        self.key = crypto_serialization.load_pem_private_key(
-            key_data,
-            password=b'password',
-            backend=crypto_default_backend()
-        )
+        try:
+            self.key = crypto_serialization.load_pem_private_key(
+                key_data,
+                password=password.encode() if password is not None else None,
+                backend=crypto_default_backend()
+            )
+        except ValueError:
+            self.key = crypto_serialization.load_ssh_private_key(
+                key_data,
+                password=password.encode() if password is not None else None,
+                backend=crypto_default_backend()
+            )
+            
         print(self.key)
         print(self.key.public_key())
     
