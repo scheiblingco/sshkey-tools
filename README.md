@@ -7,7 +7,11 @@ Tools for managing OpenSSH keypairs and certificates
 - https://stackoverflow.com/questions/59243185/generating-elliptic-curve-private-key-in-python-with-the-cryptography-library
 - https://dev.to/aaronktberry/generating-encrypted-key-pairs-in-python-69b
 - https://cryptography.io/en/latest/hazmat/primitives/asymmetric/rsa/
-- 
+- https://blog.ejbca.org/2020/05/a-practical-analysis-of-ssh-certificate.html
+
+- Certificate format is dependent on public key format, not CA format
+- Only differs on the last two parts, ecdsa can sign rsa, etc.
+ 
 
 
 # Get actual pubkey from file
