@@ -10,7 +10,7 @@ from base64 import b64encode, b64decode
 from struct import pack
 from paramiko.message import Message
 from paramiko.ecdsakey import ECDSAKey
-
+from paramiko.util import deflate_long
 
 def encodeBytes(string):
     return pack('>I', len(string)) + string
@@ -38,18 +38,27 @@ def encodeUint32(num):
 
 def long_to_bytes(l_val):  
     b_len = math.ceil(math.log(l_val)/math.log(256))
-    return b_len, int.to_bytes(l_val, b_len, 'big')
+    return int.to_bytes(l_val, b_len, 'big')
+
+# def encodeMpint(num):
+    # leng, byt = long_to_bytes(num)
+    # return pack('>I', leng) + byt
 
 def encodeMpint(num):
-    leng, byt = long_to_bytes(num)
-    return pack('>I', leng) + byt
+    return encodeBytes(deflate_long(num))
+    # return encodeBytes(long_to_bytes(num))
+    # from long_to_bytes import long_to_bytes
+    # return encodeBytes(long_to_bytes(num))
+    # from cryptography.utils import int_to_bytes
+    # return encodeBytes(int_to_bytes(num))
+    # return deflate_long(num)
 
 # def encodeMpint2(num):
     # num_bytes = long_to_bytes(num)+1
     
     
-def encodeSignature(typ, r, s):
-    return encodeString(typ) + encodeMpint(r) + encodeMpint(s)
+def encodeSignature(r, s):
+    return encodeMpint(r) + encodeMpint(s)
     
 
 # Create a new bytes object
@@ -170,47 +179,103 @@ print(certificate == certificate2.asbytes())
 # Finally, add the signature
 # Load the CA private key
 ca_key2 = ECDSAKey.from_private_key_file('testcerts/ecdsa_ca')
-signature = ca_key2.sign_ssh_data(certificate)
+# signature = ca_key2.sign_ssh_data(certificate)
 # signature2 = ca_key2.sign_ssh_data(certificate2.asbytes())
 
 
 
 
-# # Import cryptography functionality
-# from cryptography.exceptions import InvalidSignature
-# from cryptography.hazmat.backends import default_backend
-# from cryptography.hazmat.primitives import hashes, serialization
-# from cryptography.hazmat.primitives.asymmetric import ec
-# from cryptography.hazmat.primitives.asymmetric.utils import (
-#     decode_dss_signature,
-#     encode_dss_signature,
-# )
+# Import cryptography functionality
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric.utils import (
+    decode_dss_signature,
+    encode_dss_signature,
+)
 
-# CURVES = {
-#     'secp256r1': hashes.SHA256,
-#     'secp384r1': hashes.SHA384,
-#     'secp521r1': hashes.SHA512
-# }
-
-
-# with open('testcerts/ecdsa_ca', 'rb') as f:
-#     ca = f.read()
+CURVES = {
+    'secp256r1': hashes.SHA256,
+    'secp384r1': hashes.SHA384,
+    'secp521r1': hashes.SHA512
+}
 
 
-# ca_key = serialization.load_ssh_private_key(
-#     data=ca,
-#     password=None,
-#     backend=default_backend()
-# )
+with open('testcerts/ecdsa_ca', 'rb') as f:
+    ca = f.read()
+
+
+ca_key = serialization.load_ssh_private_key(
+    data=ca,
+    password=None,
+    backend=default_backend()
+)
 
 # curve = ec.ECDSA(CURVES[ca_key.curve.name]())
+curve = ec.ECDSA(hashes.SHA256())
 
-# sig = ca_key.sign(
-#     certificate,
-#     curve
+# Signature
+sig = ca_key.sign(
+    certificate2.asbytes(),
+    curve
+)
+
+r, s = decode_dss_signature(sig)
+
+# The paramiko way (1:1)
+sigenc = Message()
+sigenc.add_mpint(r)
+sigenc.add_mpint(s)
+print(sigenc.asbytes())
+
+m = Message()
+m.add_string('ecdsa-sha2-nistp256')
+m.add_string(sigenc.asbytes())
+
+certificate2.add_string(m.asbytes())
+
+# print(m.asbytes())
+# certificate2.add_string(m)
+# certificate2.add_string(signature2)
+
+# The self way
+# print(encodeSignature(r, s))
+# certificate += encodeBytes(m.asbytes())
+sig2 = encodeSignature(r, s)
+print(sig2)
+
+# certificate += encodeString('ecdsa-sha2-nistp256') + sig2
+
+print(sig2 == sigenc.asbytes())
+# print(sig2)
+# print(sigenc.asbytes())
+
+sig3 = encodeString('ecdsa-sha2-nistp256') + encodeBytes(sig2)
+# print(sig3)
+# print(m.asbytes())
+print(sig3 == m.asbytes())
+
+certificate += encodeBytes(sig3)
+
+
+# print(sig3 == m.asbytes())
+# print(sig3)
+# print(m.asbytes())
+
+# certificate += encodeBytes(sig3)
+
+# encodeBytes(
+# # # print(encodeBytes(
+#     encodeString('ecdsa-sha2-nistp256') +
+#     sig2
 # )
 
-# r, s = decode_dss_signature(sig)
+# print(certificate2.asbytes() == certificate)
+
+
+# signature = encodeSignature("ecdsa-sha2-nistp256", r, s)
+
 
 # signature = encodeSignature("ecdsa-sha2-nistp256", r, s)
 
@@ -232,13 +297,13 @@ signature = ca_key2.sign_ssh_data(certificate)
 # signature = ca_key.sign_ssh_data(certificate)
 
 # # Add the signature to the bottom of the certificate
-certificate += encodeBytes(signature)
-certificate2.add_string(signature)
+# certificate += encodeBytes(signature)
+# certificate2.add_bytes(signature)
 
-print(certificate == certificate2.asbytes())
+# print(certificate == certificate2.asbytes())
 
-print(certificate)
-print(certificate2.asbytes())
+# print(certificate)
+# print(certificate2.asbytes())
 
 # Write to file
 with open('selfdone_cert', 'wb') as f:
