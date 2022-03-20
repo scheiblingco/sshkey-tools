@@ -2,3 +2,4 @@ click
 cryptography
 dataclasses
 ssh_cert_parser
+paramiko

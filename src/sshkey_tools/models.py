@@ -85,6 +85,9 @@ class Certificate(KeyData):
     def sign(self):
         pass
     
+    def verify_signature(self):
+        pass
+    
     def from_string(self):
         pass
     

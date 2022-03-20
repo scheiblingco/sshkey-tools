@@ -6,7 +6,6 @@ from cryptography.hazmat.backends import default_backend as crypto_default_backe
 
 @dataclass
 class Algorithm:
-    bits: int = 0
     password: str = None
     
     @classmethod
@@ -23,9 +22,7 @@ class Algorithm:
                 password=password.encode() if password is not None else None,
                 backend=crypto_default_backend()
             )
-            
-        print(self.key)
-        print(self.key.public_key())
+
     
     def get_private_key(self):       
         enc = crypto_serialization.NoEncryption()
