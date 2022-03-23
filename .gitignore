@@ -133,3 +133,6 @@ keyfile_test
 test_key
 test_key.pub
 test*.pub
+settings.json
+.vscode/
+.vscode/*
