@@ -2,8 +2,12 @@
 Includes tools for encoding and decoding OpenSSH Certificates and public/private keypairs
 """
 
-from struct import pack
+from struct import pack, unpack
 from secrets import randbits
+from typing import Union, List, Tuple
+
+StrOrBytes = Union[str, bytes]
+StrListOrTuple = Union[List[StrOrBytes], Tuple[StrOrBytes]]
 
 # OpenSSH Certificate utilities
 def generate_secure_nonce(length: int = 64):
@@ -31,6 +35,9 @@ def long_to_bytes(source_int: int, force_length: int = None, byteorder: str = 'b
     if source_int < 0:
         raise ValueError("You can only convert positive long integers to bytes with this method")
 
+    if not isinstance(source_int, int):
+        raise TypeError(f"Expected integer, got {type(source_int).__name__}.")
+
     length = (source_int.bit_length() // 8 + 1) if not force_length else force_length
     return source_int.to_bytes(length, byteorder)
 
@@ -44,6 +51,9 @@ def bytes_to_long(source_bytes: bytes, byteorder: str = 'big') -> int:
     Returns:
         int: Long integer resulting from decoding the byte string
     """
+    if not isinstance(source_bytes, bytes):
+        raise TypeError(f"Expected bytes, got {type(source_bytes).__name__}.")
+
     return int.from_bytes(source_bytes, byteorder)
 
 
@@ -67,6 +77,9 @@ def encode_int(source_int: int) -> bytes:
     Returns:
         bytes: Packed byte string containing integer
     """
+    if not isinstance(source_int, int):
+        raise TypeError(f"Expected integer, got {type(source_int).__name__}.")
+
     return pack('>I', source_int)
 
 def encode_int64(source_int: int) -> bytes:
@@ -78,7 +91,11 @@ def encode_int64(source_int: int) -> bytes:
     Returns:
         bytes: Packed byte string containing integer
     """
+    if not isinstance(source_int, int):
+        raise TypeError(f"Expected integer, got {type(source_int).__name__}.")
+
     return pack('>Q', source_int)
+
 
 def encode_mpint(source_int: int) -> bytes:
     """Encodes a multiprecision integer (integer longer than 64bit)
@@ -90,4 +107,109 @@ def encode_mpint(source_int: int) -> bytes:
     Returns:
         bytes: Packed byte string containing integer
     """
-    
+    if not isinstance(source_int, int):
+        raise TypeError(f"Expected integer, got {type(source_int).__name__}.")
+
+    return encode_string(long_to_bytes(source_int))
+
+
+def encode_string(source_string: StrOrBytes, encoding: str = 'utf-8') -> bytes:
+    """Encodes a string or bytestring into a packed byte string
+
+    Args:
+        source_string (str, bytes): The string to encode
+
+    Returns:
+        bytes: Packed byte string containing the source data
+    """
+    if isinstance(source_string, str):
+        source_string = source_string.encode(encoding)
+
+    if isinstance(source_string, bytes):
+        return pack('>I', len(source_string)) + source_string
+
+    raise TypeError(f"Expected unicode or bytes, got {type(source_string).__name__}.")
+
+def encode_list(source_list: StrListOrTuple, null_separator: bool = None) -> bytes:
+    """Encodes a list or tuple to a byte string
+
+    Args:
+        source_list (list): list of strings
+        null_separator (bool, optional): Insert blank string string between items. Default None
+
+    Returns:
+        bytes: Packed byte string containing the source data
+    """
+    if sum([ not isinstance(item, (str, bytes)) for item in source_list]) > 0:
+        raise TypeError("Expected list or tuple containing strings or bytes")
+
+    if null_separator and len(source_list) > 0:
+        return encode_string(encode_string('').join([
+            encode_string(x) for x in source_list
+        ]) + encode_string(''))
+
+    return encode_string(b''.join([encode_string(x) for x in source_list]))
+
+def encode_rsa_signature(signature: bytes, cert_type: StrOrBytes = 'ssh-rsa') -> bytes:
+    """Encodes an RSA signature to the OpenSSH Certificate format
+
+    Args:
+        signature (bytes): The signature data
+        cert_type (str, bytes): The type, default ssh-rsa
+
+    Returns:
+        _type_: Byte string with the encoded certificate
+    """
+    return encode_string( encode_string(cert_type) + encode_string(signature) )
+
+def encode_dss_signature(r_value: bytes, s_value: bytes, cert_type: StrOrBytes = 'ssh-dss') ->bytes:
+    """Encodes a DSS signature fto the OpenSSH Certificate format
+
+    Args:
+        signature_r (bytes): The decoded signature R-value
+        signature_s (bytes): The decoded signature S-value
+        type (str): The certificate type, default: ssh-dss
+
+    Returns:
+        bytes: Byte string with the encoded certificate
+    """
+    return encode_string(
+            encode_string(cert_type) +
+            encode_string(
+                long_to_bytes(r_value, 20) +
+                long_to_bytes(s_value, 20)
+            )
+    )
+
+def encode_ecdsa_signature(signature_r: bytes, signature_s: bytes, curve: StrOrBytes) -> bytes:
+    """Encodes an ECDSA signature to the OpenSSH Certificate format
+
+    Args:
+        signature_r (bytes): The decoded signature R-value
+        signature_s (bytes): The decoded signature S-value
+        curve (StrOrBytes): The EC-curve and hash used (e.g. ecdsa-sha2-nistp256)
+
+    Returns:
+        bytes: Bytestring with the encoded certificate
+    """
+    return encode_string(
+        encode_string(curve) +
+        encode_string(
+            encode_mpint(signature_r) +
+            encode_mpint(signature_s)
+        )
+    )
+
+
+def decode_string(data: bytes) -> tuple:
+    """Decode a string from a block of bytes
+       Returns the string and the remainder of the block
+
+    Args:
+        data (bytes): Block of bytes
+
+    Returns:
+        tuple(bytes, str): string, remainder of block
+    """
+    size = unpack('>I', data[:4])[0]+4
+    return data[4:size], data[size:]

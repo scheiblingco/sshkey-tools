@@ -136,3 +136,7 @@ test*.pub
 settings.json
 .vscode/
 .vscode/*
+test_ecdsa*
+test_rsa*
+test_dss*
+test_ed25519*
