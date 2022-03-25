@@ -1,3 +1,4 @@
 click
 cryptography
+bcrypt
 dataclasses

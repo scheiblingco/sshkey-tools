@@ -1,77 +1,88 @@
-# pylint: disable-all
+# # pylint: disable-all
 from src.sshkey_tools.utils import *
 from base64 import b64decode, b64encode
 from time import time
-
 from cryptography.hazmat.backends import default_backend
+import src.sshkey_tools.fields as fields
+
+
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers
+from cryptography.hazmat.primitives.asymmetric import padding
 
-CURVES = {
-    'secp256r1': hashes.SHA256,
-    'secp384r1': hashes.SHA384,
-    'secp521r1': hashes.SHA512
-}
-
-with open('test_ecdsa_user.pub', 'r') as f:
-    file_content = f.read().split(' ')
+# Create an RSA Certificate
+with open('test_rsa_user.pub', 'rb') as f:
+    user_pubkey = f.read()
     
-    data = b64decode(file_content[1])
-    user_comment = file_content[2]
-    user_keytype, data = decode_string(data)
-    user_keycurve, data = decode_string(data)
-    user_pubkey, data = decode_string(data)
+with open('test_rsa_ca.pub', 'r') as f:
+    ca_public_key = public_key_to_dict(f.read())
     
-with open('test_ecdsa_ca.pub', 'r') as f:
-    ca_pubkey = b64decode(f.read().split(' ')[1])
+with open('test_rsa_ca', 'rb') as f:
+    ca_private_key = private_key_to_object(f.read())
+
+   
     
-with open('test_ecdsa_ca', 'rb') as f:
-    ca_privkey = f.read()
-    
-print(user_pubkey)
-print(ca_pubkey)
-certificate = b''
-certificate += encode_string(f'ecdsa-sha2-nistp256-cert-v01@openssh.com')
-certificate += encode_string(generate_secure_nonce(64))
-certificate += encode_string(user_keycurve)
-certificate += encode_string(user_pubkey)
-certificate += encode_int64(12345)
-certificate += encode_int(1)
-certificate += encode_string('abcdefgh')
-certificate += encode_int64(int(time()))
-certificate += encode_int64(int(time() + 3600))
-certificate += encode_list([], True)
-certificate += encode_list(['permit-agent-forwarding'], True)
-certificate += encode_string('')
-certificate += encode_string(ca_pubkey)
+cert = b''
+cert += fields.StringField('rsa-sha2-512-cert-v01@openssh.com').to_bytes()
+cert += fields.NonceField(64).to_bytes()
+cert += fields.RSAUserPubkeyField(user_pubkey).to_bytes()
+cert += fields.Integer64Field(123456).to_bytes()
+cert += fields.CertificateTypeField(fields.CertificateType.USER).to_bytes()
+cert += fields.StringField('abcdefgh').to_bytes()
+cert += fields.ListField(['root', 'otheruser']).to_bytes()
+cert += bytes(fields.TimeField())
+cert += bytes(fields.TimeField(3600*12))
+cert += fields.ListField([], True).to_bytes()
+cert += fields.ListField(['permit-X11-forwarding'], True).to_bytes()
+cert += fields.StringField('').to_bytes()
+cert += fields.StringField(ca_public_key['key']).to_bytes()
 
-signer = serialization.load_ssh_private_key(
-    data=ca_privkey,
-    password=None
-)
+cert += fields.RSASignatureField(rsa_sign_bytes(
+    data=cert,
+    private_key=ca_private_key
+)).to_bytes()
 
-# curve = ec.ECDSA(CURVES[signer.curve.name]())
-curve = ec.ECDSA(hashes.SHA256())
-
-print(curve)
-signature = signer.sign(
-    certificate,
-    curve
-)
-
-r, s = decode_dss_signature(signature)
-
-certificate += encode_ecdsa_signature(r, s, f'ecdsa-sha2-nistp256')
-
-with open('test_ecdsa_user-cert.pub', 'wb') as f:
+with open('test_rsa_user-cert2.pub', 'w') as f:
     f.write(
-        b'ecdsa-sha2-nistp256-cert-v01@openssh.com %b %s' % (
-            user_keytype,
-            b64encode(certificate),
-            user_comment.encode()
+        get_certificate_file(
+            type='rsa-sha2-512-cert-v01@openssh.com',
+            data=cert,
+            comment='User@Host'
         )
     )
-    
 import os
-os.system('ssh-keygen -Lf test_ecdsa_user-cert.pub')
+os.system('ssh-keygen -Lf test_rsa_user-cert2.pub')
+
+
+# cert += encode_string('rsa-sha2-512-cert-v01@openssh.com')
+# cert += encode_string(generate_secure_nonce(32))
+# cert += encode_mpint(user_pubkey["key"].public_numbers().e)
+# cert += encode_mpint(user_pubkey["key"].public_numbers().n)
+# cert += encode_int64(1234567890)
+# cert += encode_int(1)
+# cert += encode_string('abcdefgh')
+# cert += encode_list(['root', 'useracc'])
+# cert += encode_int64(int(time()))
+# cert += encode_int64(int(time() + (3600*12)))
+# cert += encode_list([], True)
+# cert += encode_list(['permit-X11-forwarding'], True)
+# cert += encode_string('')
+# cert += encode_string(ca_public_key['key'])
+
+# cert += encode_rsa_signature(
+#     rsa_sign_bytes(
+#         data=cert,
+#         private_key=ca_private_key
+#     ),
+#     "rsa-sha2-512"
+# )
+
+# with open('test_rsa_user-cert.pub', 'w') as f:
+#     f.write(get_certificate_file(
+#         type='rsa-sha2-512-cert-v01@openssh.com',
+#         data=cert,
+#         comment=user_pubkey["comment"]
+#     ))
+    
+# import os
+# os.system('ssh-keygen -Lf test_rsa_user-cert.pub')
