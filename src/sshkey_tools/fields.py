@@ -9,13 +9,12 @@ from . import utils
 class CertificateType(Enum):
     USER = 1
     HOST = 2
-
 class CertificateField:
     def __init__(self, value: str):
         self.value = value
 
 class StringField(CertificateField):   
-    def to_bytes(self) -> bytes:
+    def __bytes__(self) -> bytes:
         return utils.encode_string(self.value)
     
     @classmethod
@@ -24,7 +23,7 @@ class StringField(CertificateField):
         return cls(value=decode[0]), decode[1]
     
 class IntegerField(CertificateField):
-    def to_bytes(self) -> bytes:
+    def __bytes__(self) -> bytes:
         return utils.encode_int(self.value)
     
     @classmethod
@@ -33,7 +32,7 @@ class IntegerField(CertificateField):
         return cls(value=decode[0]), decode[1]
 
 class Integer64Field(CertificateField):
-    def to_bytes(self) -> bytes:
+    def __bytes__(self) -> bytes:
         return utils.encode_int64(self.value)
     
     def from_bytes(cls, data: bytes) -> 'Integer64Field':
@@ -41,7 +40,7 @@ class Integer64Field(CertificateField):
         return cls(value=decode[0]), decode[1]
     
 class MultiprecisionIntegerField(CertificateField):
-    def to_bytes(self) -> bytes:
+    def __bytes__(self) -> bytes:
         return utils.encode_mpint(self.value)
     
     @classmethod
@@ -50,7 +49,7 @@ class MultiprecisionIntegerField(CertificateField):
         return cls(value=decode[0]), decode[1]
     
 class BooleanField(CertificateField):
-    def to_bytes(self) -> bytes:
+    def __bytes__(self) -> bytes:
         return utils.encode_boolean(self.value)
     
     @classmethod
@@ -63,7 +62,7 @@ class ListField(CertificateField):
         self.null_separator = null_separator
         super().__init__(value)
     
-    def to_bytes(self) -> bytes:
+    def __bytes__(self) -> bytes:
         return utils.encode_list(self.value, self.null_separator)
     
     @classmethod
@@ -76,13 +75,13 @@ class RSASignatureField(CertificateField):
         self.cert_type = cert_type
         super().__init__(value)
         
-    def to_bytes(self) -> bytes:
+    def __bytes__(self) -> bytes:
         return utils.encode_rsa_signature(self.value, self.cert_type)
     
     @classmethod
     def from_bytes(cls, data: bytes) -> 'RSASignatureField':
         decode = utils.decode_rsa_signature(data)
-        return cls(value=decode[0], cert_type=decode[1]), decode[2]
+        return cls(value=decode[1], cert_type=decode[0]), decode[2]
     
 class DSSSignatureField(CertificateField):
     def __init__(self, r: bytes, s: bytes, cert_type: utils.StrOrBytes):
@@ -90,7 +89,7 @@ class DSSSignatureField(CertificateField):
         self.r = r
         self.s = s
         
-    def to_bytes(self) -> bytes:
+    def __bytes__(self) -> bytes:
         return utils.encode_dss_signature(self.r, self.s, self.cert_type)
     
     @classmethod
@@ -104,7 +103,7 @@ class ECDSASignatureField(CertificateField):
         self.r = r
         self.s = s
         
-    def to_bytes(self) -> bytes:
+    def __bytes__(self) -> bytes:
         return utils.encode_ecdsa_signature(self.r, self.s, self.curve)
     
     @classmethod
@@ -117,7 +116,7 @@ class ED25519SignatureField(CertificateField):
         self.cert_type = cert_type
         super().__init__(value)
         
-    def to_bytes(self) -> bytes:
+    def __bytes__(self) -> bytes:
         return utils.encode_ed25519_signature(self.value, self.cert_type)
     
     @classmethod
@@ -136,7 +135,7 @@ class RSAUserPubkeyField(CertificateField):
         if public_numbers:
             self.e, self.n = public_numbers
         
-    def to_bytes(self) -> bytes:
+    def __bytes__(self) -> bytes:
         self.e_bytes = utils.encode_mpint(self.e)
         self.n_bytes = utils.encode_mpint(self.n)
                     
@@ -162,7 +161,7 @@ class DSSUserPubkeyField(CertificateField):
         if public_numbers:
             self.p, self.q, self.g, self.y = public_numbers
             
-    def to_bytes(self) -> bytes:
+    def __bytes__(self) -> bytes:
         self.p_bytes = utils.encode_mpint(self.p)
         self.q_bytes = utils.encode_mpint(self.q)
         self.g_bytes = utils.encode_mpint(self.g)
@@ -195,7 +194,7 @@ class ECDSAUserPubkeyField(CertificateField):
             self.curve = decoded_data[0]
             self.keydata = decoded_data[1]
             
-    def to_bytes(self) -> bytes:
+    def __bytes__(self) -> bytes:
         self.encoded_curve = utils.encode_string(self.curve)
         self.encoded_cert = utils.encode_string(self.keydata)
         
@@ -223,7 +222,7 @@ class ED25519UserPubkeyField(CertificateField):
             self.type = decoded_data[0]
             self.keydata = decoded_data[1]
             
-    def to_bytes(self) -> bytes:
+    def __bytes__(self) -> bytes:
         self.encoded_type = utils.encode_string(self.type)
         self.encoded_cert = utils.encode_string(self.keydata)
         return self.encoded_type + self.encoded_cert
@@ -240,7 +239,7 @@ class NonceField(CertificateField):
         self.length = 64
         self.nonce = str(utils.generate_secure_nonce(self.length)) if not nonce else nonce
         
-    def to_bytes(self) -> bytes:
+    def __bytes__(self) -> bytes:
         return utils.encode_string(self.nonce)
     
     @classmethod
@@ -253,10 +252,18 @@ class NonceField(CertificateField):
 class TimeField(Integer64Field):
     def __init__(self, offset: int = 0, value: int = None):
         self.value = int(time()) + offset
-        
-    def __bytes__(self) -> bytes:
-        return self.to_bytes()
-    
 class CertificateTypeField(IntegerField):
     def __init__(self, type: CertificateType):
         self.value = type.value
+        
+class PrincipalListField(ListField):
+    def __init__(self, value = utils.StrListOrTuple):
+        super().__init__(value, False)
+        
+class CriticalOptionsListField(ListField):
+    def __init__(self, value = utils.StrListOrTuple):
+        super().__init__(value, True)
+        
+class ExtensionsListField(ListField):
+    def __init__(self, value = utils.StrListOrTuple):
+        super().__init__(value, True)

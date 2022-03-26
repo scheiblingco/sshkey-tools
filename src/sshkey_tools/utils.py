@@ -7,6 +7,7 @@ from secrets import randbits
 from typing import Union, List, Tuple
 from base64 import b64encode, b64decode
 
+from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -379,6 +380,7 @@ def public_key_to_object(file_content: StrOrBytes, encoding: str  = 'utf-8') -> 
     return {
         "type": file_content.split(b' ')[0],
         "comment": file_content.split(b' ')[2],
+        "raw_key": b64decode(file_content.split(b' ')[1]),
         "key": serialization.load_ssh_public_key(file_content)
     }
 
@@ -431,6 +433,28 @@ def rsa_sign_bytes(data: bytes, private_key: rsa.RSAPrivateKey) -> bytes:
         padding=padding.PKCS1v15(),
         algorithm=hashes.SHA512()
     )
+    
+def rsa_verify_signature(data: bytes, signature: bytes, public_key: rsa.RSAPublicKey) -> bool:
+    """Verifies a signature using an RSA public key
+
+    Args:
+        data (bytes): Data to verify
+        signature (bytes): The signature to verify
+        public_key (RSAPublicKey): The public key to use for verification
+
+    Returns:
+        bool: True if signature is valid, False if not
+    """
+    try:
+        public_key.verify(
+            signature=signature,
+            data=data,
+            padding=padding.PKCS1v15(),
+            algorithm=hashes.SHA512()
+        )
+        return True
+    except InvalidSignature:
+        raise InvalidSignature('Invalid signature: The signature does not match the certificate')
     
 def get_certificate_file(type: StrOrBytes, data: bytes, comment: StrOrBytes = None, encoding: str = 'utf-8') -> str:
     if isinstance(type, bytes):

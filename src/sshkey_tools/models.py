@@ -1,6 +1,6 @@
 import os
 from dataclasses import dataclass
-from .crypto import Algorithm, RSA, DSA, ECDSA, ED25519
+from .cryptography import Algorithm, RSA, DSA, ECDSA, ED25519
 from .exceptions import FileAccessException, PasswordNeededException
 
 @dataclass
