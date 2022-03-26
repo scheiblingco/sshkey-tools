@@ -364,60 +364,6 @@ def decode_ed25519_signature(data: bytes) -> tuple:
     
     return signature, cert_type, data
 
-def public_key_to_object(file_content: StrOrBytes, encoding: str  = 'utf-8') -> dict:
-    """Loads an SSH public key from a file or string
-
-    Args:
-        file_content (StrOrBytes): The contents of the public key file
-        encoding (str, optional): For decoding str to bytes. Defaults to 'utf-8'.
-
-    Returns: 
-        dict: Dict with certificate object, type and user comment
-    """
-    if isinstance(file_content, str):
-        file_content = file_content.encode(encoding)
-        
-    return {
-        "type": file_content.split(b' ')[0],
-        "comment": file_content.split(b' ')[2],
-        "raw_key": b64decode(file_content.split(b' ')[1]),
-        "key": serialization.load_ssh_public_key(file_content)
-    }
-
-def public_key_to_dict(file_content: StrOrBytes, encoding: str = 'utf-8') -> dict:
-    """Loads an SSH public key to a dict containing key type, data and comment
-
-    Args:
-        file_content (StrOrBytes): File content, str or bytes
-        encoding (str, optional): File encoding, for decoding bytes to str. Defaults to 'utf-8'.
-
-    Returns:
-        dict: Dict with key type, data and comment
-    """
-    
-    if isinstance(file_content, bytes):
-        file_content = file_content.decode(encoding)
-        
-    file_split = file_content.split(' ')
-    return {
-        'type': file_split[0],
-        'key': b64decode(file_split[1]),
-        'comment': file_split[2]
-    }
-    
-def private_key_to_object(file_content: StrOrBytes, password: StrOrBytes = None, encoding: str = 'utf-8'):
-    
-    if isinstance(file_content, str):
-        file_content = file_content.encode(encoding)
-    
-    if isinstance(password, str):
-        password = password.encode(encoding)    
-    
-    return serialization.load_ssh_private_key(
-        data=file_content,
-        password=password
-    )
-    
 def rsa_sign_bytes(data: bytes, private_key: rsa.RSAPrivateKey) -> bytes:
     """Signs a block of bytes using an RSA private key
 
