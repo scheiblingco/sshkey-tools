@@ -12,6 +12,10 @@ class CertificateType(Enum):
 class CertificateField:
     def __init__(self, value: str):
         self.value = value
+        
+    @classmethod
+    def set(cls, value):
+        return cls(value)
 
 class StringField(CertificateField):   
     def __bytes__(self) -> bytes:
@@ -70,7 +74,10 @@ class ListField(CertificateField):
         decode = utils.decode_list(data, null_separator)
         return cls(value=decode[0], null_separator=null_separator), decode[1]
     
-class RSASignatureField(CertificateField):
+class SignatureField(CertificateField):
+    pass
+    
+class RSASignatureField(SignatureField):
     def __init__(self, value: bytes, cert_type: utils.StrOrBytes = 'rsa-sha2-512'):
         self.cert_type = cert_type
         super().__init__(value)
@@ -83,7 +90,7 @@ class RSASignatureField(CertificateField):
         decode = utils.decode_rsa_signature(data)
         return cls(value=decode[1], cert_type=decode[0]), decode[2]
     
-class DSSSignatureField(CertificateField):
+class DSSSignatureField(SignatureField):
     def __init__(self, r: bytes, s: bytes, cert_type: utils.StrOrBytes):
         self.cert_type = cert_type
         self.r = r
@@ -97,7 +104,7 @@ class DSSSignatureField(CertificateField):
         decode = utils.decode_dss_signature(data)
         return cls(decode[0], decode[1], decode[2]), decode[3]
     
-class ECDSASignatureField(CertificateField):
+class ECDSASignatureField(SignatureField):
     def __init__(self, r: bytes, s: bytes, curve: utils.StrOrBytes):
         self.curve = curve
         self.r = r
@@ -111,7 +118,7 @@ class ECDSASignatureField(CertificateField):
         decode = utils.decode_ecdsa_signature(data)
         return cls(decode[0], decode[1], decode[2]), decode[3]
 
-class ED25519SignatureField(CertificateField):
+class ED25519SignatureField(SignatureField):
     def __init__(self, value: bytes, cert_type: utils.StrOrBytes):
         self.cert_type = cert_type
         super().__init__(value)
@@ -123,8 +130,10 @@ class ED25519SignatureField(CertificateField):
     def from_bytes(self, data: bytes) -> 'ED25519SignatureField':
         decode = utils.decode_ed25519_signature(data)
         return self(decode[0], decode[1]), decode[2]
-    
-class RSAUserPubkeyField(CertificateField):
+
+class PubkeyField(CertificateField):
+    pass
+class RSAUserPubkeyField(PubkeyField):
     def __init__(self, certificate_data: utils.StrOrBytes = None, public_numbers: tuple = None):
         if certificate_data:
             self.certificate_data = certificate_data
@@ -148,7 +157,7 @@ class RSAUserPubkeyField(CertificateField):
         
         return cls(None, (e_bytes, n_bytes)), data
 
-class DSSUserPubkeyField(CertificateField):
+class DSSUserPubkeyField(PubkeyField):
     def __init__(self, certificate_data: utils.StrOrBytes = None, public_numbers: tuple = None):
         if certificate_data:
             self.certificate_data = certificate_data
@@ -178,7 +187,7 @@ class DSSUserPubkeyField(CertificateField):
         
         return cls(None, (p, q, g, y)), data
     
-class ECDSAUserPubkeyField(CertificateField):
+class ECDSAUserPubkeyField(PubkeyField):
     def __init__(self, certificate_data: utils.StrOrBytes = None, decoded_data: bytes = None):
         if certificate_data:
             self.certificate_data = certificate_data
@@ -207,7 +216,7 @@ class ECDSAUserPubkeyField(CertificateField):
         
         return cls(None, (curve, keydata)), data
 
-class ED25519UserPubkeyField(CertificateField):
+class ED25519UserPubkeyField(PubkeyField):
     def __init__(self, certificate_data: utils.StrOrBytes, decoded_data: tuple = None):
         if certificate_data:
             self.certificate_data = certificate_data
