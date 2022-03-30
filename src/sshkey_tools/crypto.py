@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives.serialization import PublicFormat
 from base64 import b64encode, b64decode
 from enum import Enum
 from . import utils
-from . import certificates as cert
+# from . import certificates as cert
 
 class PublicKeyBytes(Enum):
     USER = 'user'
@@ -36,6 +36,9 @@ class PublicKeyClass:
         self.raw_bytes = b64decode(split[1])
         self.key_comment = split[2].decode(encoding)
         
+    def key_type(self):
+        return utils.decode_string(self.raw_bytes)[0]
+        
     def key_bytes(self, format: PublicKeyBytes):
         if format == PublicKeyBytes.USER:
             return utils.decode_string(self.raw_bytes)[1]
@@ -46,11 +49,25 @@ class PublicKeyClass:
         raise ValueError("Invalid format")
 
 class RSAPublicKey(PublicKeyClass):
-    pass
+    @classmethod
+    def from_public_numbers(cls, e: int, n: int):
+        return cls(
+            key_data=b64encode(
+                RSAPublicNumbers(e, n).public_key(default_backend()).public_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PublicFormat.SubjectPublicKeyInfo
+                )
+            ).decode('utf-8')
+        )
+    
+    
 class DSAPublicKey(PublicKeyClass):
     pass
 class ECDSAPublicKey(PublicKeyClass):
-    pass
+    def key_curve(self):
+        return utils.decode_string(
+            utils.decode_string(self.raw_bytes)[1]
+        )[0]
 
 class ED25519PublicKey(PublicKeyClass):
     pass

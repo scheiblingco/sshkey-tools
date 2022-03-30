@@ -5,6 +5,7 @@ from time import time
 from enum import Enum
 from base64 import b64decode
 from . import utils
+from . import crypto
 
 class CertificateType(Enum):
     USER = 1
@@ -132,116 +133,137 @@ class ED25519SignatureField(SignatureField):
         return self(decode[0], decode[1]), decode[2]
 
 class PubkeyField(CertificateField):
-    pass
-class RSAUserPubkeyField(PubkeyField):
-    def __init__(self, certificate_data: utils.StrOrBytes = None, public_numbers: tuple = None):
-        if certificate_data:
-            self.certificate_data = certificate_data
-            self.pubkey = utils.public_key_to_object(certificate_data)
-            self.e = self.pubkey['key'].public_numbers().e
-            self.n = self.pubkey['key'].public_numbers().n
+    def __init__(self, key_type: crypto.PublicKeyBytes, public_key: crypto.PublicKeyClass = None):
+        if public_key:
+            self.key_type = key_type
+            self.public_key = public_key
             
+class RSAPubkeyField(PubkeyField):   
+    def __init__(self, public_key: crypto.PublicKeyClass = None, public_numbers: tuple = None):
+        super().__init__(public_key)
+        
         if public_numbers:
             self.e, self.n = public_numbers
+            
+    def __bytes__(self):
+        if isinstance(self.public_key, crypto.RSAPublicKey):
+            return self.public_key.key_bytes(self.key_type)
+        elif self.e and self.n:
+            :
+            
+    
+    @classmethod
+    def from_bytes()
+    
+# class RSAUserPubkeyField(PubkeyField):
+#     def __init__(self, certificate_data: utils.StrOrBytes = None, public_numbers: tuple = None):
+#         if certificate_data:
+#             self.certificate_data = certificate_data
+#             self.pubkey = utils.public_key_to_object(certificate_data)
+#             self.e = self.pubkey['key'].public_numbers().e
+#             self.n = self.pubkey['key'].public_numbers().n
+            
+#         if public_numbers:
+#             self.e, self.n = public_numbers
         
-    def __bytes__(self) -> bytes:
-        self.e_bytes = utils.encode_mpint(self.e)
-        self.n_bytes = utils.encode_mpint(self.n)
+#     def __bytes__(self) -> bytes:
+#         self.e_bytes = utils.encode_mpint(self.e)
+#         self.n_bytes = utils.encode_mpint(self.n)
                     
-        return self.e_bytes + self.n_bytes
+#         return self.e_bytes + self.n_bytes
     
-    @classmethod
-    def from_bytes(cls, data: bytes) -> 'RSAUserPubkeyField':
-        e_bytes, data = utils.decode_mpint(data)
-        n_bytes, data = utils.decode_mpint(data)
+#     @classmethod
+#     def from_bytes(cls, data: bytes) -> 'RSAUserPubkeyField':
+#         e_bytes, data = utils.decode_mpint(data)
+#         n_bytes, data = utils.decode_mpint(data)
         
-        return cls(None, (e_bytes, n_bytes)), data
+#         return cls(None, (e_bytes, n_bytes)), data
 
-class DSSUserPubkeyField(PubkeyField):
-    def __init__(self, certificate_data: utils.StrOrBytes = None, public_numbers: tuple = None):
-        if certificate_data:
-            self.certificate_data = certificate_data
-            self.pubkey = utils.public_key_to_object(certificate_data)
-            self.p = self.pubkey.public_numbers().p
-            self.q = self.pubkey.public_numbers().q
-            self.g = self.pubkey.public_numbers().g
-            self.y = self.pubkey.parameters().parameter_numbers().y
+# class DSSUserPubkeyField(PubkeyField):
+#     def __init__(self, certificate_data: utils.StrOrBytes = None, public_numbers: tuple = None):
+#         if certificate_data:
+#             self.certificate_data = certificate_data
+#             self.pubkey = utils.public_key_to_object(certificate_data)
+#             self.p = self.pubkey.public_numbers().p
+#             self.q = self.pubkey.public_numbers().q
+#             self.g = self.pubkey.public_numbers().g
+#             self.y = self.pubkey.parameters().parameter_numbers().y
             
-        if public_numbers:
-            self.p, self.q, self.g, self.y = public_numbers
+#         if public_numbers:
+#             self.p, self.q, self.g, self.y = public_numbers
             
-    def __bytes__(self) -> bytes:
-        self.p_bytes = utils.encode_mpint(self.p)
-        self.q_bytes = utils.encode_mpint(self.q)
-        self.g_bytes = utils.encode_mpint(self.g)
-        self.y_bytes = utils.encode_mpint(self.y)
+#     def __bytes__(self) -> bytes:
+#         self.p_bytes = utils.encode_mpint(self.p)
+#         self.q_bytes = utils.encode_mpint(self.q)
+#         self.g_bytes = utils.encode_mpint(self.g)
+#         self.y_bytes = utils.encode_mpint(self.y)
         
-        return self.p_bytes + self.q_bytes + self.g_bytes + self.y_bytes
+#         return self.p_bytes + self.q_bytes + self.g_bytes + self.y_bytes
     
-    @classmethod
-    def from_bytes(cls, data: bytes) -> 'DSSUserPubkeyField':
-        p, data = utils.decode_mpint(data)
-        q, data = utils.decode_mpint(data)
-        g, data = utils.decode_mpint(data)
-        y, data = utils.decode_mpint(data)
+#     @classmethod
+#     def from_bytes(cls, data: bytes) -> 'DSSUserPubkeyField':
+#         p, data = utils.decode_mpint(data)
+#         q, data = utils.decode_mpint(data)
+#         g, data = utils.decode_mpint(data)
+#         y, data = utils.decode_mpint(data)
         
-        return cls(None, (p, q, g, y)), data
+#         return cls(None, (p, q, g, y)), data
     
-class ECDSAUserPubkeyField(PubkeyField):
-    def __init__(self, certificate_data: utils.StrOrBytes = None, decoded_data: bytes = None):
-        if certificate_data:
-            self.certificate_data = certificate_data
-            split = b' ' if isinstance(certificate_data, bytes) else b' '
-            cert = b64decode(certificate_data.split(split))
+# class ECDSAUserPubkeyField(PubkeyField):
+#     def __init__(self, certificate_data: utils.StrOrBytes = None, decoded_data: bytes = None):
+#         if certificate_data:
+#             self.certificate_data = certificate_data
+#             split = b' ' if isinstance(certificate_data, bytes) else b' '
+#             cert = b64decode(certificate_data.split(split))
             
-            self.pubkey = utils.public_key_to_object(certificate_data)
-            self.type, cert = utils.decode_string(cert)
-            self.curve, cert = utils.decode_string(cert)
-            self.keydata = utils.decode_string(cert)[0]
+#             self.pubkey = utils.public_key_to_object(certificate_data)
+#             self.type, cert = utils.decode_string(cert)
+#             self.curve, cert = utils.decode_string(cert)
+#             self.keydata = utils.decode_string(cert)[0]
             
-        if decoded_data:
-            self.curve = decoded_data[0]
-            self.keydata = decoded_data[1]
+#         if decoded_data:
+#             self.curve = decoded_data[0]
+#             self.keydata = decoded_data[1]
             
-    def __bytes__(self) -> bytes:
-        self.encoded_curve = utils.encode_string(self.curve)
-        self.encoded_cert = utils.encode_string(self.keydata)
+#     def __bytes__(self) -> bytes:
+#         self.encoded_curve = utils.encode_string(self.curve)
+#         self.encoded_cert = utils.encode_string(self.keydata)
         
-        return self.encoded_curve + self.encoded_cert
+#         return self.encoded_curve + self.encoded_cert
     
-    @classmethod
-    def from_bytes(cls, data: bytes) -> 'ECDSAUserPubkeyField':
-        curve, data = utils.decode_string(data)
-        keydata, data = utils.decode_string(data)
+#     @classmethod
+#     def from_bytes(cls, data: bytes) -> 'ECDSAUserPubkeyField':
+#         curve, data = utils.decode_string(data)
+#         keydata, data = utils.decode_string(data)
         
-        return cls(None, (curve, keydata)), data
+#         return cls(None, (curve, keydata)), data
 
-class ED25519UserPubkeyField(PubkeyField):
-    def __init__(self, certificate_data: utils.StrOrBytes, decoded_data: tuple = None):
-        if certificate_data:
-            self.certificate_data = certificate_data
-            self.pubkey = utils.public_key_to_object(certificate_data)
+# class ED25519UserPubkeyField(PubkeyField):
+#     def __init__(self, certificate_data: utils.StrOrBytes, decoded_data: tuple = None):
+#         if certificate_data:
+#             self.certificate_data = certificate_data
+#             self.pubkey = utils.public_key_to_object(certificate_data)
             
-            split = b' ' if isinstance(certificate_data, bytes) else b' '
-            cert = b64decode(certificate_data.split(split))
-            self.type, cert = utils.decode_string(cert)
-            self.keydata = utils.decode_string(cert)[0]
+#             split = b' ' if isinstance(certificate_data, bytes) else b' '
+#             cert = b64decode(certificate_data.split(split))
+#             self.type, cert = utils.decode_string(cert)
+#             self.keydata = utils.decode_string(cert)[0]
         
-        else:
-            self.type = decoded_data[0]
-            self.keydata = decoded_data[1]
+#         else:
+#             self.type = decoded_data[0]
+#             self.keydata = decoded_data[1]
             
-    def __bytes__(self) -> bytes:
-        self.encoded_type = utils.encode_string(self.type)
-        self.encoded_cert = utils.encode_string(self.keydata)
-        return self.encoded_type + self.encoded_cert
+#     def __bytes__(self) -> bytes:
+#         self.encoded_type = utils.encode_string(self.type)
+#         self.encoded_cert = utils.encode_string(self.keydata)
+#         return self.encoded_type + self.encoded_cert
     
-    @classmethod
-    def from_bytes(cls, data: bytes) -> 'ED25519UserPubkeyField':
-        type, data = utils.decode_string(data)
-        keydata, data = utils.decode_string(data)
+#     @classmethod
+#     def from_bytes(cls, data: bytes) -> 'ED25519UserPubkeyField':
+#         type, data = utils.decode_string(data)
+#         keydata, data = utils.decode_string(data)
         
-        return cls(None, (type, keydata)), data
+#         return cls(None, (type, keydata)), data
     
 class NonceField(CertificateField):
     def __init__(self, length: int = 64, nonce: utils.StrOrBytes = None):
