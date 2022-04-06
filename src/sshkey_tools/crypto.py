@@ -1,6 +1,7 @@
 from dataclasses import dataclass
-from cryptography.hazmat.primitives import serialization as crypto_serialization
-from cryptography.hazmat.primitives import hashes as crypto_hashes
+from cryptography.hazmat.primitives import serialization as c_serialization
+from cryptography.hazmat.primitives import padding as c_padding
+from cryptography.hazmat.primitives import hashes as c_hashes
 
 from cryptography.hazmat.primitives.asymmetric import rsa, dsa, ec, ed25519
 from cryptography.hazmat.backends import default_backend as crypto_default_backend
@@ -13,64 +14,157 @@ from cryptography.hazmat.backends.openssl.ed25519 import _Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import PublicFormat
 from base64 import b64encode, b64decode
 from enum import Enum
+from typing import Union
 from . import utils
 # from . import certificates as cert
 
-class PublicKeyBytes(Enum):
-    USER = 'user'
-    CA   = 'ca'
-    
-class PublicKeyClass:
-    def __init__(
-        self, 
-        key_data: bytes, 
-        encoding: str = 'utf-8' 
-    ):
+PrivkeyClasses = Union[
+            _RSAPrivateKey,
+            _DSAPrivateKey,
+            _EllipticCurvePrivateKey,
+            _Ed25519PrivateKey
+            ]
 
-        self.key_object = crypto_serialization.load_ssh_public_key(
-            data=key_data,
-            backend=crypto_default_backend()
-        )
-        
-        split = key_data.split(b' ')
-        self.raw_bytes = b64decode(split[1])
-        self.key_comment = split[2].decode(encoding)
-        
-    def key_type(self):
-        return utils.decode_string(self.raw_bytes)[0]
-        
-    def key_bytes(self, format: PublicKeyBytes):
-        if format == PublicKeyBytes.USER:
-            return utils.decode_string(self.raw_bytes)[1]
 
-        elif format == PublicKeyBytes.CA:
-            return self.raw_bytes
-        
-        raise ValueError("Invalid format")
+@dataclass
+class PublicKeyClass:       
+    comment: bytes
+    raw_bytes: bytes
+    key_type: bytes
+ 
+    def ca_bytes(self):
+        return self.raw_bytes
 
+    def subject_bytes(self):
+        return utils.decode_string(self.raw_bytes)[1]
+
+@dataclass
 class RSAPublicKey(PublicKeyClass):
+    comment: bytes
+    raw_bytes: bytes
+    key_type: bytes
+    e: int
+    n: int
+        
     @classmethod
-    def from_public_numbers(cls, e: int, n: int):
-        return cls(
-            key_data=b64encode(
-                RSAPublicNumbers(e, n).public_key(default_backend()).public_bytes(
-                    encoding=serialization.Encoding.PEM,
-                    format=serialization.PublicFormat.SubjectPublicKeyInfo
-                )
-            ).decode('utf-8')
-        )
+    def from_bytes(cls, key_data: bytes):
+        split = key_data.split(b' ')
+        comment = split[2] if split[2] is not None else ''
+        raw_bytes = b64decode(split[1])
+        
+        key_type, data = utils.decode_string(raw_bytes)
+        e, data = utils.decode_mpint(data)
+        n, data = utils.decode_mpint(data)
+        
+        return cls(comment, raw_bytes, key_type, e, n)
     
-    
+    @classmethod
+    def from_numbers(cls, e: int, n: int, comment: utils.StrOrBytes = '', key_type: str = 'ssh-rsa') -> 'RSAPublicKey':
+        raw_bytes = utils.encode_string(key_type) + utils.encode_mpint(e) + utils.encode_mpint(n)
+        
+        return cls(comment, raw_bytes, key_type, e, n)
+
+
+# def rsa_verify_signature(data: bytes, signature: bytes, public_key: rsa.RSAPublicKey) -> bool:
+#     """Verifies a signature using an RSA public key
+
+#     Args:
+#         data (bytes): Data to verify
+#         signature (bytes): The signature to verify
+#         public_key (RSAPublicKey): The public key to use for verification
+
+#     Returns:
+#         bool: True if signature is valid, False if not
+#     """
+#     try:
+#         public_key.verify(
+#             signature=signature,
+#             data=data,
+#             padding=padding.PKCS1v15(),
+#             algorithm=hashes.SHA512()
+#         )
+#         return True
+#     except InvalidSignature:
+#         raise InvalidSignature('Invalid signature: The signature does not match the certificate')
+
+@dataclass 
 class DSAPublicKey(PublicKeyClass):
-    pass
+    comment: bytes
+    raw_bytes: bytes
+    key_type: bytes
+    p: int
+    q: int
+    g: int
+    y: int
+    
+    @classmethod
+    def from_bytes(cls, key_data: bytes):
+        split = key_data.split(b' ')
+        comment = split[2] if split[2] is not None else ''
+        raw_bytes = b64decode(split[1])
+        
+        key_type, data = utils.decode_string(raw_bytes)
+        p, data = utils.decode_mpint(data)
+        q, data = utils.decode_mpint(data)
+        g, data = utils.decode_mpint(data)
+        y, _    = utils.decode_mpint(data)
+        
+        return cls(comment, raw_bytes, key_type, p, q, g, y)
+    
+    @classmethod
+    def from_numbers(cls, p: int, q: int, g: int, y: int, comment: utils.StrOrBytes = '', key_type: str = 'ssh-dss'):
+        raw_bytes = utils.encode_string(key_type) + \
+                    utils.encode_mpint(p) + \
+                    utils.encode_mpint(q) + \
+                    utils.encode_mpint(g) + \
+                    utils.encode_mpint(y)
+                    
+        return cls(comment, raw_bytes, key_type, p, q, g, y)
+
+@dataclass
 class ECDSAPublicKey(PublicKeyClass):
-    def key_curve(self):
-        return utils.decode_string(
-            utils.decode_string(self.raw_bytes)[1]
-        )[0]
+    comment: bytes
+    raw_bytes: bytes
+    key_type: bytes
+    key_curve: bytes
+    key_data: bytes
+    
+    @classmethod
+    def from_bytes(cls, key_data: bytes) -> 'ECDSAPublicKey':
+        split = key_data.split(b' ')
+        comment = split[2] if split[2] is not None else ''
+        raw_bytes = b64decode(split[1])
+        
+        key_type, data = utils.decode_string(raw_bytes)
+        key_curve, data = utils.decode_string(data)
+        key_data, _ = utils.decode_string(data)
+
+        return cls(comment, raw_bytes, key_type, key_curve, key_data)
+    
+    @classmethod
+    def from_parts(cls, key_data: bytes, key_curve: str, comment: utils.StrOrBytes, key_type: str):
+        raw_bytes = utils.encode_string(key_type) + \
+                    utils.encode_string(key_curve) + \
+                    utils.encode_string(key_data)
+                    
+        return cls(comment, raw_bytes, key_type, key_curve, key_data)
 
 class ED25519PublicKey(PublicKeyClass):
-    pass
+    comment: bytes
+    raw_bytes: bytes
+    key_type: bytes
+    key_data: bytes
+    
+    @classmethod
+    def from_bytes(cls, key_data: bytes) -> 'ED25519PublicKey':
+        split = key_data.split(b' ')
+        comment = split[2] if split[2] is not None else ''
+        raw_bytes = b64decode(split[1])
+        
+        key_type, data = utils.decode_string(raw_bytes)
+        key_data, _ = utils.decode_string(data)
+        
+        return cls(comment, raw_bytes, key_type)
 
 class PublicKey(PublicKeyClass):
     @staticmethod
@@ -110,7 +204,7 @@ class PublicKey(PublicKeyClass):
         if isinstance(key_data, str):
             key_data = key_data.encode(encoding)
         
-        return cls.determine_type(key_data)(key_data)
+        return cls.determine_type(key_data).from_bytes(key_data)
     
     @classmethod
     def from_file(
@@ -122,18 +216,33 @@ class PublicKey(PublicKeyClass):
 
 class PrivateKeyClass:
     def __init__(self, 
-        key_object: bytes,
+        key_object: PrivkeyClasses,
         password: utils.StrOrBytes = None,
     ):
         self.key_object = key_object
 
 class RSAPrivateKey(PrivateKeyClass):
-    pass
+    def __init__(
+            self, 
+            key_object: _RSAPrivateKey,
+            algorithm: c_hashes.HashAlgorithm = c_hashes.SHA512
+        ):
+        super().__init__(key_object)
+        self.algorithm = algorithm
+
+
+    def sign_data(self, data: bytes) -> tuple[bytes]:
+        return self.key_object.sign(
+            data=data,
+            padding=c_padding.PKCS1v15,
+            algorithm=self.algorithm
+        )
 
 class DSAPrivateKey(PrivateKeyClass):
     pass
 
 class ECDSAPrivateKey(PrivateKeyClass):
+    # def __ini
     pass
 
 class ED25519PrivateKey(PrivateKeyClass):
@@ -157,7 +266,7 @@ class PrivateKey(PrivateKeyClass):
         if isinstance(key_data, str):
             key_data = key_data.encode(encoding)
             
-        obj = crypto_serialization.load_ssh_private_key(
+        obj = c_serialization.load_ssh_private_key(
             data=key_data,
             password=password
         )

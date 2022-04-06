@@ -364,43 +364,6 @@ def decode_ed25519_signature(data: bytes) -> tuple:
     
     return signature, cert_type, data
 
-def rsa_sign_bytes(data: bytes, private_key: rsa.RSAPrivateKey) -> bytes:
-    """Signs a block of bytes using an RSA private key
-
-    Args:
-        data (bytes): Data to sign
-        private_key (RSAPrivateKey): The private key to use for signing
-
-    Returns:
-        bytes: The signature
-    """
-    return private_key.sign(
-        data=data,
-        padding=padding.PKCS1v15(),
-        algorithm=hashes.SHA512()
-    )
-    
-def rsa_verify_signature(data: bytes, signature: bytes, public_key: rsa.RSAPublicKey) -> bool:
-    """Verifies a signature using an RSA public key
-
-    Args:
-        data (bytes): Data to verify
-        signature (bytes): The signature to verify
-        public_key (RSAPublicKey): The public key to use for verification
-
-    Returns:
-        bool: True if signature is valid, False if not
-    """
-    try:
-        public_key.verify(
-            signature=signature,
-            data=data,
-            padding=padding.PKCS1v15(),
-            algorithm=hashes.SHA512()
-        )
-        return True
-    except InvalidSignature:
-        raise InvalidSignature('Invalid signature: The signature does not match the certificate')
     
 def get_certificate_file(type: StrOrBytes, data: bytes, comment: StrOrBytes = None, encoding: str = 'utf-8') -> str:
     if isinstance(type, bytes):
@@ -412,3 +375,18 @@ def get_certificate_file(type: StrOrBytes, data: bytes, comment: StrOrBytes = No
     data = b64encode(data).decode(encoding)
     
     return f"{type} {data} {comment}"
+
+def rsa_pubkey_from_numbers(e: int, n: int):
+    data = b''
+    data += encode_string('ssh-rsa')
+    data += encode_mpint(e) + encode_mpint(n)
+    
+    return b'ssh-rsa ' + b64encode(data)
+    
+    
+    key_data = rsa.RSAPublicNumbers(e, n).public_key()
+    
+    return key_data.public_bytes(
+        serialization.Encoding.PEM,
+        serialization.PublicFormat.SubjectPublicKeyInfo
+    )

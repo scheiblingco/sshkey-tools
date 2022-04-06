@@ -133,7 +133,7 @@ class ED25519SignatureField(SignatureField):
         return self(decode[0], decode[1]), decode[2]
 
 class PubkeyField(CertificateField):
-    def __init__(self, key_type: crypto.PublicKeyBytes, public_key: crypto.PublicKeyClass = None):
+    def __init__(self, key_type: str, public_key: crypto.PublicKeyClass = None):
         if public_key:
             self.key_type = key_type
             self.public_key = public_key
@@ -144,16 +144,14 @@ class RSAPubkeyField(PubkeyField):
         
         if public_numbers:
             self.e, self.n = public_numbers
+            self.public_key = crypto.RSAPublicKey.from_public_numbers(self.e, self.n)
             
     def __bytes__(self):
-        if isinstance(self.public_key, crypto.RSAPublicKey):
-            return self.public_key.key_bytes(self.key_type)
-        elif self.e and self.n:
-            :
+        return self.public_key.key_bytes(self.key_type)
             
     
-    @classmethod
-    def from_bytes()
+    # @classmethod
+    # def from_bytes()
     
 # class RSAUserPubkeyField(PubkeyField):
 #     def __init__(self, certificate_data: utils.StrOrBytes = None, public_numbers: tuple = None):

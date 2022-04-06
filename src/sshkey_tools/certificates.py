@@ -93,6 +93,3 @@ class ECDSACertificate(Certificate):
         super().__init__(public_key, cert_type, nonce_bytes)
         self.hash_alg = public_key.key_type()
         self.curve = public_key.key_curve()
-        
-        
-        
