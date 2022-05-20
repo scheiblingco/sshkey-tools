@@ -1,96 +1,67 @@
-from src.sshkey_tools.crypto import PublicKey, RSAPublicKey, ECDSAPublicKey, DSAPublicKey, ED25519PublicKey
-from src.sshkey_tools.crypto import PrivateKey
-# from src.sshkey_tools.crypto import PublicKeyBytes as PKBytes
-from cryptography.hazmat.primitives import serialization
-from src.sshkey_tools import utils
-from src.sshkey_tools import certificates as cert
-from src.sshkey_tools.certificates import Certificate, CertificateTypes
-from base64 import b64decode
+
+from src.sshkey_tools.keys import PrivateKey, PublicKey
+from cryptography.hazmat.primitives.asymmetric import (
+    rsa as _RSA,
+    dsa as _DSA,
+    ec as _ECDSA,
+    ed25519 as _ED25519
+)
+from src.sshkey_tools.cert import RSACertificateClass
+from src.sshkey_tools import fields as _FIELDS
+from struct import pack, unpack
+
+rsa_priv = PrivateKey.from_file('rsa', None)
+dsa_priv = PrivateKey.from_file('dsa', None)
+ecdsa_priv = PrivateKey.from_file('ecdsa', None)
+ed25519_priv = PrivateKey.from_file('ed25519', None)
+
+rsa_pub = PublicKey.from_file('rsa.pub')
+dsa_pub = PublicKey.from_file('dsa.pub')
+ecdsa_pub = PublicKey.from_file('ecdsa.pub')
+ed25519_pub = PublicKey.from_file('ed25519.pub')
 
 
-
-test = PublicKey.from_file('test_keys/rsa_key.pub')
-test2 = PublicKey.from_file('test_keys/ecdsa_key.pub')
-test3 = PublicKey.from_file('test_keys/ed25519_key.pub')
-test4 = PublicKey.from_file('test_keys/dss_key.pub')
-
-print("Done")
+test = _FIELDS.ED25519PubkeyField.encode(ed25519_pub)
+test2 = _FIELDS.ED25519PubkeyField.decode(test)
 
 
-
-testp = PrivateKey.from_file('test_keys/rsa_key')
-testp2 = PrivateKey.from_file('test_keys/ecdsa_key')
-testp3 = PrivateKey.from_file('test_keys/ed25519_key')
-test4 = PrivateKey.from_file('test_keys/dss_key')
-
-print("Done")
-
-
-
-
-# with open('test_keys/rsa_key.pub', 'rb') as f:
-#     split = f.read().split(b' ')
-#     print(split[0])
-#     data = b64decode(split[1])
-#     str1, data = utils.decode_string(data)
-#     nums, data = utils.decode_mpint(data)
-#     nums2, data = utils.decode_mpint(data)
-    
-
-
-# rsa_pubkey = PublicKey.from_file('test_keys/rsa_key.pub')
-# rsa_privkey = PrivateKey.from_file('test_keys/rsa_key')
-
-
-# numbers = rsa_pubkey.key_object.public_numbers()
-# rsa_from_numbers = RSAPublicKey.from_public_numbers(numbers.e, numbers.n)
-
-
-
-print("Done")
+# from cryptography.hazmat.primitives import serialization
 
 
 
 
 
-
-# pubk = PublicKey.from_file('test_ecdsa.pub')
-# certificate = cert.Certificate(pubk, CertificateTypes.USER, 64)
-
-# print(pubk.key_type())
-# print(pubk.key_curve())
-# print("test")
+# strang = ed25519_pub.to_string()
+# strang2 = ed25519_pub.key.public_bytes(
+#     encoding=serialization.Encoding.Raw,
+#     format=serialization.PublicFormat.Raw
+# )
 
 
-# rsa_pubkey = PublicKey.from_file('test_rsa.pub')
-# dsa_pubkey = PublicKey.from_file('test_dsa.pub')
-# ecdsa_pubkey = PublicKey.from_file('test_ecdsa.pub')
-# ed25519_pubkey = PublicKey.from_file('test_ed25519.pub')
+# test = _FIELDS.ECDSAPubkeyField.encode(ecdsa_pub)
+# test2 = _FIELDS.ECDSAPubkeyField.decode(test)
 
-# rsa_privkey = PrivateKey.from_file('test_rsa')
-# dsa_privkey = PrivateKey.from_file('test_dsa')
-# ecdsa_privkey = PrivateKey.from_file('test_ecdsa')
-# ed25519_privkey = PrivateKey.from_file('test_ed25519')
 
-# print("Done")
 
-# from dataclasses import dataclass
-# @dataclass
-# class Dict:
-#     something: int = 1
-#     somethingelse: str = "1"
 
-# class TestAttr:
-#     test: Dict = Dict
+# from base64 import b64decode
+# file_content = b64decode(open('ecdsa.pub').read().split(' ')[1])
+# _, data = _FIELDS.StringField.decode(file_content)
+
+# cert_bytes = b64decode(ecdsa_pub.to_bytes().split(b' ')[1])
+# _, cert_bytes = _FIELDS.StringField.decode(cert_bytes)
         
-#     def __setattr__(self, attr, value):
-#         self.test.__dict__[attr] = value
-        
-#     def __getattr__(self, attr):
-#         return self.test.__dict__[attr]
+# assert data == cert_bytes
 
-# cl = TestAttr()
-# print(cl.something)
 
-# cl.something = 2
-# print(cl.something)
+print("Hold")    
+
+
+# test = RSACertificateClass(
+#     rsa_pub, 
+#     rsa_priv, 
+#     pubkey_type = "ssh-rsa-cert-v01@openssh.com",
+#     nonce="abcdefg"
+# )
+
+

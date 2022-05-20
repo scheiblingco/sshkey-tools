@@ -1,7 +1,23 @@
-class FileAccessException(Exception):
-    """Exception for when file access fails"""
+from multiprocessing.sharedctypes import Value
+
+
+class InvalidKeyException(ValueError):
     pass
 
-class PasswordNeededException(Exception):
-    """Exception for when a password is needed to unlock the private key"""
+class InvalidCurveException(ValueError):
+    pass
+
+class InvalidHashException(ValueError):
+    pass
+
+class InvalidDataException(ValueError):
+    pass
+
+class InvalidCertificateFieldException(KeyError):
+    pass
+
+class ShortNonceException(ValueError):
+    pass
+
+class IntegerOverflowException(ValueError):
     pass

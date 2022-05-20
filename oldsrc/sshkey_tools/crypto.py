@@ -45,7 +45,11 @@ class RSAPublicKey(PublicKeyClass):
     key_type: bytes
     e: int
     n: int
-        
+
+    @classmethod
+    def new(cls, bytes: int):
+
+
     @classmethod
     def from_bytes(cls, key_data: bytes):
         split = key_data.split(b' ')
@@ -164,6 +168,10 @@ class ED25519PublicKey(PublicKeyClass):
         key_type, data = utils.decode_string(raw_bytes)
         key_data, _ = utils.decode_string(data)
         
+        return cls(comment, raw_bytes, key_type)
+
+    @classmethod
+    def from_parts(cls, raw_bytes: bytes, key_type: str, comment: utils.StrOrBytes) -> 'ED25519PublicKey':
         return cls(comment, raw_bytes, key_type)
 
 class PublicKey(PublicKeyClass):
