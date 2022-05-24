@@ -21,3 +21,9 @@ class ShortNonceException(ValueError):
 
 class IntegerOverflowException(ValueError):
     pass
+
+class SignatureNotPossibleException(ValueError):
+    pass
+
+class NotSignedException(ValueError):
+    pass

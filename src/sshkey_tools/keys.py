@@ -1,4 +1,5 @@
 from typing import Union
+from enum import Enum
 from cryptography.hazmat.primitives import (
     serialization as _SERIALIZATION,
     hashes as _HASHES
@@ -16,7 +17,6 @@ from .exceptions import (
     InvalidKeyException,
     InvalidHashException
 )
-
 
 PUBKEY_MAP = {
     _RSA.RSAPublicKey: "RSAPublicKey",
@@ -54,18 +54,31 @@ PRIVKEY_CLASSES = Union[
 ]
 
 CURVE_OR_STRING = Union[str, _ECDSA.EllipticCurve]
-ECDSA_CURVES = {
-    'secp256r1': _ECDSA.SECP256R1,
-    'secp384r1': _ECDSA.SECP384R1,
-    'secp521r1': _ECDSA.SECP521R1,
+
+ECDSA_HASHES = {
+    'secp256r1': _HASHES.SHA256,
+    'secp384r1': _HASHES.SHA384,
+    'secp521r1': _HASHES.SHA512,
 }
 
-RSA_SIGNATURE_HASHES = {
-    'sha1': _HASHES.SHA1,
-    'sha256': _HASHES.SHA256,
-    'sha512': _HASHES.SHA512
-}
+class RSA_ALGS(Enum):
+    SHA1 = (
+        'ssh-rsa',
+        _HASHES.SHA1
+    )
+    SHA256 = (
+        'rsa-sha2-256',
+        _HASHES.SHA256
+    )
+    SHA512 = (
+        'rsa-sha2-512',
+        _HASHES.SHA512
+    )
 
+class ECDSA_CURVES(Enum):
+    P256 = _ECDSA.SECP256R1
+    P384 = _ECDSA.SECP384R1
+    P521 = _ECDSA.SECP521R1
 
 class PublicKey:
     def __init__(self, *args, **kwargs):
@@ -73,6 +86,7 @@ class PublicKey:
         self.public_numbers = kwargs.get('public_numbers', None)
         self.comment = kwargs.get('comment', None)
         self.key_type = kwargs.get('key_type', None)
+        self.serialized = kwargs.get('serialized', None)
         self.export_opts = {
             "pub_encoding": _SERIALIZATION.Encoding.OpenSSH,
             "pub_format": _SERIALIZATION.PublicFormat.OpenSSH,
@@ -109,7 +123,6 @@ class PublicKey:
             if len(split) > 2:
                 comment = split[2]
 
-
         public_key = _SERIALIZATION.load_ssh_public_key(data)
 
         return cls.from_class(public_key, comment, key_type)
@@ -121,6 +134,12 @@ class PublicKey:
             data = f.read()
 
         return cls.from_string(data)
+
+    def serialize(self) -> bytes:
+        return self.key.public_bytes(
+            encoding=_SERIALIZATION.Encoding.OpenSSH,
+            format=_SERIALIZATION.PublicFormat.OpenSSH
+        )
 
     def to_bytes(self) -> bytes:
         return self.key.public_bytes(
@@ -206,13 +225,15 @@ class RSAPublicKey(PublicKey):
         self,
         key: _RSA.RSAPublicKey,
         comment: STR_OR_BYTES = None,
-        key_type: STR_OR_BYTES = None
+        key_type: STR_OR_BYTES = None,
+        serialized: bytes = None
     ):
         super().__init__(
             key=key,
             comment=comment,
             key_type=key_type,
             public_numbers=key.public_numbers(),
+            serialized=serialized
         )
 
     @classmethod
@@ -275,14 +296,11 @@ class RSAPrivateKey(PrivateKey):
             )
         )
 
-    def sign(self, data: bytes, hash_alg: str = 'sha256'):
-        if hash_alg not in RSA_SIGNATURE_HASHES.keys():
-            raise InvalidHashException("Invalid hash algorithn, needs to be one of {', '.join(RSA_SIGNATURE_HASHES.keys())}")
-
+    def sign(self, data: bytes, hash_alg: RSA_ALGS = RSA_ALGS.SHA512):
         return self.key.sign(
             data,
             _PADDING.PKCS1v15(),
-            RSA_SIGNATURE_HASHES[hash_alg]()
+            hash_alg.value[1]()
         )
 
 class DSAPublicKey(PublicKey):
@@ -290,13 +308,15 @@ class DSAPublicKey(PublicKey):
         self,
         key: _DSA.DSAPublicKey,
         comment: STR_OR_BYTES = None,
-        key_type: STR_OR_BYTES = None
+        key_type: STR_OR_BYTES = None,
+        serialized: bytes = None
     ):
         super().__init__(
             key=key,
             comment=comment,
             key_type=key_type,
             public_numbers=key.public_numbers(),
+            serialized=serialized
         )
         self.parameters = key.parameters().parameter_numbers()
 
@@ -371,13 +391,15 @@ class ECDSAPublicKey(PublicKey):
         self,
         key: _ECDSA.EllipticCurvePublicKey,
         comment: STR_OR_BYTES = None,
-        key_type: STR_OR_BYTES = None
+        key_type: STR_OR_BYTES = None,
+        serialized: bytes = None
     ):
         super().__init__(
             key=key,
             comment=comment,
             key_type=key_type,
             public_numbers=key.public_numbers(),
+            serialized=serialized
         )
 
     @classmethod
@@ -387,13 +409,13 @@ class ECDSAPublicKey(PublicKey):
         x: int,
         y: int
     ):
-        if not isinstance(curve, _ECDSA.EllipticCurve) and curve not in ECDSA_CURVES.keys():
-            raise InvalidCurveException(f"Invalid curve, must be one of {', '.join(ECDSA_CURVES.keys())}")
+        if not isinstance(curve, _ECDSA.EllipticCurve) and curve not in ECDSA_HASHES.keys():
+            raise InvalidCurveException(f"Invalid curve, must be one of {', '.join(ECDSA_HASHES.keys())}")
 
 
         return cls(
             key=_ECDSA.EllipticCurvePublicNumbers(
-                curve=ECDSA_CURVES[curve]() if isinstance(curve, str) else curve,
+                curve=ECDSA_HASHES[curve]() if isinstance(curve, str) else curve,
                 x=x,
                 y=y
             ).public_key()
@@ -411,13 +433,13 @@ class ECDSAPrivateKey(PrivateKey):
 
     @classmethod
     def from_numbers(cls, curve: CURVE_OR_STRING, x: int, y: int, private_value: int):
-        if not isinstance(curve, _ECDSA.EllipticCurve) and curve not in ECDSA_CURVES.keys():
-            raise InvalidCurveException(f"Invalid curve, must be one of {', '.join(ECDSA_CURVES.keys())}")
+        if not isinstance(curve, _ECDSA.EllipticCurve) and curve not in ECDSA_HASHES.keys():
+            raise InvalidCurveException(f"Invalid curve, must be one of {', '.join(ECDSA_HASHES.keys())}")
 
         return cls(
             key=_ECDSA.EllipticCurvePrivateNumbers(
                 public_numbers=_ECDSA.EllipticCurvePublicNumbers(
-                    curve=ECDSA_CURVES[curve]() if isinstance(curve, str) else curve,
+                    curve=ECDSA_HASHES[curve]() if isinstance(curve, str) else curve,
                     x=x,
                     y=y
                 ),
@@ -426,19 +448,18 @@ class ECDSAPrivateKey(PrivateKey):
         )
 
     @classmethod
-    def generate(cls, curve: _ECDSA.EllipticCurve):
+    def generate(cls, curve: ECDSA_CURVES = ECDSA_CURVES.P521):
         return cls.from_class(
             _ECDSA.generate_private_key(
-                curve=curve
+                curve=curve.value
             )
         )
 
     def sign(self, data: bytes):
-        curve = ECDSA_CURVES[self.key.curve.name]
-
+        curve = ECDSA_HASHES[self.key.curve.name]()
         return self.key.sign(
             data,
-            _ECDSA.ECDSA(curve())
+            _ECDSA.ECDSA(curve)
         )
 
 class ED25519PublicKey(PublicKey):
@@ -446,12 +467,14 @@ class ED25519PublicKey(PublicKey):
         self,
         key: _ED25519.Ed25519PublicKey,
         comment: STR_OR_BYTES = None,
-        key_type: STR_OR_BYTES = None
+        key_type: STR_OR_BYTES = None,
+        serialized: bytes = None
     ):
         super().__init__(
             key=key,
             comment=comment,
-            key_type=key_type
+            key_type=key_type,
+            serialized=serialized
         )
         
     @classmethod

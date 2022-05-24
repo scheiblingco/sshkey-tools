@@ -1,17 +1,30 @@
 from typing import Union, Tuple
+from enum import Enum
 from struct import pack, unpack
 from base64 import b64decode, b64encode
 from datetime import datetime
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.asymmetric.utils import (
+    decode_dss_signature, 
+    encode_dss_signature
+)
 
 from .keys import (
     PrivateKey, 
     PublicKey,
     RSAPublicKey,
+    RSAPrivateKey,
     DSAPublicKey,
+    DSAPrivateKey,
     ECDSAPublicKey,
-    ED25519PublicKey
+    ECDSAPrivateKey,
+    ED25519PublicKey,
+    ED25519PrivateKey,
+    ECDSA_CURVES,
+    RSA_ALGS
 )
 from .exceptions import (
+    InvalidCertificateFieldException,
     InvalidDataException,
     ShortNonceException,
     IntegerOverflowException
@@ -31,11 +44,34 @@ ECDSA_CURVE_MAP = {
     'secp521r1': 'nistp521'
 }
 
+SUBJECT_PUBKEY_MAP = {
+    RSAPublicKey: 'RSAPubkeyField',
+    DSAPublicKey: 'DSAPubkeyField',
+    ECDSAPublicKey: 'ECDSAPubkeyField',
+    ED25519PublicKey: 'ED25519PubkeyField'
+}
+
+CA_PRIVKEY_MAP = {
+    RSAPrivateKey: 'RSASignatureField',
+    DSAPrivateKey: 'DSASignatureField',
+    ECDSAPrivateKey: 'ECDSASignatureField',
+    ED25519PrivateKey: 'ED25519SignatureField'
+}
+
+
+class CERT_TYPE(Enum):
+    USER = 1
+    HOST = 2
+
+
 class CertificateField:
+    is_set = None
+    
     def __init__(self, value, name = None):
         self.name = name
         self.value = value
         self.exception = None
+        self.is_set = True        
 
     def __str__(self):
         return f"{self.name}: {self.value}"
@@ -48,7 +84,7 @@ class CertificateField:
     def decode(value):
         pass
     
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return self.encode(self.value)
 
 class BooleanField(CertificateField):
@@ -164,11 +200,11 @@ class Integer64Field(CertificateField):
 class TimeField(Integer64Field):
     @staticmethod
     def encode(value: datetime) -> bytes:
-        super().encode(int(value.timestamp()))
+        return Integer64Field.encode(int(value.timestamp()))
         
     @staticmethod
     def decode(value: datetime) -> bytes:
-        timestamp, data = super().decode(data)
+        timestamp, data = Integer64Field.decode(data)
 
         return datetime.fromtimestamp(
             timestamp
@@ -293,7 +329,7 @@ class PubkeyTypeField(StringField):
     def __init__(self, value: str):
         super().__init__(
             value=value,
-            name='pubkey_type'
+            name='pubkey_type',
         )
         
     def validate(self) -> bool:
@@ -310,27 +346,18 @@ class PubkeyTypeField(StringField):
             self.exception = InvalidDataException(f"Invalid pubkey type: {self.value}")
             return False
         
-        return True
+        return True and self.is_set
         
 class NonceField(StringField):
-    def __init__(self, value: str = None):
-        if value is None:
-            value = generate_secure_nonce()
-        
+    def __init__(self):
         super().__init__(
-            value=value,
+            value=generate_secure_nonce(),
             name='nonce'
         )
         
         
     def validate(self) -> bool:
-        if len(self.value) < 32:
-            self.exception = ShortNonceException(
-                "The nonce is too short to be secure, use at least 32 bits"
-            )
-            return False
-        
-        return True
+        return self.is_set
     
 class PublicKeyField(CertificateField):
     def __init__(self, value: PublicKey):
@@ -338,7 +365,17 @@ class PublicKeyField(CertificateField):
             value=value,
             name='public_key'
         )
-    
+
+    @staticmethod
+    def from_object(public_key: PublicKey):
+        for item in SUBJECT_PUBKEY_MAP.keys():
+            if isinstance(public_key, item):
+                return globals()[SUBJECT_PUBKEY_MAP[item]](
+                    value=public_key
+                )
+
+        raise TypeError(f"Invalid public key type: {type(public_key)}")
+
 class RSAPubkeyField(PublicKeyField):
     @staticmethod
     def encode(value: RSAPublicKey) -> bytes:
@@ -355,6 +392,12 @@ class RSAPubkeyField(PublicKeyField):
         return RSAPublicKey.from_numbers(
             e=e,
             n=n
+        )
+        
+    def validate(self) -> bool:
+        return self.is_set and isinstance(
+            self.value,
+            RSAPublicKey
         )
 
 class DSAPubkeyField(PublicKeyField):
@@ -377,14 +420,19 @@ class DSAPubkeyField(PublicKeyField):
         return DSAPublicKey.from_numbers(
             p=p, q=q, g=g, y=y
         ), data
+        
+    def validate(self) -> bool:
+        return self.is_set and isinstance(
+            self.value,
+            DSAPublicKey
+        )
  
 class ECDSAPubkeyField(PublicKeyField):   
     @staticmethod
     def encode(value: ECDSAPublicKey) -> bytes:
-        cert_bytes = b64decode(value.to_bytes().split(b' ')[1])
-        from cryptography.hazmat.primitives import serialization
-
-        return StringField.decode(cert_bytes)[1]
+        
+        _, pubkey = StringField.decode(b64decode(value.serialize().split(b' ')[1]))
+        return pubkey
     
     @staticmethod
     def decode(data: bytes) -> Tuple[ECDSAPublicKey, bytes]:
@@ -398,11 +446,16 @@ class ECDSAPubkeyField(PublicKeyField):
             )
         )
     
+    def validate(self) -> bool:
+        return self.is_set and isinstance(
+            self.value,
+            ECDSAPublicKey
+        )
+    
 class ED25519PubkeyField(PublicKeyField):
     @staticmethod
     def encode(value: ED25519PublicKey) -> bytes:
         return (
-            StringField.encode('ssh-ed25519') +
             StringField.encode(value.raw_bytes())
         )
         
@@ -414,6 +467,12 @@ class ED25519PubkeyField(PublicKeyField):
         return ED25519PublicKey.from_raw_bytes(
             pubkey
         ), data
+        
+    def validate(self) -> bool:
+        return self.is_set and isinstance(
+            self.value,
+            ED25519PublicKey
+        )
 
 
 class SerialField(Integer64Field):
@@ -424,29 +483,29 @@ class SerialField(Integer64Field):
         )
         
     def validate(self) -> bool:
-        if self.value > (2^63 - 1):
+        if len(str(self.value)) > (2^63 - 1):
             self.exception = IntegerOverflowException(
                 "The serial number is too large to be represented in 64 bits"
             )
             return False
         
-        return True
+        return self.is_set and True
 
 class CertificateTypeField(Integer32Field):
-    def __init__(self, value: int):
+    def __init__(self, value: CERT_TYPE):
         super().__init__(
-            value=value,
-            name='cert_type'
+            value=value.value,
+            name='type'
         )
         
     def validate(self) -> bool:
-        if self.value > 2:
+        if 0 > self.value > 3:
             self.exception = InvalidDataException(
                 "The certificate type is invalid (1: User, 2: Host)"
             )
             return False
         
-        return True
+        return self.is_set and True
     
 class KeyIDField(StringField):
     def __init__(self, value: str):
@@ -467,7 +526,7 @@ class KeyIDField(StringField):
 class PrincipalsField(StandardListField):
     def __init__(self, value: LIST_OR_TUPLE):
         super().__init__(
-            value=value,
+            value=list(value),
             name='principals'
         )
         
@@ -526,13 +585,13 @@ class CriticalOptionsField(SeparatedListField):
             'source-address',
             'verify-required'
         )
-        
+
         for item in self.value:
             present = 0
             for opt in valid_opts:
                 if opt in item:
                     present = 1
-            if present = 0:
+            if present == 0:
                 self.exception = InvalidDataException(
                     f"The critical option '{item}' is invalid"
                 )
@@ -574,153 +633,205 @@ class ReservedField(StringField):
         )
         
     def validate(self) -> bool:
-        return True
+        if self.value == '':
+            return True
+        
+        self.exception = InvalidDataException(
+            f"The reserved field needs to be empty"
+        )
+        return False
     
-class SignatureField(CertificateField):
+class CAPublicKeyField(CertificateField):
     def __init__(self, value: bytes):
         super().__init__(
-            value=value,
-            name='signature'
+            value=b64decode(value),
+            name='ca_public_key'
+        )
+        
+    def validate(self) -> bool:
+        if self.value in [None, False, '', ' ']:
+            self.exception = InvalidDataException(
+                "You need to provide a CA public key"
+            )
+            return False
+        
+        return True
+
+    @classmethod
+    def from_object(cls, public_key: PublicKey) -> 'CAPublicKeyField':
+        return cls(
+            value=public_key.serialize().split(b' ')[1]
+        )
+
+    def __bytes__(self):
+        return StringField.encode(self.value)
+
+class SignatureField(CertificateField):
+    def __init__(self, private_key: PrivateKey):
+        self.private_key = private_key
+        self.is_signed = False
+        self.value = None
+        
+    @staticmethod
+    def from_object(private_key: PrivateKey):
+        for item in CA_PRIVKEY_MAP.keys():
+            if isinstance(private_key, item):
+                return globals()[CA_PRIVKEY_MAP[item]](
+                    private_key=private_key
+                )
+
+        raise TypeError(f"Invalid public key type: {type(private_key)}")
+
+    def sign(self, data: bytes) -> None:
+        pass
+    
+    def __bytes__(self) -> None:
+        return self.encode(
+            self.value
         )
     
 class RSASignatureField(SignatureField):
+    def __init__(self, private_key: RSAPrivateKey):
+        super().__init__(private_key)
+        self.hash_alg = RSA_ALGS.SHA256
+
     @staticmethod
-    def encode(self, signature: RSASignature):
+    def encode(signature: bytes, hash_alg: RSA_ALGS = RSA_ALGS.SHA256) -> bytes:
+        return StringField.encode(
+            StringField.encode(hash_alg.value[0]) + 
+            StringField.encode(signature)
+        )
+
+    @staticmethod
+    def decode(data: bytes) -> bytes:
+        signature, data = StringField.decode(data)
+
+        sig_type, signature = StringField.decode(signature)
+        signature, _ = StringField.decode(signature)
+
+        return (sig_type, signature), data
+
+    def sign(
+        self, 
+        data: bytes, 
+        hash_alg: RSA_ALGS = RSA_ALGS.SHA256
+    ) -> None:       
+        self.value = self.private_key.sign(
+            data,
+            hash_alg
+        )
         
-    
-    pass
-#     def encode_rsa_signature(signature: bytes, cert_type: StrOrBytes = 'ssh-rsa') -> bytes:
-#     """Encodes an RSA signature to the OpenSSH Certificate format
+        self.hash_alg = hash_alg
+        self.is_signed = True
 
-#     Args:
-#         signature (bytes): The signature data
-#         cert_type (str, bytes): The type, default ssh-rsa
+    def __bytes__(self):
+        return self.encode(
+            self.value,
+            self.hash_alg
+        )
 
-#     Returns:
-#         _type_: Byte string with the encoded certificate
-#     """
-#     return encode_string( encode_string(cert_type) + encode_string(signature) )
-
-# def decode_rsa_signature(data: bytes) -> tuple:
-#     """Decodes an RSA signature from the OpenSSH Certificate format
-
-#     Args:
-#         data (bytes): The block of bytes containing the signature
-
-#     Returns:
-#         tuple: Tuple containing the signature and remainder of the data
-#     """
-#     layer_one, data = decode_string(data)
-    
-#     cert_type, layer_one = decode_string(data)
-#     signature = decode_string(layer_one)[0]
-    
-#     return signature, cert_type, data
 
 class DSASignatureField(SignatureField):
-    pass
-#     def encode_dss_signature(r_value: bytes, s_value: bytes, cert_type: StrOrBytes = 'ssh-dss') ->bytes:
-#     """Encodes a DSS signature fto the OpenSSH Certificate format
+    def __init__(self, private_key: DSAPrivateKey) -> None:
+        super().__init__(private_key)
 
-#     Args:
-#         signature_r (bytes): The decoded signature R-value
-#         signature_s (bytes): The decoded signature S-value
-#         type (str): The certificate type, default: ssh-dss
+    @staticmethod
+    def encode(signature: bytes):
+        r, s = decode_dss_signature(signature)
 
-#     Returns:
-#         bytes: Byte string with the encoded certificate
-#     """
-#     return encode_string(
-#             encode_string(cert_type) +
-#             encode_string(
-#                 long_to_bytes(r_value, 20) +
-#                 long_to_bytes(s_value, 20)
-#             )
-#     )
+        return StringField.encode(
+            StringField.encode('ssh-dss') +
+            StringField.encode(
+                long_to_bytes(r, 20) +
+                long_to_bytes(s, 20)
+            )
+        )
+
+    @staticmethod
+    def decode(data: bytes) -> bytes:
+        signature, data = StringField.decode(data)
+
+        sig_type, signature = StringField.decode(signature)
+        signature, _ = StringField.decode(signature)
+        r = bytes_to_long(signature[:20])
+        s = bytes_to_long(signature[20:])
+
+        signature = encode_dss_signature(r, s)
+
+        return (sig_type, signature), data
+
+    def sign(self, data: bytes) -> None:
+        self.value = self.private_key.sign(
+            data
+        )
+        self.is_signed = True
     
-# def decode_dss_signature(data: bytes) -> tuple:
-#     """Decodes a DSS/DSA signature from the OpenSSH Certificate format
-
-#     Args:
-#         data (bytes): The byte block containing the signature
-
-#     Returns:
-#         tuple: Tuple containing the signature and remainder of the data
-#     """
-#     layer_one, data = decode_string(data)
-    
-#     cert_type, layer_one = decode_string(layer_one)
-#     signature = decode_string(layer_one)[0]
-#     r = bytes_to_long(signature[:20])
-#     s = bytes_to_long(signature[20:])
-    
-#     return r, s, cert_type, data
-
 class ECDSASignatureField(SignatureField):
-    pass
-#     def encode_ecdsa_signature(signature_r: bytes, signature_s: bytes, curve: StrOrBytes) -> bytes:
-#     """Encodes an ECDSA signature to the OpenSSH Certificate format
+    def __init__(self, private_key: ECDSAPrivateKey) -> None:
+        super().__init__(private_key)
 
-#     Args:
-#         signature_r (bytes): The decoded signature R-value
-#         signature_s (bytes): The decoded signature S-value
-#         curve (StrOrBytes): The EC-curve and hash used (e.g. ecdsa-sha2-nistp256)
+    @staticmethod
+    def encode(signature: bytes, private_key: ECDSAPrivateKey):
+        r, s = decode_dss_signature(signature)
+        curve_size = private_key.public_key.key.curve.key_size
+        return StringField.encode(
+            StringField.encode(
+                f'ecdsa-sha2-nistp{curve_size}'
+            ) +
+            StringField.encode(
+                MpIntegerField.encode(r) +
+                MpIntegerField.encode(s)
+            )
+        )
 
-#     Returns:
-#         bytes: Bytestring with the encoded certificate
-#     """
-#     return encode_string(
-#         encode_string(curve) +
-#         encode_string(
-#             encode_mpint(signature_r) +
-#             encode_mpint(signature_s)
-#         )
-#     )
-    
-# def decode_ecdsa_signature(data: bytes) -> tuple:
-#     """Decodes an ECDSA signature from the OpenSSH Certificate format
+    @staticmethod
+    def decode(data: bytes) -> bytes:
+        signature, data = StringField.decode(data)
 
-#     Args:
-#         data (bytes): Block of bytes containing signature
+        sig_type, signature = StringField.decode(signature)
+        signature, _ = StringField.decode(signature)
 
-#     Returns:
-#         tuple: Tuple with signature and remainder of data
-#     """
-#     layer_one, data = decode_string(data)
-    
-#     curve, layer_one = decode_string(layer_one)
-#     signature = decode_string(layer_one)[0]
-#     r, signature = decode_mpint(signature)
-#     s = decode_mpint(signature)[0]
-    
-#     return r, s, curve, data
+        r, signature = MpIntegerField.decode(signature)
+        s, _ = MpIntegerField.decode(signature)
+
+        signature = encode_dss_signature(r, s)
+
+        return (sig_type, signature), data
+
+    def sign(self, data: bytes) -> None:
+        self.value = self.private_key.sign(
+            data
+        )
+        self.is_signed = True
+
+    def __bytes__(self):
+        return self.encode(
+            self.value,
+            self.private_key
+        )
 
 class ED25519SignatureField(SignatureField):
-    pass
-    # def encode_ed25519_signature(signature: bytes, cert_type: StrOrBytes = 'ssh-ed25519') -> bytes:
-    #     """Encodes an ED25519 signature to the OpenSSH Certificate format
+    def __init__(self, private_key: ED25519PrivateKey) -> None:
+        super().__init__(private_key)
 
-    #     Args:
-    #         signature (bytes): The signature data
-    #         cert_type (str, bytes): The type, default ssh-ed25519
+    @staticmethod
+    def encode(signature: bytes) -> None:
+        return StringField.encode(
+            StringField.encode('ssh-ed25519') +
+            StringField.encode(signature)
+        )
 
-    #     Returns:
-    #         _type_: Byte string with the encoded certificate
-    #     """
-    #     return encode_string( encode_string(cert_type) + encode_string(signature) )
+    @staticmethod
+    def decode(data: bytes) -> bytes:
+        signature, data = StringField.decode(data)
 
-    # def decode_ed25519_signature(data: bytes) -> tuple:
-    #     """Decodes an ED25519 signature from the OpenSSH Certificate format
+        sig_type, signature = StringField.decode(signature)
+        signature, _ = StringField.decode(signature)
 
-    #     Args:
-    #         data (bytes): The block of bytes containing the signature
+        return (sig_type, signature), data
 
-    #     Returns:
-    #         tuple: Tuple containing the signature and remainder of the data
-    #     """
-    #     layer_one, data = decode_string(data)
-        
-    #     cert_type, layer_one = decode_string(layer_one)
-    #     signature = decode_string(layer_one)[0]
-        
-    #     return signature, cert_type, data
+    def sign(self, data: bytes) -> None:
+        self.value = self.private_key.sign(
+            data
+        )
+        self.is_signed = True
