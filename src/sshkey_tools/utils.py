@@ -1,5 +1,5 @@
 from secrets import randbits
-from base64 import b64encode, b64decode
+from base64 import b64encode
 import hashlib as hl
 
 def long_to_bytes(source_int: int, force_length: int = None, byteorder: str = 'big') -> bytes:

@@ -24,13 +24,7 @@ from .utils import (
     sha512_fingerprint as _FP_SHA512
 )
 
-
-from .exceptions import (
-    InvalidCurveException,
-    InvalidKeyException,
-    InvalidHashException,
-    InvalidKeyFormatException
-)
+from . import exceptions as _EX
 
 PUBKEY_MAP = {
     _RSAPublicKey: "RSAPublicKey",
@@ -122,7 +116,7 @@ class PublicKey:
             )
             
         except KeyError:
-            raise InvalidKeyException(
+            raise _EX.InvalidKeyException(
                 "Invalid public key"
             )
 
@@ -203,7 +197,7 @@ class PrivateKey:
         try:
             return globals()[PRIVKEY_MAP[key_class.__class__]](key_class)
         except KeyError:
-            raise InvalidKeyException("Invalid private key")
+            raise _EX.InvalidKeyException("Invalid private key")
 
     @classmethod
     def from_string(cls, data: STR_OR_BYTES, password: str = None) -> 'PrivateKey':
@@ -437,7 +431,7 @@ class ECDSAPublicKey(PublicKey):
         y: int
     ):
         if not isinstance(curve, _ECDSA.EllipticCurve) and curve not in ECDSA_HASHES.keys():
-            raise InvalidCurveException(f"Invalid curve, must be one of {', '.join(ECDSA_HASHES.keys())}")
+            raise _EX.InvalidCurveException(f"Invalid curve, must be one of {', '.join(ECDSA_HASHES.keys())}")
 
 
         return cls(
@@ -461,7 +455,7 @@ class ECDSAPrivateKey(PrivateKey):
     @classmethod
     def from_numbers(cls, curve: CURVE_OR_STRING, x: int, y: int, private_value: int):
         if not isinstance(curve, _ECDSA.EllipticCurve) and curve not in ECDSA_HASHES.keys():
-            raise InvalidCurveException(f"Invalid curve, must be one of {', '.join(ECDSA_HASHES.keys())}")
+            raise _EX.InvalidCurveException(f"Invalid curve, must be one of {', '.join(ECDSA_HASHES.keys())}")
 
         return cls(
             key=_ECDSA.EllipticCurvePrivateNumbers(
