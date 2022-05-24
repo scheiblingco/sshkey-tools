@@ -26,6 +26,7 @@ from .keys import (
 from .exceptions import (
     InvalidCertificateFieldException,
     InvalidDataException,
+    InvalidKeyException,
     ShortNonceException,
     IntegerOverflowException
 )
@@ -51,11 +52,18 @@ SUBJECT_PUBKEY_MAP = {
     ED25519PublicKey: 'ED25519PubkeyField'
 }
 
-CA_PRIVKEY_MAP = {
+CA_SIGNATURE_MAP = {
     RSAPrivateKey: 'RSASignatureField',
     DSAPrivateKey: 'DSASignatureField',
     ECDSAPrivateKey: 'ECDSASignatureField',
     ED25519PrivateKey: 'ED25519SignatureField'
+}
+
+SIGNATURE_TYPE_MAP = {
+    b'rsa': 'RSASignatureField',
+    b'dss': 'DSASignatureField',
+    b'ecdsa': 'ECDSASignatureField',
+    b'ed25519': 'ED25519SignatureField'
 }
 
 
@@ -77,15 +85,20 @@ class CertificateField:
         return f"{self.name}: {self.value}"
     
     @staticmethod
-    def encode(value):
+    def encode(value) -> bytes:
         pass
     
     @staticmethod
-    def decode(value):
+    def decode(value: bytes):
         pass
     
     def __bytes__(self) -> bytes:
         return self.encode(self.value)
+                
+    @classmethod
+    def from_decode(cls, data: bytes) -> Tuple['CertificateField', bytes]:
+        value, data = cls.decode(data)
+        return cls(value), data
 
 class BooleanField(CertificateField):
     @staticmethod
@@ -203,7 +216,7 @@ class TimeField(Integer64Field):
         return Integer64Field.encode(int(value.timestamp()))
         
     @staticmethod
-    def decode(value: datetime) -> bytes:
+    def decode(data: bytes) -> datetime:
         timestamp, data = Integer64Field.decode(data)
 
         return datetime.fromtimestamp(
@@ -236,8 +249,8 @@ class MpIntegerField(CertificateField):
         Returns:
             tuple: Tuple with integer and remainder of data
         """
-        mpint, remainder = StringField.decode(data)
-        return bytes_to_long(mpint), remainder
+        mpint, data = StringField.decode(data)
+        return bytes_to_long(mpint), data
     
 class StandardListField(CertificateField):
     @staticmethod
@@ -349,16 +362,15 @@ class PubkeyTypeField(StringField):
         return True and self.is_set
         
 class NonceField(StringField):
-    def __init__(self):
+    def __init__(self, value: str = None):
         super().__init__(
-            value=generate_secure_nonce(),
+            value=value if value is not None else generate_secure_nonce(),
             name='nonce'
         )
-        
-        
+
     def validate(self) -> bool:
         return self.is_set
-    
+
 class PublicKeyField(CertificateField):
     def __init__(self, value: PublicKey):
         super().__init__(
@@ -368,13 +380,17 @@ class PublicKeyField(CertificateField):
 
     @staticmethod
     def from_object(public_key: PublicKey):
-        for item in SUBJECT_PUBKEY_MAP.keys():
-            if isinstance(public_key, item):
-                return globals()[SUBJECT_PUBKEY_MAP[item]](
-                    value=public_key
-                )
-
-        raise TypeError(f"Invalid public key type: {type(public_key)}")
+        try:
+            return globals()[SUBJECT_PUBKEY_MAP[public_key.__class__]](
+                value=public_key
+            )
+        except KeyError:
+            raise InvalidKeyException("The public key is invalid")
+        
+    @classmethod
+    def from_decode(cls, data: bytes):
+        key, data = cls.decode(data)
+        return cls(key), data
 
 class RSAPubkeyField(PublicKeyField):
     @staticmethod
@@ -391,8 +407,10 @@ class RSAPubkeyField(PublicKeyField):
         
         return RSAPublicKey.from_numbers(
             e=e,
-            n=n
-        )
+            n=n 
+        ), data
+        
+   
         
     def validate(self) -> bool:
         return self.is_set and isinstance(
@@ -420,7 +438,7 @@ class DSAPubkeyField(PublicKeyField):
         return DSAPublicKey.from_numbers(
             p=p, q=q, g=g, y=y
         ), data
-        
+       
     def validate(self) -> bool:
         return self.is_set and isinstance(
             self.value,
@@ -430,22 +448,26 @@ class DSAPubkeyField(PublicKeyField):
 class ECDSAPubkeyField(PublicKeyField):   
     @staticmethod
     def encode(value: ECDSAPublicKey) -> bytes:
-        
         _, pubkey = StringField.decode(b64decode(value.serialize().split(b' ')[1]))
+
         return pubkey
     
     @staticmethod
     def decode(data: bytes) -> Tuple[ECDSAPublicKey, bytes]:
-        curve, _ = StringField.decode(data)
-                
+        curve, data = StringField.decode(data)
+        key, data = StringField.decode(data)
+
         key_type = b'ecdsa-sha2-' + curve
-        
+
         return ECDSAPublicKey.from_string(
-            key_type + b' ' + b64encode(
-                StringField.encode(key_type) + data
+            key_type + b' ' +
+            b64encode(
+                StringField.encode(key_type) +
+                StringField.encode(curve) +
+                StringField.encode(key)
             )
-        )
-    
+        ), data
+        
     def validate(self) -> bool:
         return self.is_set and isinstance(
             self.value,
@@ -461,13 +483,12 @@ class ED25519PubkeyField(PublicKeyField):
         
     @staticmethod
     def decode(data: bytes) -> Tuple[ED25519PublicKey, bytes]:
-        _, data = StringField.decode(data)
         pubkey, data = StringField.decode(data)
         
         return ED25519PublicKey.from_raw_bytes(
             pubkey
         ), data
-        
+         
     def validate(self) -> bool:
         return self.is_set and isinstance(
             self.value,
@@ -492,9 +513,9 @@ class SerialField(Integer64Field):
         return self.is_set and True
 
 class CertificateTypeField(Integer32Field):
-    def __init__(self, value: CERT_TYPE):
+    def __init__(self, value: Union[CERT_TYPE, int]):
         super().__init__(
-            value=value.value,
+            value=value.value if isinstance(value, CERT_TYPE) else value,
             name='type'
         )
         
@@ -506,6 +527,8 @@ class CertificateTypeField(Integer32Field):
             return False
         
         return self.is_set and True
+    
+    
     
 class KeyIDField(StringField):
     def __init__(self, value: str):
@@ -570,7 +593,6 @@ class ValidityEndField(TimeField):
             return False
         
         return True
-        
 
 class CriticalOptionsField(SeparatedListField):
     def __init__(self, value: LIST_OR_TUPLE):
@@ -626,9 +648,9 @@ class ExtensionsField(SeparatedListField):
         return True
 
 class ReservedField(StringField):
-    def __init__(self):
+    def __init__(self, value: str = ''):
         super().__init__(
-            value='',
+            value=value,
             name='reserved'
         )
         
@@ -639,12 +661,15 @@ class ReservedField(StringField):
         self.exception = InvalidDataException(
             f"The reserved field needs to be empty"
         )
-        return False
+        return False    
     
-class CAPublicKeyField(CertificateField):
-    def __init__(self, value: bytes):
+class CAPublicKeyField(StringField):
+    def __init__(self, value: STR_OR_BYTES, decoded: bool = False):
+        if not decoded:
+            value = b64decode(value)
+
         super().__init__(
-            value=b64decode(value),
+            value=value,
             name='ca_public_key'
         )
         
@@ -662,25 +687,49 @@ class CAPublicKeyField(CertificateField):
         return cls(
             value=public_key.serialize().split(b' ')[1]
         )
+        
+    @classmethod
+    def from_decode(cls, data: bytes):
+        key, data = cls.decode(data)
+        return cls(key, True), data
 
-    def __bytes__(self):
-        return StringField.encode(self.value)
 
 class SignatureField(CertificateField):
-    def __init__(self, private_key: PrivateKey):
+    def __init__(
+        self, 
+        private_key: PrivateKey = None,
+        signature: bytes = None
+    ):
         self.private_key = private_key
         self.is_signed = False
-        self.value = None
+        self.value = signature
         
     @staticmethod
     def from_object(private_key: PrivateKey):
-        for item in CA_PRIVKEY_MAP.keys():
-            if isinstance(private_key, item):
-                return globals()[CA_PRIVKEY_MAP[item]](
-                    private_key=private_key
-                )
+        try:
+            return globals()[CA_SIGNATURE_MAP[private_key.__class__]](
+                private_key=private_key
+            )
+        except KeyError:
+            raise InvalidKeyException('The private key provided is invalid')
 
-        raise TypeError(f"Invalid public key type: {type(private_key)}")
+    @staticmethod
+    def from_decode(cert_bytes: bytes) -> 'SignatureField':
+        signature = StringField.decode(cert_bytes)[0]
+        signature_type = StringField.decode(signature)[0]
+        
+        for sig in SIGNATURE_TYPE_MAP.keys():
+            if sig in signature_type:
+                return globals()[
+                    SIGNATURE_TYPE_MAP[sig]
+                ].from_decode(cert_bytes)
+        
+        raise InvalidDataException(
+            "No matching signature type found"
+        )
+
+    def can_sign(self):
+        return False if self.private_key is None else True
 
     def sign(self, data: bytes) -> None:
         pass
@@ -691,9 +740,14 @@ class SignatureField(CertificateField):
         )
     
 class RSASignatureField(SignatureField):
-    def __init__(self, private_key: RSAPrivateKey):
-        super().__init__(private_key)
-        self.hash_alg = RSA_ALGS.SHA256
+    def __init__(
+        self, 
+        private_key: RSAPrivateKey = None, 
+        hash_alg: RSA_ALGS = RSA_ALGS.SHA512,
+        signature: bytes = None
+    ):
+        super().__init__(private_key, signature)
+        self.hash_alg = hash_alg
 
     @staticmethod
     def encode(signature: bytes, hash_alg: RSA_ALGS = RSA_ALGS.SHA256) -> bytes:
@@ -703,13 +757,29 @@ class RSASignatureField(SignatureField):
         )
 
     @staticmethod
-    def decode(data: bytes) -> bytes:
+    def decode(data: bytes) -> Tuple[
+        Tuple[
+            bytes, 
+            bytes
+        ], 
+        bytes
+    ]:
         signature, data = StringField.decode(data)
 
         sig_type, signature = StringField.decode(signature)
         signature, _ = StringField.decode(signature)
 
         return (sig_type, signature), data
+    
+    @classmethod
+    def from_decode(cls, data: bytes) -> Tuple['RSASignatureField', bytes]:
+        signature, data = cls.decode(data)
+   
+        return cls(
+            private_key=None,
+            hash_alg=[alg for alg in RSA_ALGS if alg.value[0] == signature[0].decode('utf-8')][0],
+            signature=signature[1]
+        ), data
 
     def sign(
         self, 
@@ -732,8 +802,12 @@ class RSASignatureField(SignatureField):
 
 
 class DSASignatureField(SignatureField):
-    def __init__(self, private_key: DSAPrivateKey) -> None:
-        super().__init__(private_key)
+    def __init__(
+        self, 
+        private_key: DSAPrivateKey = None,
+        signature: bytes = None
+    ) -> None:
+        super().__init__(private_key, signature)
 
     @staticmethod
     def encode(signature: bytes):
@@ -751,14 +825,24 @@ class DSASignatureField(SignatureField):
     def decode(data: bytes) -> bytes:
         signature, data = StringField.decode(data)
 
-        sig_type, signature = StringField.decode(signature)
-        signature, _ = StringField.decode(signature)
+        signature = StringField.decode(
+            StringField.decode(signature)[1]
+        )[0]
         r = bytes_to_long(signature[:20])
         s = bytes_to_long(signature[20:])
 
         signature = encode_dss_signature(r, s)
 
-        return (sig_type, signature), data
+        return signature, data
+    
+    @classmethod
+    def from_decode(cls, data: bytes) -> Tuple['DSASignatureField', bytes]:
+        signature, data = cls.decode(data)
+        
+        return cls(
+            private_key=None,
+            signature=signature
+        ), data
 
     def sign(self, data: bytes) -> None:
         self.value = self.private_key.sign(
@@ -767,9 +851,20 @@ class DSASignatureField(SignatureField):
         self.is_signed = True
     
 class ECDSASignatureField(SignatureField):
-    def __init__(self, private_key: ECDSAPrivateKey) -> None:
-        super().__init__(private_key)
-
+    def __init__(
+        self, 
+        private_key: ECDSAPrivateKey = None,
+        signature: bytes = None,
+        curve_name: str = None
+    ) -> None:
+        super().__init__(private_key, signature)
+        
+        if curve_name is None:
+            curve_size = self.private_key.public_key.key.curve.key_size
+            curve_name = f'ecdsa-sha2-nistp{curve_size}'
+        
+        self.curve = curve_name
+        
     @staticmethod
     def encode(signature: bytes, private_key: ECDSAPrivateKey):
         r, s = decode_dss_signature(signature)
@@ -797,7 +892,17 @@ class ECDSASignatureField(SignatureField):
         signature = encode_dss_signature(r, s)
 
         return (sig_type, signature), data
-
+    
+    @classmethod
+    def from_decode(cls, data: bytes) -> Tuple['ECDSASignatureField', bytes]:
+        signature, data = cls.decode(data)
+        
+        return cls(
+            private_key=None,
+            signature = signature[1],
+            curve_name = signature[0]
+        ), data
+        
     def sign(self, data: bytes) -> None:
         self.value = self.private_key.sign(
             data
@@ -811,8 +916,12 @@ class ECDSASignatureField(SignatureField):
         )
 
 class ED25519SignatureField(SignatureField):
-    def __init__(self, private_key: ED25519PrivateKey) -> None:
-        super().__init__(private_key)
+    def __init__(
+        self, 
+        private_key: ED25519PrivateKey = None, 
+        signature: bytes = None
+    ) -> None:
+        super().__init__(private_key, signature)
 
     @staticmethod
     def encode(signature: bytes) -> None:
@@ -825,10 +934,20 @@ class ED25519SignatureField(SignatureField):
     def decode(data: bytes) -> bytes:
         signature, data = StringField.decode(data)
 
-        sig_type, signature = StringField.decode(signature)
-        signature, _ = StringField.decode(signature)
+        signature = StringField.decode(
+            StringField.decode(signature)[1]
+        )[0]
 
-        return (sig_type, signature), data
+        return signature, data
+    
+    @classmethod
+    def from_decode(cls, data: bytes) -> bytes:
+        signature, data = StringField.decode(data)
+        
+        return cls(
+            private_key=None,
+            signature=signature
+        ), data
 
     def sign(self, data: bytes) -> None:
         self.value = self.private_key.sign(

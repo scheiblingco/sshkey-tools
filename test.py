@@ -3,6 +3,8 @@ import src.sshkey_tools.cert as _CERT
 import src.sshkey_tools.keys as _KEYS
 from datetime import datetime, timedelta
 import os
+from base64 import b64encode, b64decode
+import hashlib as hl
 
 rsa_ca = _KEYS.RSAPrivateKey.generate(1024)
 dsa_ca = _KEYS.DSAPrivateKey.generate(1024)
@@ -35,6 +37,7 @@ cert_details = {
     ]
 }
 
+
 pubkeys = [
     {
         'file': rsa_user,
@@ -54,23 +57,38 @@ pubkeys = [
     }
 ]
 
-privkeys = [
-    rsa_ca,
-    dsa_ca,
-    ecdsa_ca,
-    ed25519_ca
-]
-
 for item in pubkeys:
-    for ca in privkeys:
-        cert = item['type'](
-            item['file'],
-            ca,
-            **cert_details
-        )
-        cert.sign()
-        cert.to_file('testcert')
-        os.system('ssh-keygen -Lf testcert')
+    item['file'].to_file('testkey.pub')
+    os.system('ssh-keygen -lf testkey.pub')
+    print(item['file'].get_fingerprint())
+
+
+
+
+
+
+# privkeys = [
+#     rsa_ca,
+#     dsa_ca,
+#     ecdsa_ca,
+#     ed25519_ca
+# ]
+
+# for item in pubkeys:
+#     for ca in privkeys:
+#         cert = item['type'](
+#             item['file'],
+#             ca,
+#             **cert_details
+#         )
+#         cert.sign()
+#         cert.to_file('testcert')
+
+#         cert = _CERT.SSHCertificate.from_file('testcert')
+#         print(cert)
+
+#         if os.system('ssh-keygen -Lf testcert') != 0:
+#             raise Exception('Failed to verify testcert')
 
 
 # cert = ED25519Certificate(ed25519_pub, ed25519_priv,

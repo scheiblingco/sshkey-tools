@@ -1,4 +1,6 @@
 from secrets import randbits
+from base64 import b64encode, b64decode
+import hashlib as hl
 
 def long_to_bytes(source_int: int, force_length: int = None, byteorder: str = 'big') -> bytes:
     """ Converts a positive integer to a byte string conforming with the certificate format.
@@ -45,3 +47,15 @@ def generate_secure_nonce(length: int = 64):
         str: Nonce of the specified length
     """
     return str(randbits(length))
+
+def md5_fingerprint(data: bytes) -> str:
+    digest = hl.md5(data).hexdigest()
+    return "MD5:" + ':'.join(a + b for a, b in zip(digest[::2], digest[1::2]))
+
+def sha256_fingerprint(data: bytes) -> str:
+    digest = hl.sha256(data).digest()
+    return "SHA256:" + b64encode(digest).replace(b"=", b"").decode('utf-8')
+
+def sha512_fingerprint(data: bytes) -> str:
+    digest = hl.sha512(data).digest()
+    return "SHA512:" + b64encode(digest).replace(b"=", b"").decode('utf-8')

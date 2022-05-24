@@ -1,5 +1,6 @@
 from typing import Union
 from enum import Enum
+from base64 import b64decode
 from cryptography.hazmat.primitives import (
     serialization as _SERIALIZATION,
     hashes as _HASHES
@@ -12,32 +13,40 @@ from cryptography.hazmat.primitives.asymmetric import (
     padding as _PADDING
 )
 
+from cryptography.hazmat.backends.openssl.rsa import _RSAPublicKey, _RSAPrivateKey
+from cryptography.hazmat.backends.openssl.dsa import _DSAPublicKey, _DSAPrivateKey
+from cryptography.hazmat.backends.openssl.ec import _EllipticCurvePublicKey, _EllipticCurvePrivateKey
+from cryptography.hazmat.backends.openssl.ed25519 import _Ed25519PublicKey, _Ed25519PrivateKey
+
+from .utils import (
+    md5_fingerprint as _FP_MD5,
+    sha256_fingerprint as _FP_SHA256,
+    sha512_fingerprint as _FP_SHA512
+)
+
+
 from .exceptions import (
     InvalidCurveException,
     InvalidKeyException,
-    InvalidHashException
+    InvalidHashException,
+    InvalidKeyFormatException
 )
 
 PUBKEY_MAP = {
-    _RSA.RSAPublicKey: "RSAPublicKey",
-    _DSA.DSAPublicKey: "DSAPublicKey",
-    _ECDSA.EllipticCurvePublicKey: "ECDSAPublicKey",
-    _ED25519.Ed25519PublicKey: "ED25519PublicKey"
+    _RSAPublicKey: "RSAPublicKey",
+    _DSAPublicKey: "DSAPublicKey",
+    _EllipticCurvePublicKey: "ECDSAPublicKey",
+    _Ed25519PublicKey: "ED25519PublicKey"
 }
 
 PRIVKEY_MAP = {
-    _RSA.RSAPrivateKey: "RSAPrivateKey",
-    _DSA.DSAPrivateKey: "DSAPrivateKey",
-    _ECDSA.EllipticCurvePrivateKey: "ECDSAPrivateKey",
-    _ED25519.Ed25519PrivateKey: "ED25519PrivateKey"
+    _RSAPrivateKey: "RSAPrivateKey",
+    _DSAPrivateKey: "DSAPrivateKey",
+    _EllipticCurvePrivateKey: "ECDSAPrivateKey",
+    _Ed25519PrivateKey: "ED25519PrivateKey"
 }
 
 STR_OR_BYTES = Union[str, bytes]
-
-
-# Only valid in Py3.11+
-# PUBKEY_CLASSES = Union[*PUBKEY_MAP.keys()]
-# PRIVKEY_CLASSES = Union[*PRIVKEY_MAP.keys()]
 
 PUBKEY_CLASSES = Union[
     _RSA.RSAPublicKey,
@@ -79,6 +88,11 @@ class ECDSA_CURVES(Enum):
     P256 = _ECDSA.SECP256R1
     P384 = _ECDSA.SECP384R1
     P521 = _ECDSA.SECP521R1
+    
+class FP_HASHES(Enum):
+    MD5 = _FP_MD5
+    SHA256 = _FP_SHA256
+    SHA512 = _FP_SHA512
 
 class PublicKey:
     def __init__(self, *args, **kwargs):
@@ -100,15 +114,17 @@ class PublicKey:
         comment: STR_OR_BYTES = None,
         key_type: STR_OR_BYTES = None
     ):
-        for key in PUBKEY_MAP.keys():
-            if isinstance(key_class, key):
-                return globals()[PUBKEY_MAP[key]](
-                    key=key_class,
-                    comment=comment,
-                    key_type=key_type
-                )
-
-        raise InvalidKeyException("Invalid public key")
+        try:
+            return globals()[PUBKEY_MAP[key_class.__class__]](
+                key_class,
+                comment,
+                key_type
+            )
+            
+        except KeyError:
+            raise InvalidKeyException(
+                "Invalid public key"
+            )
 
     @classmethod
     def from_string(cls, data: STR_OR_BYTES) -> 'PublicKey':
@@ -116,16 +132,15 @@ class PublicKey:
             data = data.encode('utf-8')
 
         split = data.split(b' ')
-        comment = ''
-        if len(split) > 1:
-            key_type = split[0]
+        comment = None
+        if len(split) > 2:
+            comment = split[2]
 
-            if len(split) > 2:
-                comment = split[2]
-
-        public_key = _SERIALIZATION.load_ssh_public_key(data)
-
-        return cls.from_class(public_key, comment, key_type)
+        return cls.from_class(
+            _SERIALIZATION.load_ssh_public_key(
+                b' '.join(split[:2])
+            )
+        )
 
 
     @classmethod
@@ -140,12 +155,25 @@ class PublicKey:
             encoding=_SERIALIZATION.Encoding.OpenSSH,
             format=_SERIALIZATION.PublicFormat.OpenSSH
         )
+        
+    def get_fingerprint(self, hash: FP_HASHES = FP_HASHES.SHA256) -> str:
+        return hash(self.to_bytes(
+            key_id=False,
+            encoded=False
+        ))
 
-    def to_bytes(self) -> bytes:
-        return self.key.public_bytes(
-            self.export_opts['pub_encoding'],
-            self.export_opts['pub_format'],
-        )
+    def to_bytes(self, key_id: bool = True, encoded: bool = True) -> bytes:
+        if key_id and encoded:
+            return self.serialize()
+        
+        if encoded and not key_id:
+            return self.serialize()(b' ')[1]
+        
+        if key_id and not encoded:
+            split = b' '.split(self.serialize())
+            return b' '.join(split[0] + b64decode(split[1]))
+        
+        return b64decode(self.serialize().split(b' ')[1])
 
     def to_string(self) -> str:
         public_bytes = self.to_bytes()
@@ -172,11 +200,10 @@ class PrivateKey:
 
     @classmethod
     def from_class(cls, key_class: PRIVKEY_CLASSES):
-        for key in PRIVKEY_MAP.keys():
-            if isinstance(key_class, key):
-                return globals()[PRIVKEY_MAP[key]](key=key_class)
-
-        raise InvalidKeyException("Invalid private key")
+        try:
+            return globals()[PRIVKEY_MAP[key_class.__class__]](key_class)
+        except KeyError:
+            raise InvalidKeyException("Invalid private key")
 
     @classmethod
     def from_string(cls, data: STR_OR_BYTES, password: str = None) -> 'PrivateKey':

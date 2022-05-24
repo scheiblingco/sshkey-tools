@@ -27,3 +27,15 @@ class SignatureNotPossibleException(ValueError):
 
 class NotSignedException(ValueError):
     pass
+
+class InvalidCertificateFormatException(ValueError):
+    pass
+
+class InvalidKeyFormatException(ValueError):
+    pass
+
+class NoPrivateKeyException(ValueError):
+    pass
+
+class SSHCertificateException(ValueError):
+    pass
