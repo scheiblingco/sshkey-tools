@@ -1,96 +1,144 @@
-from src.sshkey_tools.crypto import PublicKey, RSAPublicKey, ECDSAPublicKey, DSAPublicKey, ED25519PublicKey
-from src.sshkey_tools.crypto import PrivateKey
-# from src.sshkey_tools.crypto import PublicKeyBytes as PKBytes
-from cryptography.hazmat.primitives import serialization
-from src.sshkey_tools import utils
-from src.sshkey_tools import certificates as cert
-from src.sshkey_tools.certificates import Certificate, CertificateTypes
-from base64 import b64decode
+from src.sshkey_tools.fields import CERT_TYPE, RSA_ALGS
+import src.sshkey_tools.cert as _CERT
+import src.sshkey_tools.keys as _KEYS
+from datetime import datetime, timedelta
+import os
+from base64 import b64encode, b64decode
+import hashlib as hl
+
+rsa_ca = _KEYS.RSAPrivateKey.generate(1024)
+dsa_ca = _KEYS.DSAPrivateKey.generate(1024)
+ecdsa_ca = _KEYS.ECDSAPrivateKey.generate(_KEYS.ECDSA_CURVES.P256)
+ed25519_ca = _KEYS.ED25519PrivateKey.generate()
+
+rsa_user = _KEYS.RSAPrivateKey.generate(1024).public_key
+dsa_user = _KEYS.DSAPrivateKey.generate(1024).public_key
+ecdsa_user = _KEYS.ECDSAPrivateKey.generate(_KEYS.ECDSA_CURVES.P384).public_key
+ed25519_user = _KEYS.ED25519PrivateKey.generate().public_key
+
+
+now = datetime.now()
+then = datetime.now() + timedelta(hours=12)
+
+cert_details = {
+    'serial': 1234567890,
+    'cert_type': CERT_TYPE.USER,
+    'key_id': 'KeyIdentifier',
+    'principals': [
+        'Good',
+        'Morning',
+        'Starshine'
+    ],
+    'valid_after': now,
+    'valid_before': then,
+    'critical_options': [],
+    'extensions': [
+        'permit-agent-forwarding'
+    ]
+}
+
+
+pubkeys = [
+    {
+        'file': rsa_user,
+        'type': _CERT.RSACertificate
+    },
+    {
+        'file': dsa_user,
+        'type': _CERT.DSACertificate
+    },
+    {
+        'file': ecdsa_user,
+        'type': _CERT.ECDSACertificate
+    },
+    {
+        'file': ed25519_user,
+        'type': _CERT.ED25519Certificate
+    }
+]
+
+for item in pubkeys:
+    item['file'].to_file('testkey.pub')
+    os.system('ssh-keygen -lf testkey.pub')
+    print(item['file'].get_fingerprint())
 
 
 
-test = PublicKey.from_file('test_keys/rsa_key.pub')
-test2 = PublicKey.from_file('test_keys/ecdsa_key.pub')
-test3 = PublicKey.from_file('test_keys/ed25519_key.pub')
-test4 = PublicKey.from_file('test_keys/dss_key.pub')
-
-print("Done")
 
 
 
-testp = PrivateKey.from_file('test_keys/rsa_key')
-testp2 = PrivateKey.from_file('test_keys/ecdsa_key')
-testp3 = PrivateKey.from_file('test_keys/ed25519_key')
-test4 = PrivateKey.from_file('test_keys/dss_key')
+# privkeys = [
+#     rsa_ca,
+#     dsa_ca,
+#     ecdsa_ca,
+#     ed25519_ca
+# ]
 
-print("Done")
+# for item in pubkeys:
+#     for ca in privkeys:
+#         cert = item['type'](
+#             item['file'],
+#             ca,
+#             **cert_details
+#         )
+#         cert.sign()
+#         cert.to_file('testcert')
 
+#         cert = _CERT.SSHCertificate.from_file('testcert')
+#         print(cert)
 
-
-
-# with open('test_keys/rsa_key.pub', 'rb') as f:
-#     split = f.read().split(b' ')
-#     print(split[0])
-#     data = b64decode(split[1])
-#     str1, data = utils.decode_string(data)
-#     nums, data = utils.decode_mpint(data)
-#     nums2, data = utils.decode_mpint(data)
-    
-
-
-# rsa_pubkey = PublicKey.from_file('test_keys/rsa_key.pub')
-# rsa_privkey = PrivateKey.from_file('test_keys/rsa_key')
-
-
-# numbers = rsa_pubkey.key_object.public_numbers()
-# rsa_from_numbers = RSAPublicKey.from_public_numbers(numbers.e, numbers.n)
+#         if os.system('ssh-keygen -Lf testcert') != 0:
+#             raise Exception('Failed to verify testcert')
 
 
+# cert = ED25519Certificate(ed25519_pub, ed25519_priv,
+#     serial=123456,
+#     cert_type=CERT_TYPE.USER,
+#     key_id='mfdutra',
+#     principals=[
+#         'hello',
+#         'world'
+#     ],
+#     valid_after=now,
+#     valid_before=then,
+#     critical_options=[],
+#     extensions=['permit-agent-forwarding'],
+# )
 
-print("Done")
 
+# cert.sign()
+# print(cert.to_bytes())
+# open('testcert', 'wb').write(cert.to_string())
+# os.system('ssh-keygen -Lf testcert')
 
+# privkey_pub = cert.
+# print(privkey_pub)
+# from time import time as timestamp
+# from base64 import b64encode, b64decode
+# import tstut as utils
 
+# from cryptography.hazmat.backends import default_backend
+# from cryptography.hazmat.primitives import hashes, serialization
+# from cryptography.hazmat.primitives.asymmetric import ec
+# from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
+# with open('ecdsa_user.pub', 'r') as f:
+#         file_content = f.read().split(' ')
 
-
-
-# pubk = PublicKey.from_file('test_ecdsa.pub')
-# certificate = cert.Certificate(pubk, CertificateTypes.USER, 64)
-
-# print(pubk.key_type())
-# print(pubk.key_curve())
-# print("test")
-
-
-# rsa_pubkey = PublicKey.from_file('test_rsa.pub')
-# dsa_pubkey = PublicKey.from_file('test_dsa.pub')
-# ecdsa_pubkey = PublicKey.from_file('test_ecdsa.pub')
-# ed25519_pubkey = PublicKey.from_file('test_ed25519.pub')
-
-# rsa_privkey = PrivateKey.from_file('test_rsa')
-# dsa_privkey = PrivateKey.from_file('test_dsa')
-# ecdsa_privkey = PrivateKey.from_file('test_ecdsa')
-# ed25519_privkey = PrivateKey.from_file('test_ed25519')
-
-# print("Done")
-
-# from dataclasses import dataclass
-# @dataclass
-# class Dict:
-#     something: int = 1
-#     somethingelse: str = "1"
-
-# class TestAttr:
-#     test: Dict = Dict
+#         # Get the two major parts from the file
+#         # The certificate data
+#         data = b64decode(file_content[1])
         
-#     def __setattr__(self, attr, value):
-#         self.test.__dict__[attr] = value
+#         # And the comment at the end of the file (e.g. User@Host)
+#         user_comment = file_content[2]
+
+#         # Convert the user public key to its parts
+#         # The Key type (e.g. ecdsa-sha2-nistp256)
+#         user_keytype, data = utils.decode_string(data)
         
-#     def __getattr__(self, attr):
-#         return self.test.__dict__[attr]
+#         # The curve (e.g. nistp256)
+#         user_keycurve, data = utils.decode_string(data)
+        
+#         # The public key in bytes
+#         user_pubkey, data = utils.decode_string(data) 
 
-# cl = TestAttr()
-# print(cl.something)
-
-# cl.something = 2
-# print(cl.something)
+# print(utils.encode_string(user_keycurve) + utils.encode_string(user_pubkey))

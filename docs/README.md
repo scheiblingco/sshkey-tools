@@ -1,5 +1,17 @@
 # sshkey-tools (Work in progress)
+
+> Auto-generated documentation index.
+
 Python and CLI tools for managing OpenSSH keypairs and certificates
+
+Full Sshkey-tools project documentation can be found in [Modules](MODULES.md#sshkey-tools-modules)
+
+- [sshkey-tools (Work in progress)](#sshkey-tools-work-in-progress)
+- [key is an instance of PrivateKey or any of its subclasses](#key-is-an-instance-of-privatekey-or-any-of-its-subclasses)
+    - [Existing certificates](#existing-certificates)
+    - [New certificates](#new-certificates)
+        - [Specific certificate classes](#specific-certificate-classes)
+  - [Sshkey-tools Modules](MODULES.md#sshkey-tools-modules)
 
 # Usage
 sshkey --help
@@ -15,7 +27,6 @@ sshkey --help
     + [Generalized class](#generalized-class-1)
     + [Specific key classes](#specific-key-classes-1)
   * [Certificates](#certificates)
-
 
 # Python Usage
 ## Private keys
@@ -47,7 +58,6 @@ from sshkey_tools.keys import (
     ED25519PrivateKey
 )
 
-
 # Generate new RSA key
 key = RSAPrivateKey.generate(
     key_size=4096,
@@ -72,11 +82,8 @@ key = RSAPrivateKey.from_numbers(
     n=123123,
     e=123123,
     p=123123,
-    q=123123,    # Optional
-    d=123123,    # Optional
-    dmp1=123123, # Optional
-    dmq1=123123, # Optional
-    iqmp=123123  # Optional
+    q=123123,
+    d=123123
 )
 
 # Load DSA key from numbers
@@ -95,7 +102,6 @@ key = ECDSAPrivateKey.from_numbers(
     y=123123,
     curve=ECDSA_CURVES.SECP384R1()
 )
-
 
 # ED25519 keys don't support loading from numbers
 ```
@@ -177,17 +183,13 @@ key = ECDSAPublicKey.from_numbers(
     curve=ECDSA_CURVES.SECP384R1()
 )
 
-
 # ED25519 keys don't support loading from numbers
 ```
 ### Exporting public keys
 ```python
 # pubkey can be an instance of any of the PublicKeyClass children
 
-
-
 ```
-
 
 ## Certificates
 ### Generalized classes
@@ -206,7 +208,6 @@ certificate = SSHCertificate.from_string('ssh-rsa-cert-v01@openssh.com AA.......
 certificate = SSHCertificate.from_bytes(b'%x00%x00.......')
 
 ## New certificates
-
 
 # Create a blank certificate for a specific public key, automatically returns the right certificate class
 certificate = SSHCertificate.from_public(PublicKeyClass pubkey)

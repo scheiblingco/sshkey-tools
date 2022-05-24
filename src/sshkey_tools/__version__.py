@@ -7,7 +7,7 @@ __description__ = 'A Python module for generating, parsing and handling OpenSSH 
 
 # The version and build number
 # Without specifying a unique number, you cannot overwrite packages in the PyPi repo
-__version__ = f"0.1-{os.getenv('GITHUB_RUN_ID', 'dev')}"
+__version__ = f"0.4-{os.getenv('GITHUB_RUN_ID', 'dev')}"
 
 # Author and license information
 __author__ = 'Lars Scheibling'
