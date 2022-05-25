@@ -6,4 +6,7 @@
     - Modules
         - [Version](__version__.md#version)
         - [Cert](cert.md#cert)
+        - [Exceptions](exceptions.md#exceptions)
+        - [Fields](fields.md#fields)
         - [Keys](keys.md#keys)
+        - [Utils](utils.md#utils)

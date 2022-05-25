@@ -45,7 +45,6 @@ jobs:
           - "3.8"
           - "3.9"
           - "3.10"
-          - "3.11"
         os:
           - "ubuntu-latest"
           - "macOS-latest"
@@ -67,9 +66,10 @@ jobs:
       - name: Run tests
         run: |
           python test.py
-          python -m coverage run test.py
-          python -m coverage report
-          python -m coverage html
+
+      # python -m coverage run test.py
+      # python -m coverage report
+      # python -m coverage html
 
       - name: Upload report
         uses: actions/upload-artifact@v1

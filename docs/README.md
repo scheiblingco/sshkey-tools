@@ -82,8 +82,11 @@ key = RSAPrivateKey.from_numbers(
     n=123123,
     e=123123,
     p=123123,
-    q=123123,
-    d=123123
+    q=123123,    # Optional
+    d=123123,    # Optional
+    dmp1=123123, # Optional
+    dmq1=123123, # Optional
+    iqmp=123123  # Optional
 )
 
 # Load DSA key from numbers

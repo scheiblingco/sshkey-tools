@@ -6,7 +6,7 @@ class InvalidKeyException(ValueError):
     """
     Raised when a key is invalid.
     """
-  
+
 class InvalidFieldDataException(ValueError):
     """
     Raised when a field contains invalid data

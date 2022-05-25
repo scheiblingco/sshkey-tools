@@ -1,5 +1,4 @@
 click
 cryptography
 bcrypt
-dataclasses
-handsdown
+enum34

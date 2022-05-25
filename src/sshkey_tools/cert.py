@@ -8,6 +8,7 @@
 
 """
 from base64 import b64encode, b64decode
+from typing import Union
 from .keys import (
     PublicKey,
     PrivateKey,
@@ -18,7 +19,7 @@ from .keys import (
 )
 from . import fields as _FIELD
 from . import exceptions as _EX
-from .keys import RSA_ALGS, STR_OR_BYTES
+from .keys import RsaAlgs
 
 CERTIFICATE_FIELDS = {
     'serial': _FIELD.SerialField,
@@ -96,19 +97,19 @@ class SSHCertificate:
 
     def __str__(self):
         principals = '\n' + '\n'.join(
-            ''.join([' ']*20) + (
+            ''.join([' ']*32) + (
                 x.decode('utf-8') if isinstance(x, bytes) else x
             ) for x in self.fields['principals'].value
         ) if len(self.fields['principals'].value) > 0 else 'none'
 
         critical = '\n' + '\n'.join(
-            ''.join([' ']*20) + (
+            ''.join([' ']*32) + (
                 x.decode('utf-8') if isinstance(x, bytes) else x
             ) for x in self.fields['critical_options'].value
         ) if len(self.fields['critical_options'].value) > 0 else 'none'
 
         extensions = '\n' + '\n'.join(
-            ''.join([' ']*20) + (
+            ''.join([' ']*32) + (
                 x.decode('utf-8') if isinstance(x, bytes) else x
             ) for x in self.fields['extensions'].value
         ) if len(self.fields['extensions'].value) > 0 else 'none'
@@ -119,17 +120,18 @@ class SSHCertificate:
         ) else "Not signed"
 
         return f'''
-Pubkey Type:        {self.header['pubkey_type'].value}
-Public Key:         {str(self.header['public_key'])}
-CA Public Key:      {str(self.signature_pubkey)}
-Nonce:              {self.header['nonce'].value}
-Certificate Type:   {'User' if self.fields['cert_type'].value == 1 else 'Host'}
-Valid After:        {self.fields['valid_after'].value.strftime('%Y-%m-%d %H:%M:%S')}
-Valid Until:        {self.fields['valid_before'].value.strftime('%Y-%m-%d %H:%M:%S')}
-Principals:         {principals}
-Critical options:   {critical}
-Extensions:         {extensions}
-Signature:          {signature_val}
+        Certificate:
+            Pubkey Type:        {self.header['pubkey_type'].value}
+            Public Key:         {str(self.header['public_key'])}
+            CA Public Key:      {str(self.signature_pubkey)}
+            Nonce:              {self.header['nonce'].value}
+            Certificate Type:   {'User' if self.fields['cert_type'].value == 1 else 'Host'}
+            Valid After:        {self.fields['valid_after'].value.strftime('%Y-%m-%d %H:%M:%S')}
+            Valid Until:        {self.fields['valid_before'].value.strftime('%Y-%m-%d %H:%M:%S')}
+            Principals:         {principals}
+            Critical options:   {critical}
+            Extensions:         {extensions}
+            Signature:          {signature_val}
         '''
 
     @staticmethod
@@ -223,7 +225,7 @@ Signature:          {signature_val}
         return globals()[target_class[0]].decode(cert_bytes)
 
     @classmethod
-    def from_string(cls, cert_str: STR_OR_BYTES, encoding: str = 'utf-8'):
+    def from_string(cls, cert_str: Union[str, bytes], encoding: str = 'utf-8'):
         """
         Loads an existing certificate from a string in the format
         [certificate-type] [base64-encoded-certificate] [optional-comment]
@@ -375,12 +377,12 @@ Signature:          {signature_val}
 
         raise _EX.NotSignedException("The certificate has not been signed")
 
-    def to_string(self, comment: STR_OR_BYTES = None, encoding: str = 'utf-8') -> str:
+    def to_string(self, comment: Union[str, bytes] = None, encoding: str = 'utf-8') -> str:
         """
         Export the signed certificate to a string, ready to be written to file
 
         Args:
-            comment (STR_OR_BYTES, optional): Comment to add to the string. Defaults to None.
+            comment (Union[str, bytes], optional): Comment to add to the string. Defaults to None.
             encoding (str, optional): Encoding to use for the string. Defaults to 'utf-8'.
 
         Returns:
@@ -396,13 +398,14 @@ Signature:          {signature_val}
             (comment if comment else b'')
         ).decode('utf-8')
 
-    def to_file(self, path: str, comment: STR_OR_BYTES = None, encoding: str = 'utf-8'):
+    def to_file(self, path: str, comment: Union[str, bytes] = None, encoding: str = 'utf-8'):
         """
         Saves the certificate to a file
 
         Args:
             path (str): The path of the file to save to
-            comment (STR_OR_BYTES, optional): Comment to add to the certificate end. Defaults to None.
+            comment (Union[str, bytes], optional): Comment to add to the certificate end.
+                                                   Defaults to None.
             encoding (str, optional): Encoding for the file. Defaults to 'utf-8'.
         """
         with open(path, 'w', encoding=encoding) as file:
@@ -418,7 +421,7 @@ class RSACertificate(SSHCertificate):
         self,
         subject_pubkey: RSAPublicKey,
         ca_privkey: PrivateKey = None,
-        rsa_alg: RSA_ALGS = RSA_ALGS.SHA512,
+        rsa_alg: RsaAlgs = RsaAlgs.SHA512,
         **kwargs,
     ):
 
