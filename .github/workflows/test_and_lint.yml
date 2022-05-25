@@ -26,7 +26,7 @@ jobs:
 
       - name: Run tests
         run: |
-          pylint src/sshkey_tools/ | pylint_report.py > report.html
+          pylint -f json src/sshkey_tools/ | pylint_report.py > report.html
 
       - name: Upload report
         uses: actions/upload-artifact@v1
@@ -66,10 +66,9 @@ jobs:
       - name: Run tests
         run: |
           python test.py
-
-      # python -m coverage run test.py
-      # python -m coverage report
-      # python -m coverage html
+          python -m coverage run test.py
+          python -m coverage report
+          python -m coverage html
 
       - name: Upload report
         uses: actions/upload-artifact@v1
