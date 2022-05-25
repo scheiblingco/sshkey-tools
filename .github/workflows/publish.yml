@@ -1,16 +1,7 @@
 on:
-    push:
-      branches: 
-        - main
-      paths-ignore:
-        - "docs/**"
-        - "*.md"
-    pull_request:
-      branches: 
-        - main
-      paths-ignore:
-        - "docs/**"
-        - "*.md"
+  release:
+    types: [published]
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -31,6 +22,7 @@ jobs:
 
     - name: Build and publish
       env:
+        RELEASE_NAME: ${{ github.event.release.tag_name }} 
         TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
         TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
       run: |
