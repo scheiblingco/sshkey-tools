@@ -1,41 +1,83 @@
-from multiprocessing.sharedctypes import Value
-
+"""
+Exceptions thrown by sshkey_tools
+"""
 
 class InvalidKeyException(ValueError):
-    pass
+    """
+    Raised when a key is invalid.
+    """
+
+class InvalidFieldDataException(ValueError):
+    """
+    Raised when a field contains invalid data
+    """
 
 class InvalidCurveException(ValueError):
-    pass
+    """
+    Raised when the ECDSA curve
+    is not supported.
+    """
 
 class InvalidHashException(ValueError):
-    pass
+    """
+    Raised when the hash type is
+    not available
+    """
 
 class InvalidDataException(ValueError):
-    pass
+    """
+    Raised when the data passed
+    to a function is invalid
+    """
 
 class InvalidCertificateFieldException(KeyError):
-    pass
+    """
+    Raised when the certificate field is not found/not editable
+    """
 
-class ShortNonceException(ValueError):
-    pass
+class InsecureNonceException(ValueError):
+    """
+    Raised when the nonce is too short to be secure.
+    Especially important for ECDSA, see:
+    https://billatnapier.medium.com/ecdsa-weakness-where-nonces-are-reused-2be63856a01a
+    """
 
 class IntegerOverflowException(ValueError):
-    pass
+    """
+    Raised when the integer is too large to be represented
+    """
 
 class SignatureNotPossibleException(ValueError):
-    pass
+    """
+    Raised when the signature of a certificate is not possible,
+    usually because no private key has been loaded or a required
+    field is empty.
+    """
 
 class NotSignedException(ValueError):
-    pass
+    """
+    Raised when trying to export a certificate that has not been
+    signed by a private key
+    """
 
 class InvalidCertificateFormatException(ValueError):
-    pass
+    """
+    Raised when the format of the certificate is invalid
+    """
 
 class InvalidKeyFormatException(ValueError):
-    pass
+    """
+    Raised when the format of the chosen key is invalid,
+    normally when trying to use a private key instead of
+    a public key or vice versa
+    """
 
 class NoPrivateKeyException(ValueError):
-    pass
+    """
+    Raised when no private key is present to sign with
+    """
 
 class SSHCertificateException(ValueError):
-    pass
+    """
+    Raised when the SSH Certificate is invalid
+    """

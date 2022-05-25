@@ -3,7 +3,9 @@ import os
 
 # The title and description of the package
 __title__ = 'sshkey-tools'
-__description__ = 'A Python module for generating, parsing and handling OpenSSH keys and certificates'
+__description__ = '''
+    A Python module for generating, parsing and handling OpenSSH keys and certificates
+'''
 
 # The version and build number
 # Without specifying a unique number, you cannot overwrite packages in the PyPi repo

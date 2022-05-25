@@ -8,4 +8,7 @@ Full list of [Sshkey-tools](README.md#sshkey-tools-work-in-progress) project mod
     - [Sshkey Tools](src/sshkey_tools/index.md#sshkey-tools)
         - [Version](src/sshkey_tools/__version__.md#version)
         - [Cert](src/sshkey_tools/cert.md#cert)
+        - [Exceptions](src/sshkey_tools/exceptions.md#exceptions)
+        - [Fields](src/sshkey_tools/fields.md#fields)
         - [Keys](src/sshkey_tools/keys.md#keys)
+        - [Utils](src/sshkey_tools/utils.md#utils)

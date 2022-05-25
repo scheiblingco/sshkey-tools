@@ -1,6 +1,10 @@
+"""
+Utilities for handling keys and certificates
+"""
 from secrets import randbits
-from base64 import b64encode, b64decode
+from base64 import b64encode
 import hashlib as hl
+
 
 def long_to_bytes(source_int: int, force_length: int = None, byteorder: str = 'big') -> bytes:
     """ Converts a positive integer to a byte string conforming with the certificate format.
@@ -48,14 +52,44 @@ def generate_secure_nonce(length: int = 64):
     """
     return str(randbits(length))
 
-def md5_fingerprint(data: bytes) -> str:
+def md5_fingerprint(data: bytes, prefix: bool = True) -> str:
+    """
+    Returns an MD5 fingerprint of the given data.
+
+    Args:
+        data (bytes): The data to fingerprint
+        prefix (bool, optional): Whether to prefix the fingerprint with MD5:
+
+    Returns:
+        str: The fingerprint (OpenSSH style MD5:xx:xx:xx...)
+    """
     digest = hl.md5(data).hexdigest()
-    return "MD5:" + ':'.join(a + b for a, b in zip(digest[::2], digest[1::2]))
+    return ("MD5:" if prefix else "") + ':'.join(a + b for a, b in zip(digest[::2], digest[1::2]))
 
-def sha256_fingerprint(data: bytes) -> str:
+def sha256_fingerprint(data: bytes, prefix: bool = True) -> str:
+    """
+    Returns a SHA256 fingerprint of the given data.
+
+    Args:
+        data (bytes): The data to fingerprint
+        prefix (bool, optional): Whether to prefix the fingerprint with SHA256:
+
+    Returns:
+        str: The fingerprint (OpenSSH style SHA256:xx:xx:xx...)
+    """
     digest = hl.sha256(data).digest()
-    return "SHA256:" + b64encode(digest).replace(b"=", b"").decode('utf-8')
+    return ("SHA256:" if prefix else "") + b64encode(digest).replace(b"=", b"").decode('utf-8')
 
-def sha512_fingerprint(data: bytes) -> str:
+def sha512_fingerprint(data: bytes, prefix: bool = True) -> str:
+    """
+    Returns a SHA512 fingerprint of the given data.
+
+    Args:
+        data (bytes): The data to fingerprint
+        prefix (bool, optional): Whether to prefix the fingerprint with SHA512:
+
+    Returns:
+        str: The fingerprint (OpenSSH style SHA256:xx:xx:xx...)
+    """
     digest = hl.sha512(data).digest()
-    return "SHA512:" + b64encode(digest).replace(b"=", b"").decode('utf-8')
+    return ("SHA512:" if prefix else "") + b64encode(digest).replace(b"=", b"").decode('utf-8')
