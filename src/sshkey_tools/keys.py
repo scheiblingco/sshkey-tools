@@ -6,126 +6,124 @@ from enum import Enum
 from base64 import b64decode
 from cryptography.hazmat.backends.openssl.rsa import _RSAPublicKey, _RSAPrivateKey
 from cryptography.hazmat.backends.openssl.dsa import _DSAPublicKey, _DSAPrivateKey
-from cryptography.hazmat.backends.openssl.ed25519 import _Ed25519PublicKey, _Ed25519PrivateKey
+from cryptography.hazmat.backends.openssl.ed25519 import (
+    _Ed25519PublicKey,
+    _Ed25519PrivateKey,
+)
 from cryptography.hazmat.backends.openssl.ec import (
     _EllipticCurvePublicKey,
-    _EllipticCurvePrivateKey
+    _EllipticCurvePrivateKey,
 )
 from cryptography.hazmat.primitives import (
     serialization as _SERIALIZATION,
-    hashes as _HASHES
+    hashes as _HASHES,
 )
 from cryptography.hazmat.primitives.asymmetric import (
     rsa as _RSA,
     dsa as _DSA,
     ec as _ECDSA,
     ed25519 as _ED25519,
-    padding as _PADDING
+    padding as _PADDING,
 )
 
 from . import exceptions as _EX
 from .utils import (
     md5_fingerprint as _FP_MD5,
     sha256_fingerprint as _FP_SHA256,
-    sha512_fingerprint as _FP_SHA512
+    sha512_fingerprint as _FP_SHA512,
 )
 
 PUBKEY_MAP = {
     _RSAPublicKey: "RSAPublicKey",
     _DSAPublicKey: "DSAPublicKey",
     _EllipticCurvePublicKey: "ECDSAPublicKey",
-    _Ed25519PublicKey: "ED25519PublicKey"
+    _Ed25519PublicKey: "ED25519PublicKey",
 }
 
 PRIVKEY_MAP = {
     _RSAPrivateKey: "RSAPrivateKey",
     _DSAPrivateKey: "DSAPrivateKey",
     _EllipticCurvePrivateKey: "ECDSAPrivateKey",
-    _Ed25519PrivateKey: "ED25519PrivateKey"
+    _Ed25519PrivateKey: "ED25519PrivateKey",
 }
 
 ECDSA_HASHES = {
-    'secp256r1': _HASHES.SHA256,
-    'secp384r1': _HASHES.SHA384,
-    'secp521r1': _HASHES.SHA512,
+    "secp256r1": _HASHES.SHA256,
+    "secp384r1": _HASHES.SHA384,
+    "secp521r1": _HASHES.SHA512,
 }
 
 PubkeyClasses = Union[
     _RSA.RSAPublicKey,
     _DSA.DSAPublicKey,
     _ECDSA.EllipticCurvePublicKey,
-    _ED25519.Ed25519PublicKey
+    _ED25519.Ed25519PublicKey,
 ]
 
 PrivkeyClasses = Union[
     _RSA.RSAPrivateKey,
     _DSA.DSAPrivateKey,
     _ECDSA.EllipticCurvePrivateKey,
-    _ED25519.Ed25519PrivateKey
+    _ED25519.Ed25519PrivateKey,
 ]
+
 
 class RsaAlgs(Enum):
     """
     RSA Algorithms
     """
-    SHA1 = (
-        'ssh-rsa',
-        _HASHES.SHA1
-    )
-    SHA256 = (
-        'rsa-sha2-256',
-        _HASHES.SHA256
-    )
-    SHA512 = (
-        'rsa-sha2-512',
-        _HASHES.SHA512
-    )
+
+    SHA1 = ("ssh-rsa", _HASHES.SHA1)
+    SHA256 = ("rsa-sha2-256", _HASHES.SHA256)
+    SHA512 = ("rsa-sha2-512", _HASHES.SHA512)
+
 
 class EcdsaCurves(Enum):
     """
     ECDSA Curves
     """
+
     P256 = _ECDSA.SECP256R1
     P384 = _ECDSA.SECP384R1
     P521 = _ECDSA.SECP521R1
+
 
 class FingerprintHashes(Enum):
     """
     Fingerprint hashes
     """
+
     MD5 = _FP_MD5
     SHA256 = _FP_SHA256
     SHA512 = _FP_SHA512
+
 
 class PublicKey:
     """
     Class for handling SSH public keys
     """
+
     def __init__(
-        self,
-        key: PrivkeyClasses = None,
-        comment: Union[str, bytes] = None,
-        **kwargs
+        self, key: PrivkeyClasses = None, comment: Union[str, bytes] = None, **kwargs
     ) -> None:
         self.key = key
         self.comment = comment
-        self.public_numbers = kwargs.get('public_numbers', None)
-        self.key_type = kwargs.get('key_type', None)
-        self.serialized = kwargs.get('serialized', None)
+        self.public_numbers = kwargs.get("public_numbers", None)
+        self.key_type = kwargs.get("key_type", None)
+        self.serialized = kwargs.get("serialized", None)
 
         self.export_opts = [
             _SERIALIZATION.Encoding.OpenSSH,
             _SERIALIZATION.PublicFormat.OpenSSH,
         ]
 
-
     @classmethod
     def from_class(
         cls,
         key_class: PubkeyClasses,
         comment: Union[str, bytes] = None,
-        key_type: Union[str, bytes] = None
-    ) -> 'PublicKey':
+        key_type: Union[str, bytes] = None,
+    ) -> "PublicKey":
         """
         Creates a new SSH Public key from a cryptography class
 
@@ -142,18 +140,14 @@ class PublicKey:
         """
         try:
             return globals()[PUBKEY_MAP[key_class.__class__]](
-                key_class,
-                comment,
-                key_type
+                key_class, comment, key_type
             )
 
         except KeyError:
-            raise _EX.InvalidKeyException(
-                "Invalid public key"
-            ) from KeyError
+            raise _EX.InvalidKeyException("Invalid public key") from KeyError
 
     @classmethod
-    def from_string(cls, data: Union[str, bytes]) -> 'PublicKey':
+    def from_string(cls, data: Union[str, bytes]) -> "PublicKey":
         """
         Loads an SSH public key from a string containing the data
         in OpenSSH format (SubjectPublickeyInfo)
@@ -165,23 +159,20 @@ class PublicKey:
             PublicKey: Any of the PublicKey child classes
         """
         if isinstance(data, str):
-            data = data.encode('utf-8')
+            data = data.encode("utf-8")
 
-        split = data.split(b' ')
+        split = data.split(b" ")
         comment = None
         if len(split) > 2:
             comment = split[2]
 
         return cls.from_class(
-            key_class=_SERIALIZATION.load_ssh_public_key(
-                b' '.join(split[:2])
-            ),
-            comment=comment
+            key_class=_SERIALIZATION.load_ssh_public_key(b" ".join(split[:2])),
+            comment=comment,
         )
 
-
     @classmethod
-    def from_file(cls, path: str) -> 'PublicKey':
+    def from_file(cls, path: str) -> "PublicKey":
         """
         Loads an SSH Public key from a file
 
@@ -191,14 +182,13 @@ class PublicKey:
         Returns:
             PublicKey: Any of the PublicKey child classes
         """
-        with open(path, 'rb') as file:
+        with open(path, "rb") as file:
             data = file.read()
 
         return cls.from_string(data)
 
     def get_fingerprint(
-        self,
-        hash_method: FingerprintHashes = FingerprintHashes.SHA256
+        self, hash_method: FingerprintHashes = FingerprintHashes.SHA256
     ) -> str:
         """
         Generates a fingerprint of the public key
@@ -218,9 +208,7 @@ class PublicKey:
         Returns:
             bytes: The serialized key in OpenSSH format
         """
-        return self.key.public_bytes(
-            *self.export_opts
-        )
+        return self.key.public_bytes(*self.export_opts)
 
     def raw_bytes(self) -> bytes:
         """
@@ -229,9 +217,9 @@ class PublicKey:
         Returns:
             bytes: The raw certificate bytes
         """
-        return b64decode(self.serialize().split(b' ')[1])
+        return b64decode(self.serialize().split(b" ")[1])
 
-    def to_string(self, encoding: str = 'utf-8') -> str:
+    def to_string(self, encoding: str = "utf-8") -> str:
         """
         Export the public key as a string
 
@@ -242,11 +230,11 @@ class PublicKey:
         public_bytes = self.serialize()
 
         if self.comment is not None:
-            public_bytes += b' ' + self.comment
+            public_bytes += b" " + self.comment
 
         return public_bytes.decode(encoding)
 
-    def to_file(self, path: str, encoding: str = 'utf-8') -> None:
+    def to_file(self, path: str, encoding: str = "utf-8") -> None:
         """
         Export the public key to a file
 
@@ -254,23 +242,20 @@ class PublicKey:
             path (str): The path of the file
             encoding(str, optional): The encoding of the file. Defaults to 'utf-8'.
         """
-        with open(path, 'w', encoding=encoding) as pubkey_file:
+        with open(path, "w", encoding=encoding) as pubkey_file:
             pubkey_file.write(self.to_string())
+
 
 class PrivateKey:
     """
     Class for handling SSH Private keys
     """
-    def __init__(
-        self,
-        key: PrivkeyClasses,
-        public_key: PublicKey,
-        **kwargs
-    ) -> None:
+
+    def __init__(self, key: PrivkeyClasses, public_key: PublicKey, **kwargs) -> None:
         self.key = key
         self.public_key = public_key
 
-        self.private_numbers = kwargs.get('private_numbers', None)
+        self.private_numbers = kwargs.get("private_numbers", None)
         self.export_opts = {
             "encoding": _SERIALIZATION.Encoding.PEM,
             "format": _SERIALIZATION.PrivateFormat.OpenSSH,
@@ -278,7 +263,7 @@ class PrivateKey:
         }
 
     @classmethod
-    def from_class(cls, key_class: PrivkeyClasses) -> 'PrivateKey':
+    def from_class(cls, key_class: PrivkeyClasses) -> "PrivateKey":
         """
         Import an SSH Private key from a cryptography key class
 
@@ -301,8 +286,8 @@ class PrivateKey:
         cls,
         key_data: Union[str, bytes],
         password: Union[str, bytes] = None,
-        encoding: str = 'utf-8'
-    ) -> 'PrivateKey':
+        encoding: str = "utf-8",
+    ) -> "PrivateKey":
         """
         Loads an SSH private key from a string containing the key data
 
@@ -320,20 +305,14 @@ class PrivateKey:
         if isinstance(password, str):
             password = password.encode(encoding)
 
-        private_key = _SERIALIZATION.load_ssh_private_key(
-                key_data,
-                password=password
-        )
+        private_key = _SERIALIZATION.load_ssh_private_key(key_data, password=password)
 
         return cls.from_class(private_key)
 
     @classmethod
     def from_file(
-        cls,
-        path: str,
-        password: Union[str, bytes] = None,
-        encoding: str = 'utf-8'
-    ) -> 'PrivateKey':
+        cls, path: str, password: Union[str, bytes] = None, encoding: str = "utf-8"
+    ) -> "PrivateKey":
         """
         Loads an SSH private key from a file
 
@@ -345,7 +324,7 @@ class PrivateKey:
         Returns:
             PrivateKey: Any of the PrivateKey child classes
         """
-        with open(path, 'rb', encoding=encoding) as key_file:
+        with open(path, "rb", encoding=encoding) as key_file:
             return cls.from_string(key_file.read(), password)
 
     def to_bytes(self, password: Union[str, bytes] = None) -> bytes:
@@ -360,19 +339,19 @@ class PrivateKey:
             bytes: The private key in PEM format
         """
         if isinstance(password, str):
-            password = password.encode('utf-8')
+            password = password.encode("utf-8")
 
         encryption = _SERIALIZATION.NoEncryption()
         if password is not None:
-            encryption = self.export_opts['encryption'](password)
+            encryption = self.export_opts["encryption"](password)
 
         return self.key.private_bytes(
-            self.export_opts['encoding'],
-            self.export_opts['format'],
-            encryption
+            self.export_opts["encoding"], self.export_opts["format"], encryption
         )
 
-    def to_string(self, password: Union[str, bytes] = None, encoding: str = 'utf-8') -> str:
+    def to_string(
+        self, password: Union[str, bytes] = None, encoding: str = "utf-8"
+    ) -> str:
         """
         Exports the private key to a string
 
@@ -387,10 +366,7 @@ class PrivateKey:
         return self.to_bytes(password).decode(encoding)
 
     def to_file(
-        self,
-        path: str,
-        password: Union[str, bytes] = None,
-        encoding: str = 'utf-8'
+        self, path: str, password: Union[str, bytes] = None, encoding: str = "utf-8"
     ) -> None:
         """
         Exports the private key to a file
@@ -402,36 +378,33 @@ class PrivateKey:
         Returns:
             bytes: The private key in PEM format
         """
-        with open(path, 'w', encoding=encoding) as key_file:
-            key_file.write(
-                self.to_string(
-                    password,
-                    encoding
-                )
-            )
+        with open(path, "w", encoding=encoding) as key_file:
+            key_file.write(self.to_string(password, encoding))
+
 
 class RSAPublicKey(PublicKey):
     """
     Class for holding RSA public keys
     """
+
     def __init__(
         self,
         key: _RSA.RSAPublicKey,
         comment: Union[str, bytes] = None,
         key_type: Union[str, bytes] = None,
-        serialized: bytes = None
+        serialized: bytes = None,
     ):
         super().__init__(
             key=key,
             comment=comment,
             key_type=key_type,
             public_numbers=key.public_numbers(),
-            serialized=serialized
+            serialized=serialized,
         )
 
     @classmethod
     # pylint: disable=invalid-name
-    def from_numbers(cls, e: int, n: int) -> 'RSAPublicKey':
+    def from_numbers(cls, e: int, n: int) -> "RSAPublicKey":
         """
         Loads an RSA Public Key from the public numbers e and n
 
@@ -442,21 +415,19 @@ class RSAPublicKey(PublicKey):
         Returns:
             RSAPublicKey: _description_
         """
-        return cls(
-            key=_RSA.RSAPublicNumbers(e, n).public_key()
-        )
+        return cls(key=_RSA.RSAPublicNumbers(e, n).public_key())
+
 
 class RSAPrivateKey(PrivateKey):
     """
     Class for holding RSA private keys
     """
+
     def __init__(self, key: _RSA.RSAPrivateKey):
         super().__init__(
             key=key,
-            public_key=RSAPublicKey(
-                key.public_key()
-            ),
-            private_numbers=key.private_numbers()
+            public_key=RSAPublicKey(key.public_key()),
+            private_numbers=key.private_numbers(),
         )
 
     @classmethod
@@ -470,8 +441,8 @@ class RSAPrivateKey(PrivateKey):
         q: int = None,
         dmp1: int = None,
         dmq1: int = None,
-        iqmp: int = None
-    ) -> 'RSAPrivateKey':
+        iqmp: int = None,
+    ) -> "RSAPrivateKey":
         """
         Load an RSA private key from numbers
 
@@ -511,16 +482,14 @@ class RSAPrivateKey(PrivateKey):
                 d=d,
                 dmp1=_RSA.rsa_crt_dmp1(d, p),
                 dmq1=_RSA.rsa_crt_dmq1(d, q),
-                iqmp=_RSA.rsa_crt_iqmp(p, q)
+                iqmp=_RSA.rsa_crt_iqmp(p, q),
             ).private_key()
         )
 
     @classmethod
     def generate(
-        cls,
-        key_size: int = 4096,
-        public_exponent: int = 65537
-    ) -> 'RSAPrivateKey':
+        cls, key_size: int = 4096, public_exponent: int = 65537
+    ) -> "RSAPrivateKey":
         """
         Generates a new RSA private key
 
@@ -533,8 +502,7 @@ class RSAPrivateKey(PrivateKey):
         """
         return cls.from_class(
             _RSA.generate_private_key(
-                public_exponent=public_exponent,
-                key_size=key_size
+                public_exponent=public_exponent, key_size=key_size
             )
         )
 
@@ -550,41 +518,33 @@ class RSAPrivateKey(PrivateKey):
         Returns:
             bytes: The signature bytes
         """
-        return self.key.sign(
-            data,
-            _PADDING.PKCS1v15(),
-            hash_alg.value[1]()
-        )
+        return self.key.sign(data, _PADDING.PKCS1v15(), hash_alg.value[1]())
+
 
 class DSAPublicKey(PublicKey):
     """
     Class for holding DSA public keys
     """
+
     def __init__(
         self,
         key: _DSA.DSAPublicKey,
         comment: Union[str, bytes] = None,
         key_type: Union[str, bytes] = None,
-        serialized: bytes = None
+        serialized: bytes = None,
     ):
         super().__init__(
             key=key,
             comment=comment,
             key_type=key_type,
             public_numbers=key.public_numbers(),
-            serialized=serialized
+            serialized=serialized,
         )
         self.parameters = key.parameters().parameter_numbers()
 
     @classmethod
     # pylint: disable=invalid-name
-    def from_numbers(
-        cls,
-        p: int,
-        q: int,
-        g: int,
-        y: int
-    ) -> 'DSAPublicKey':
+    def from_numbers(cls, p: int, q: int, g: int, y: int) -> "DSAPublicKey":
         """
         Create a DSA public key from public numbers and parameters
 
@@ -599,38 +559,26 @@ class DSAPublicKey(PublicKey):
         """
         return cls(
             key=_DSA.DSAPublicNumbers(
-                y=y,
-                parameter_numbers=_DSA.DSAParameterNumbers(
-                    p=p,
-                    q=q,
-                    g=g
-                )
+                y=y, parameter_numbers=_DSA.DSAParameterNumbers(p=p, q=q, g=g)
             ).public_key()
         )
+
 
 class DSAPrivateKey(PrivateKey):
     """
     Class for holding DSA private keys
     """
+
     def __init__(self, key: _DSA.DSAPrivateKey):
         super().__init__(
             key=key,
-            public_key=DSAPublicKey(
-                key.public_key()
-            ),
-            private_numbers=key.private_numbers()
+            public_key=DSAPublicKey(key.public_key()),
+            private_numbers=key.private_numbers(),
         )
 
     @classmethod
     # pylint: disable=invalid-name,too-many-arguments
-    def from_numbers(
-        cls,
-        p: int,
-        q: int,
-        g: int,
-        y: int,
-        x: int
-    ) -> 'DSAPrivateKey':
+    def from_numbers(cls, p: int, q: int, g: int, y: int, x: int) -> "DSAPrivateKey":
         """
         Creates a new DSAPrivateKey object from parameters and public/private numbers
 
@@ -647,19 +595,14 @@ class DSAPrivateKey(PrivateKey):
         return cls(
             key=_DSA.DSAPrivateNumbers(
                 public_numbers=_DSA.DSAPublicNumbers(
-                    y=y,
-                    parameter_numbers=_DSA.DSAParameterNumbers(
-                        p=p,
-                        q=q,
-                        g=g
-                    )
+                    y=y, parameter_numbers=_DSA.DSAParameterNumbers(p=p, q=q, g=g)
                 ),
-                x=x
+                x=x,
             ).private_key()
         )
 
     @classmethod
-    def generate(cls, key_size: int = 4096) -> 'DSAPrivateKey':
+    def generate(cls, key_size: int = 4096) -> "DSAPrivateKey":
         """
         Generate a new DSA private key
 
@@ -669,11 +612,7 @@ class DSAPrivateKey(PrivateKey):
         Returns:
             DSAPrivateKey: An instance of DSAPrivateKey
         """
-        return cls.from_class(
-            _DSA.generate_private_key(
-                key_size=key_size
-            )
-        )
+        return cls.from_class(_DSA.generate_private_key(key_size=key_size))
 
     def sign(self, data: bytes):
         """
@@ -685,38 +624,34 @@ class DSAPrivateKey(PrivateKey):
         Returns:
             bytes: The signature bytes
         """
-        return self.key.sign(
-            data,
-            _HASHES.SHA1()
-        )
+        return self.key.sign(data, _HASHES.SHA1())
+
 
 class ECDSAPublicKey(PublicKey):
     """
     Class for holding ECDSA public keys
     """
+
     def __init__(
         self,
         key: _ECDSA.EllipticCurvePublicKey,
         comment: Union[str, bytes] = None,
         key_type: Union[str, bytes] = None,
-        serialized: bytes = None
+        serialized: bytes = None,
     ):
         super().__init__(
             key=key,
             comment=comment,
             key_type=key_type,
             public_numbers=key.public_numbers(),
-            serialized=serialized
+            serialized=serialized,
         )
 
     @classmethod
-    #pylint: disable=invalid-name
+    # pylint: disable=invalid-name
     def from_numbers(
-        cls,
-        curve: Union[str, _ECDSA.EllipticCurve],
-        x: int,
-        y: int
-    ) -> 'ECDSAPublicKey':
+        cls, curve: Union[str, _ECDSA.EllipticCurve], x: int, y: int
+    ) -> "ECDSAPublicKey":
         """
         Create an ECDSA public key from public numbers and parameters
 
@@ -740,31 +675,27 @@ class ECDSAPublicKey(PublicKey):
             key=_ECDSA.EllipticCurvePublicNumbers(
                 curve=ECDSA_HASHES[curve]() if isinstance(curve, str) else curve,
                 x=x,
-                y=y
+                y=y,
             ).public_key()
         )
+
 
 class ECDSAPrivateKey(PrivateKey):
     """
     Class for holding ECDSA private keys
     """
+
     def __init__(self, key: _ECDSA.EllipticCurvePrivateKey):
         super().__init__(
             key=key,
-            public_key=ECDSAPublicKey(
-                key.public_key()
-            ),
-            private_numbers=key.private_numbers()
+            public_key=ECDSAPublicKey(key.public_key()),
+            private_numbers=key.private_numbers(),
         )
 
     @classmethod
-    #pylint: disable=invalid-name
+    # pylint: disable=invalid-name
     def from_numbers(
-        cls,
-        curve: Union[str, _ECDSA.EllipticCurve],
-        x: int,
-        y: int,
-        private_value: int
+        cls, curve: Union[str, _ECDSA.EllipticCurve], x: int, y: int, private_value: int
     ):
         """
         Creates a new ECDSAPrivateKey object from parameters and public/private numbers
@@ -791,9 +722,9 @@ class ECDSAPrivateKey(PrivateKey):
                 public_numbers=_ECDSA.EllipticCurvePublicNumbers(
                     curve=ECDSA_HASHES[curve]() if isinstance(curve, str) else curve,
                     x=x,
-                    y=y
+                    y=y,
                 ),
-                private_value=private_value
+                private_value=private_value,
             ).private_key()
         )
 
@@ -808,11 +739,7 @@ class ECDSAPrivateKey(PrivateKey):
         Returns:
             ECDSAPrivateKey: An instance of ECDSAPrivateKey
         """
-        return cls.from_class(
-            _ECDSA.generate_private_key(
-                curve=curve.value
-            )
-        )
+        return cls.from_class(_ECDSA.generate_private_key(curve=curve.value))
 
     def sign(self, data: bytes):
         """
@@ -825,31 +752,27 @@ class ECDSAPrivateKey(PrivateKey):
             bytes: The signature bytes
         """
         curve = ECDSA_HASHES[self.key.curve.name]()
-        return self.key.sign(
-            data,
-            _ECDSA.ECDSA(curve)
-        )
+        return self.key.sign(data, _ECDSA.ECDSA(curve))
+
 
 class ED25519PublicKey(PublicKey):
     """
     Class for holding ED25519 public keys
     """
+
     def __init__(
         self,
         key: _ED25519.Ed25519PublicKey,
         comment: Union[str, bytes] = None,
         key_type: Union[str, bytes] = None,
-        serialized: bytes = None
+        serialized: bytes = None,
     ):
         super().__init__(
-            key=key,
-            comment=comment,
-            key_type=key_type,
-            serialized=serialized
+            key=key, comment=comment, key_type=key_type, serialized=serialized
         )
 
     @classmethod
-    def from_raw_bytes(cls, raw_bytes: bytes) -> 'ED25519PublicKey':
+    def from_raw_bytes(cls, raw_bytes: bytes) -> "ED25519PublicKey":
         """
         Load an ED25519 public key from raw bytes
 
@@ -860,25 +783,20 @@ class ED25519PublicKey(PublicKey):
             ED25519PublicKey: Instance of ED25519PublicKey
         """
         return cls.from_class(
-            _ED25519.Ed25519PublicKey.from_public_bytes(
-                data=raw_bytes
-            )
+            _ED25519.Ed25519PublicKey.from_public_bytes(data=raw_bytes)
         )
+
 
 class ED25519PrivateKey(PrivateKey):
     """
     Class for holding ED25519 private keys
     """
+
     def __init__(self, key: _ED25519.Ed25519PrivateKey):
-        super().__init__(
-            key=key,
-            public_key=ED25519PublicKey(
-                key.public_key()
-            )
-        )
+        super().__init__(key=key, public_key=ED25519PublicKey(key.public_key()))
 
     @classmethod
-    def from_raw_bytes(cls, raw_bytes: bytes) -> 'ED25519PrivateKey':
+    def from_raw_bytes(cls, raw_bytes: bytes) -> "ED25519PrivateKey":
         """
         Load an ED25519 private key from raw bytes
 
@@ -889,22 +807,18 @@ class ED25519PrivateKey(PrivateKey):
             ED25519PrivateKey: Instance of ED25519PrivateKey
         """
         return cls.from_class(
-            _ED25519.Ed25519PrivateKey.from_private_bytes(
-                data=raw_bytes
-            )
+            _ED25519.Ed25519PrivateKey.from_private_bytes(data=raw_bytes)
         )
 
     @classmethod
-    def generate(cls) -> 'ED25519PrivateKey':
+    def generate(cls) -> "ED25519PrivateKey":
         """
         Generates a new ED25519 Private Key
 
         Returns:
             ED25519PrivateKey: Instance of ED25519PrivateKey
         """
-        return cls.from_class(
-            _ED25519.Ed25519PrivateKey.generate()
-        )
+        return cls.from_class(_ED25519.Ed25519PrivateKey.generate())
 
     def raw_bytes(self) -> bytes:
         """
@@ -916,7 +830,7 @@ class ED25519PrivateKey(PrivateKey):
         return self.key.private_bytes(
             encoding=_SERIALIZATION.Encoding.Raw,
             format=_SERIALIZATION.PrivateFormat.Raw,
-            encryption_algorithm=_SERIALIZATION.NoEncryption()
+            encryption_algorithm=_SERIALIZATION.NoEncryption(),
         )
 
     def sign(self, data: bytes):

@@ -15,33 +15,46 @@ from .keys import (
     RSAPublicKey,
     DSAPublicKey,
     ECDSAPublicKey,
-    ED25519PublicKey
+    ED25519PublicKey,
 )
 from . import fields as _FIELD
 from . import exceptions as _EX
 from .keys import RsaAlgs
 
 CERTIFICATE_FIELDS = {
-    'serial': _FIELD.SerialField,
-    'cert_type': _FIELD.CertificateTypeField,
-    'key_id': _FIELD.KeyIDField,
-    'principals': _FIELD.PrincipalsField,
-    'valid_after': _FIELD.ValidityStartField,
-    'valid_before': _FIELD.ValidityEndField,
-    'critical_options': _FIELD.CriticalOptionsField,
-    'extensions': _FIELD.ExtensionsField
+    "serial": _FIELD.SerialField,
+    "cert_type": _FIELD.CertificateTypeField,
+    "key_id": _FIELD.KeyIDField,
+    "principals": _FIELD.PrincipalsField,
+    "valid_after": _FIELD.ValidityStartField,
+    "valid_before": _FIELD.ValidityEndField,
+    "critical_options": _FIELD.CriticalOptionsField,
+    "extensions": _FIELD.ExtensionsField,
 }
 
 CERT_TYPES = {
-    'ssh-rsa-cert-v01@openssh.com': ('RSACertificate', '_FIELD.RSAPubkeyField'),
-    'rsa-sha2-256-cert-v01@openssh.com': ('RSACertificate', '_FIELD.RSAPubkeyField'),
-    'rsa-sha2-512-cert-v01@openssh.com': ('RSACertificate', '_FIELD.RSAPubkeyField'),
-    'ssh-dss-cert-v01@openssh.com': ('DSACertificate', '_FIELD.DSAPubkeyField'),
-    'ecdsa-sha2-nistp256-cert-v01@openssh.com': ('ECDSACertificate', '_FIELD.ECDSAPubkeyField'),
-    'ecdsa-sha2-nistp384-cert-v01@openssh.com': ('ECDSACertificate', '_FIELD.ECDSAPubkeyField'),
-    'ecdsa-sha2-nistp521-cert-v01@openssh.com': ('ECDSACertificate', '_FIELD.ECDSAPubkeyField'),
-    'ssh-ed25519-cert-v01@openssh.com': ('ED25519Certificate', '_FIELD.ED25519PubkeyField'),
+    "ssh-rsa-cert-v01@openssh.com": ("RSACertificate", "_FIELD.RSAPubkeyField"),
+    "rsa-sha2-256-cert-v01@openssh.com": ("RSACertificate", "_FIELD.RSAPubkeyField"),
+    "rsa-sha2-512-cert-v01@openssh.com": ("RSACertificate", "_FIELD.RSAPubkeyField"),
+    "ssh-dss-cert-v01@openssh.com": ("DSACertificate", "_FIELD.DSAPubkeyField"),
+    "ecdsa-sha2-nistp256-cert-v01@openssh.com": (
+        "ECDSACertificate",
+        "_FIELD.ECDSAPubkeyField",
+    ),
+    "ecdsa-sha2-nistp384-cert-v01@openssh.com": (
+        "ECDSACertificate",
+        "_FIELD.ECDSAPubkeyField",
+    ),
+    "ecdsa-sha2-nistp521-cert-v01@openssh.com": (
+        "ECDSACertificate",
+        "_FIELD.ECDSAPubkeyField",
+    ),
+    "ssh-ed25519-cert-v01@openssh.com": (
+        "ED25519Certificate",
+        "_FIELD.ED25519PubkeyField",
+    ),
 }
+
 
 class SSHCertificate:
     """
@@ -49,22 +62,23 @@ class SSHCertificate:
     To create new certificates, use the respective keytype classes
     or the from_public_key classmethod
     """
+
     def __init__(
         self,
         subject_pubkey: PublicKey = None,
         ca_privkey: PrivateKey = None,
         decoded: dict = None,
-        **kwargs
+        **kwargs,
     ) -> None:
 
         if decoded is not None:
-            self.signature = decoded.pop('signature')
-            self.signature_pubkey = decoded.pop('ca_pubkey')
+            self.signature = decoded.pop("signature")
+            self.signature_pubkey = decoded.pop("ca_pubkey")
 
             self.header = {
-                'pubkey_type': decoded.pop('pubkey_type'),
-                'nonce': decoded.pop('nonce'),
-                'public_key': decoded.pop('public_key')
+                "pubkey_type": decoded.pop("pubkey_type"),
+                "nonce": decoded.pop("nonce"),
+                "public_key": decoded.pop("public_key"),
             }
 
             self.fields = decoded
@@ -72,21 +86,15 @@ class SSHCertificate:
             return
 
         if subject_pubkey is None:
-            raise _EX.SSHCertificateException(
-                "The subject public key is required"
-            )
+            raise _EX.SSHCertificateException("The subject public key is required")
 
         self.header = {
-            'pubkey_type': _FIELD.PubkeyTypeField,
-            'nonce': _FIELD.NonceField(),
-            'public_key': _FIELD.PublicKeyField.from_object(
-                subject_pubkey
-            )
+            "pubkey_type": _FIELD.PubkeyTypeField,
+            "nonce": _FIELD.NonceField(),
+            "public_key": _FIELD.PublicKeyField.from_object(subject_pubkey),
         }
 
-        self.signature = _FIELD.SignatureField.from_object(
-            ca_privkey
-        )
+        self.signature = _FIELD.SignatureField.from_object(ca_privkey)
 
         self.signature_pubkey = _FIELD.CAPublicKeyField.from_object(
             ca_privkey.public_key
@@ -96,30 +104,43 @@ class SSHCertificate:
         self.set_opts(**kwargs)
 
     def __str__(self):
-        principals = '\n' + '\n'.join(
-            ''.join([' ']*32) + (
-                x.decode('utf-8') if isinstance(x, bytes) else x
-            ) for x in self.fields['principals'].value
-        ) if len(self.fields['principals'].value) > 0 else 'none'
+        principals = (
+            "\n"
+            + "\n".join(
+                "".join([" "] * 32) + (x.decode("utf-8") if isinstance(x, bytes) else x)
+                for x in self.fields["principals"].value
+            )
+            if len(self.fields["principals"].value) > 0
+            else "none"
+        )
 
-        critical = '\n' + '\n'.join(
-            ''.join([' ']*32) + (
-                x.decode('utf-8') if isinstance(x, bytes) else x
-            ) for x in self.fields['critical_options'].value
-        ) if len(self.fields['critical_options'].value) > 0 else 'none'
+        critical = (
+            "\n"
+            + "\n".join(
+                "".join([" "] * 32) + (x.decode("utf-8") if isinstance(x, bytes) else x)
+                for x in self.fields["critical_options"].value
+            )
+            if len(self.fields["critical_options"].value) > 0
+            else "none"
+        )
 
-        extensions = '\n' + '\n'.join(
-            ''.join([' ']*32) + (
-                x.decode('utf-8') if isinstance(x, bytes) else x
-            ) for x in self.fields['extensions'].value
-        ) if len(self.fields['extensions'].value) > 0 else 'none'
+        extensions = (
+            "\n"
+            + "\n".join(
+                "".join([" "] * 32) + (x.decode("utf-8") if isinstance(x, bytes) else x)
+                for x in self.fields["extensions"].value
+            )
+            if len(self.fields["extensions"].value) > 0
+            else "none"
+        )
 
-        signature_val = b64encode(self.signature.value).decode('utf-8') if isinstance(
-            self.signature.value,
-            bytes
-        ) else "Not signed"
+        signature_val = (
+            b64encode(self.signature.value).decode("utf-8")
+            if isinstance(self.signature.value, bytes)
+            else "Not signed"
+        )
 
-        return f'''
+        return f"""
         Certificate:
             Pubkey Type:        {self.header['pubkey_type'].value}
             Public Key:         {str(self.header['public_key'])}
@@ -132,10 +153,12 @@ class SSHCertificate:
             Critical options:   {critical}
             Extensions:         {extensions}
             Signature:          {signature_val}
-        '''
+        """
 
     @staticmethod
-    def decode(cert_bytes: bytes, pubkey_class: _FIELD.PublicKeyField = None) -> 'SSHCertificate':
+    def decode(
+        cert_bytes: bytes, pubkey_class: _FIELD.PublicKeyField = None
+    ) -> "SSHCertificate":
         """
         Decode an existing certificate and import it into a new object
 
@@ -151,48 +174,51 @@ class SSHCertificate:
             SSHCertificate: SSHCertificate child class
         """
         if pubkey_class is None:
-            cert_type = _FIELD.StringField.decode(cert_bytes)[0].encode('utf-8')
+            cert_type = _FIELD.StringField.decode(cert_bytes)[0].encode("utf-8")
             pubkey_class = CERT_TYPES.get(cert_type, False)
 
         if pubkey_class is False:
             raise _EX.InvalidCertificateFormatException(
-                "Could not determine certificate type, please use one " +
-                "of the specific classes or specify the pubkey_class"
+                "Could not determine certificate type, please use one "
+                + "of the specific classes or specify the pubkey_class"
             )
 
-        decode_fields = {
-            'pubkey_type': _FIELD.PubkeyTypeField,
-            'nonce': _FIELD.NonceField,
-            'public_key': pubkey_class,
-        } | CERTIFICATE_FIELDS | {
-            'reserved': _FIELD.ReservedField,
-            'ca_pubkey': _FIELD.CAPublicKeyField,
-            'signature': _FIELD.SignatureField
-        }
+        decode_fields = (
+            {
+                "pubkey_type": _FIELD.PubkeyTypeField,
+                "nonce": _FIELD.NonceField,
+                "public_key": pubkey_class,
+            }
+            | CERTIFICATE_FIELDS
+            | {
+                "reserved": _FIELD.ReservedField,
+                "ca_pubkey": _FIELD.CAPublicKeyField,
+                "signature": _FIELD.SignatureField,
+            }
+        )
 
         cert = {}
 
         for item in decode_fields.keys():
             cert[item], cert_bytes = decode_fields[item].from_decode(cert_bytes)
 
-        if cert_bytes != b'':
+        if cert_bytes != b"":
             raise _EX.InvalidCertificateFormatException(
                 "The certificate has additional data after everything has been extracted"
             )
 
-        pubkey_type = cert['pubkey_type'].value
+        pubkey_type = cert["pubkey_type"].value
         if isinstance(pubkey_type, bytes):
-            pubkey_type = pubkey_type.decode('utf-8')
+            pubkey_type = pubkey_type.decode("utf-8")
 
         cert_type = CERT_TYPES[pubkey_type]
 
         return globals()[cert_type[0]](
-            subject_pubkey=cert['public_key'].value,
-            decoded=cert
+            subject_pubkey=cert["public_key"].value, decoded=cert
         )
 
     @classmethod
-    def from_public_class(cls, public_key: PublicKey, **kwargs) -> 'SSHCertificate':
+    def from_public_class(cls, public_key: PublicKey, **kwargs) -> "SSHCertificate":
         """
         Creates a new certificate from a supplied public key
 
@@ -203,11 +229,8 @@ class SSHCertificate:
             SSHCertificate: SSHCertificate child class
         """
         return globals()[
-            public_key.__class__.__name__.replace('PublicKey', 'Certificate')
-        ](
-            public_key,
-            **kwargs
-        )
+            public_key.__class__.__name__.replace("PublicKey", "Certificate")
+        ](public_key, **kwargs)
 
     @classmethod
     def from_bytes(cls, cert_bytes: bytes):
@@ -221,11 +244,11 @@ class SSHCertificate:
             SSHCertificate: SSHCertificate child class
         """
         cert_type, _ = _FIELD.StringField.decode(cert_bytes)
-        target_class = CERT_TYPES[cert_type.decode('utf-8')]
+        target_class = CERT_TYPES[cert_type.decode("utf-8")]
         return globals()[target_class[0]].decode(cert_bytes)
 
     @classmethod
-    def from_string(cls, cert_str: Union[str, bytes], encoding: str = 'utf-8'):
+    def from_string(cls, cert_str: Union[str, bytes], encoding: str = "utf-8"):
         """
         Loads an existing certificate from a string in the format
         [certificate-type] [base64-encoded-certificate] [optional-comment]
@@ -240,15 +263,11 @@ class SSHCertificate:
         if isinstance(cert_str, str):
             cert_str = cert_str.encode(encoding)
 
-        certificate = b64decode(
-            cert_str.split(b' ')[1]
-        )
-        return cls.from_bytes(
-            cert_bytes=certificate
-        )
+        certificate = b64decode(cert_str.split(b" ")[1])
+        return cls.from_bytes(cert_bytes=certificate)
 
     @classmethod
-    def from_file(cls, path: str, encoding: str = 'utf-8'):
+    def from_file(cls, path: str, encoding: str = "utf-8"):
         """
         Loads an existing certificate from a file
 
@@ -259,9 +278,7 @@ class SSHCertificate:
         Returns:
             SSHCertificate: SSHCertificate child class
         """
-        return cls.from_string(
-            open(path, 'r', encoding=encoding).read()
-        )
+        return cls.from_string(open(path, "r", encoding=encoding).read())
 
     def set_type(self, pubkey_type: str):
         """
@@ -271,10 +288,8 @@ class SSHCertificate:
         Args:
             pubkey_type (str): Public key type, e.g. ssh-rsa-cert-v01@openssh.com
         """
-        if not getattr(self.header['pubkey_type'], 'value', False):
-            self.header['pubkey_type'] = self.header['pubkey_type'](
-                pubkey_type
-            )
+        if not getattr(self.header["pubkey_type"], "value", False):
+            self.header["pubkey_type"] = self.header["pubkey_type"](pubkey_type)
 
     def set_opt(self, key: str, value):
         """
@@ -289,11 +304,11 @@ class SSHCertificate:
         """
         if key not in self.fields:
             raise _EX.InvalidCertificateFieldException(
-                f'{key} is not a valid certificate field'
+                f"{key} is not a valid certificate field"
             )
 
         try:
-            if self.fields[key].value not in [None, False, '', [], ()]:
+            if self.fields[key].value not in [None, False, "", [], ()]:
                 self.fields[key].value = value
         except AttributeError:
             self.fields[key] = self.fields[key](value)
@@ -316,9 +331,7 @@ class SSHCertificate:
         Returns:
             bool: True/False if the certificate can be signed
         """
-        can_sign = [
-            x.validate() for x in self.fields.values()
-        ]
+        can_sign = [x.validate() for x in self.fields.values()]
 
         if self.signature.can_sign() is True and can_sign:
             return True
@@ -331,7 +344,6 @@ class SSHCertificate:
             "The certificate cannot be signed, the private key is not loaded"
         )
 
-
     def get_signable_data(self) -> bytes:
         """
         Gets the signable byte string from the certificate fields
@@ -339,11 +351,16 @@ class SSHCertificate:
         Returns:
             bytes: The data in the certificate which is signed
         """
-        return b''.join([
-            bytes(x) for x in
-            tuple(self.header.values()) +
-            tuple(self.fields.values())
-        ]) + bytes(_FIELD.ReservedField()) + bytes(self.signature_pubkey)
+        return (
+            b"".join(
+                [
+                    bytes(x)
+                    for x in tuple(self.header.values()) + tuple(self.fields.values())
+                ]
+            )
+            + bytes(_FIELD.ReservedField())
+            + bytes(self.signature_pubkey)
+        )
 
     def sign(self):
         """
@@ -353,9 +370,7 @@ class SSHCertificate:
             SSHCertificate: The signed certificate class
         """
         if self.can_sign():
-            self.signature.sign(
-                data=self.get_signable_data()
-            )
+            self.signature.sign(data=self.get_signable_data())
 
         return self
 
@@ -370,14 +385,13 @@ class SSHCertificate:
             bytes: The certificate bytes
         """
         if self.signature.is_signed is True:
-            return (
-                self.get_signable_data() +
-                bytes(self.signature)
-            )
+            return self.get_signable_data() + bytes(self.signature)
 
         raise _EX.NotSignedException("The certificate has not been signed")
 
-    def to_string(self, comment: Union[str, bytes] = None, encoding: str = 'utf-8') -> str:
+    def to_string(
+        self, comment: Union[str, bytes] = None, encoding: str = "utf-8"
+    ) -> str:
         """
         Export the signed certificate to a string, ready to be written to file
 
@@ -389,16 +403,18 @@ class SSHCertificate:
             str: Certificate string
         """
         return (
-            self.header['pubkey_type'].value.encode(encoding) +
-            b' ' +
-            b64encode(
+            self.header["pubkey_type"].value.encode(encoding)
+            + b" "
+            + b64encode(
                 self.to_bytes(),
-            ) +
-            b' ' +
-            (comment if comment else b'')
-        ).decode('utf-8')
+            )
+            + b" "
+            + (comment if comment else b"")
+        ).decode("utf-8")
 
-    def to_file(self, path: str, comment: Union[str, bytes] = None, encoding: str = 'utf-8'):
+    def to_file(
+        self, path: str, comment: Union[str, bytes] = None, encoding: str = "utf-8"
+    ):
         """
         Saves the certificate to a file
 
@@ -408,15 +424,15 @@ class SSHCertificate:
                                                    Defaults to None.
             encoding (str, optional): Encoding for the file. Defaults to 'utf-8'.
         """
-        with open(path, 'w', encoding=encoding) as file:
-            file.write(
-                self.to_string(comment, encoding)
-            )
+        with open(path, "w", encoding=encoding) as file:
+            file.write(self.to_string(comment, encoding))
+
 
 class RSACertificate(SSHCertificate):
     """
     Specific class for RSA Certificates. Inherits from SSHCertificate
     """
+
     def __init__(
         self,
         subject_pubkey: RSAPublicKey,
@@ -427,11 +443,11 @@ class RSACertificate(SSHCertificate):
 
         super().__init__(subject_pubkey, ca_privkey, **kwargs)
         self.rsa_alg = rsa_alg
-        self.set_type(f'{rsa_alg.value[0]}-cert-v01@openssh.com')
+        self.set_type(f"{rsa_alg.value[0]}-cert-v01@openssh.com")
 
     @classmethod
     # pylint: disable=arguments-differ
-    def decode(cls, cert_bytes: bytes) -> 'SSHCertificate':
+    def decode(cls, cert_bytes: bytes) -> "SSHCertificate":
         """
         Decode an existing RSA Certificate
 
@@ -441,27 +457,23 @@ class RSACertificate(SSHCertificate):
         Returns:
             RSACertificate: The decoded certificate
         """
-        return super().decode(
-            cert_bytes,
-            _FIELD.RSAPubkeyField
-        )
+        return super().decode(cert_bytes, _FIELD.RSAPubkeyField)
+
 
 class DSACertificate(SSHCertificate):
     """
     Specific class for DSA/DSS Certificates. Inherits from SSHCertificate
     """
+
     def __init__(
-        self,
-        subject_pubkey: DSAPublicKey,
-        ca_privkey: PrivateKey = None,
-        **kwargs
+        self, subject_pubkey: DSAPublicKey, ca_privkey: PrivateKey = None, **kwargs
     ):
         super().__init__(subject_pubkey, ca_privkey, **kwargs)
-        self.set_type('ssh-dss-cert-v01@openssh.com')
+        self.set_type("ssh-dss-cert-v01@openssh.com")
 
     @classmethod
     # pylint: disable=arguments-differ
-    def decode(cls, cert_bytes: bytes) -> 'DSACertificate':
+    def decode(cls, cert_bytes: bytes) -> "DSACertificate":
         """
         Decode an existing DSA Certificate
 
@@ -471,29 +483,25 @@ class DSACertificate(SSHCertificate):
         Returns:
             DSACertificate: The decoded certificate
         """
-        return super().decode(
-            cert_bytes,
-            _FIELD.DSAPubkeyField
-        )
+        return super().decode(cert_bytes, _FIELD.DSAPubkeyField)
+
 
 class ECDSACertificate(SSHCertificate):
     """
     Specific class for ECDSA Certificates. Inherits from SSHCertificate
     """
+
     def __init__(
-        self,
-        subject_pubkey: ECDSAPublicKey,
-        ca_privkey: PrivateKey = None,
-        **kwargs
+        self, subject_pubkey: ECDSAPublicKey, ca_privkey: PrivateKey = None, **kwargs
     ):
         super().__init__(subject_pubkey, ca_privkey, **kwargs)
         self.set_type(
-            f'ecdsa-sha2-nistp{subject_pubkey.key.curve.key_size}-cert-v01@openssh.com'
+            f"ecdsa-sha2-nistp{subject_pubkey.key.curve.key_size}-cert-v01@openssh.com"
         )
 
     @classmethod
     # pylint: disable=arguments-differ
-    def decode(cls, cert_bytes: bytes) -> 'ECDSACertificate':
+    def decode(cls, cert_bytes: bytes) -> "ECDSACertificate":
         """
         Decode an existing ECDSA Certificate
 
@@ -503,29 +511,23 @@ class ECDSACertificate(SSHCertificate):
         Returns:
             ECDSACertificate: The decoded certificate
         """
-        return super().decode(
-            cert_bytes,
-            _FIELD.ECDSAPubkeyField
-        )
+        return super().decode(cert_bytes, _FIELD.ECDSAPubkeyField)
+
 
 class ED25519Certificate(SSHCertificate):
     """
     Specific class for ED25519 Certificates. Inherits from SSHCertificate
     """
+
     def __init__(
-        self,
-        subject_pubkey: ED25519PublicKey,
-        ca_privkey: PrivateKey = None,
-        **kwargs
+        self, subject_pubkey: ED25519PublicKey, ca_privkey: PrivateKey = None, **kwargs
     ):
         super().__init__(subject_pubkey, ca_privkey, **kwargs)
-        self.set_type(
-            'ssh-ed25519-cert-v01@openssh.com'
-        )
+        self.set_type("ssh-ed25519-cert-v01@openssh.com")
 
     @classmethod
     # pylint: disable=arguments-differ
-    def decode(cls, cert_bytes: bytes) -> 'ED25519Certificate':
+    def decode(cls, cert_bytes: bytes) -> "ED25519Certificate":
         """
         Decode an existing ED25519 Certificate
 
@@ -535,7 +537,4 @@ class ED25519Certificate(SSHCertificate):
         Returns:
             ED25519Certificate: The decoded certificate
         """
-        return super().decode(
-            cert_bytes,
-            _FIELD.ED25519PubkeyField
-        )
+        return super().decode(cert_bytes, _FIELD.ED25519PubkeyField)
