@@ -1,0 +1,7 @@
+click
+cryptography
+bcrypt
+enum34
+paramiko
+coverage
+black
