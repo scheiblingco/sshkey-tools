@@ -78,38 +78,38 @@ class TestLongConversion(unittest.TestCase):
         with self.assertRaises(TypeError):
             utils.long_to_bytes('one')
         
-    # def test_random_values(self):
-    #     """
-    #     Extend testing with random results, comparing to the established function.
-    #     """
-    #     start_length = 16
-    #     for _ in range(16):
-    #         print(start_length)
+    def test_random_values(self):
+        """
+        Extend testing with random results, comparing to the established function.
+        """
+        start_length = 16
+        for _ in range(15):
+            print(start_length)
             
-    #         for _ in range(10):
-    #             value = randint(2**start_length-1, 2**start_length)
+            for _ in range(10):
+                value = randint(2**start_length-1, 2**start_length)
                 
-    #             builtin = utils.long_to_bytes(value)
-    #             compare = deflate_long(value)
+                builtin = utils.long_to_bytes(value)
+                compare = deflate_long(value)
                 
-    #             self.assertEqual(
-    #                 builtin,
-    #                 compare
-    #             )
+                self.assertEqual(
+                    builtin,
+                    compare
+                )
                 
-    #             self.assertEqual(
-    #                 utils.bytes_to_long(compare),
-    #                 inflate_long(builtin)
-    #             )
+                self.assertEqual(
+                    utils.bytes_to_long(compare),
+                    inflate_long(builtin)
+                )
                 
-    #         start_length = start_length*2
+            start_length = start_length*2
             
 class TestNonceGeneration(unittest.TestCase):
     def test_nonce_generation(self):
         """
-        Ensure the nonce is the expected length
+        Ensure the nonce is generated correctly
         """
-        for _ in range(100):
+        for _ in range(10):
             self.assertIsInstance(
                 utils.generate_secure_nonce(),
                 str

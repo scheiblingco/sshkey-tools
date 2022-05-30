@@ -1,3 +1,13 @@
+from src.sshkey_tools.keys import PrivateKey, RSAPrivateKey
+
+
+unspecific = PrivateKey.from_file('tests/test_keypairs/rsa_key_sshkeygen')
+specific = RSAPrivateKey.from_file('tests/test_keypairs/rsa_key_sshkeygen')
+        
+print(unspecific.to_bytes())
+print(specific.to_bytes())
+
+
 # from src.sshkey_tools.cert import main
 
 

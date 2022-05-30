@@ -311,7 +311,7 @@ class PrivateKey:
 
     @classmethod
     def from_file(
-        cls, path: str, password: Union[str, bytes] = None, encoding: str = "utf-8"
+        cls, path: str, password: Union[str, bytes] = None,
     ) -> "PrivateKey":
         """
         Loads an SSH private key from a file
@@ -324,7 +324,7 @@ class PrivateKey:
         Returns:
             PrivateKey: Any of the PrivateKey child classes
         """
-        with open(path, "rb", encoding=encoding) as key_file:
+        with open(path, "rb") as key_file:
             return cls.from_string(key_file.read(), password)
 
     def to_bytes(self, password: Union[str, bytes] = None) -> bytes:
@@ -602,17 +602,15 @@ class DSAPrivateKey(PrivateKey):
         )
 
     @classmethod
-    def generate(cls, key_size: int = 4096) -> "DSAPrivateKey":
+    def generate(cls) -> "DSAPrivateKey":
         """
         Generate a new DSA private key
-
-        Args:
-            key_size (int, optional): Number of key bytes. Defaults to 4096.
-
+        Key size is fixed since OpenSSH only supports 1024-bit DSA keys
+        
         Returns:
             DSAPrivateKey: An instance of DSAPrivateKey
         """
-        return cls.from_class(_DSA.generate_private_key(key_size=key_size))
+        return cls.from_class(_DSA.generate_private_key(key_size=1024))
 
     def sign(self, data: bytes):
         """
@@ -720,7 +718,7 @@ class ECDSAPrivateKey(PrivateKey):
         return cls(
             key=_ECDSA.EllipticCurvePrivateNumbers(
                 public_numbers=_ECDSA.EllipticCurvePublicNumbers(
-                    curve=ECDSA_HASHES[curve]() if isinstance(curve, str) else curve,
+                    curve=getattr(_ECDSA, curve.upper())() if isinstance(curve, str) else curve,
                     x=x,
                     y=y,
                 ),
