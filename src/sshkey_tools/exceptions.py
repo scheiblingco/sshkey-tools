@@ -95,3 +95,8 @@ class SSHCertificateException(ValueError):
     """
     Raised when the SSH Certificate is invalid
     """
+
+class InvalidSignatureException(ValueError):
+    """
+    Raised when the signature checked is invalid
+    """

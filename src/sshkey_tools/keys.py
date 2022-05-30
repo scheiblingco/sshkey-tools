@@ -4,6 +4,7 @@ Classes for handling SSH public/private keys
 from typing import Union
 from enum import Enum
 from base64 import b64decode
+from struct import unpack
 from cryptography.hazmat.backends.openssl.rsa import _RSAPublicKey, _RSAPrivateKey
 from cryptography.hazmat.backends.openssl.dsa import _DSAPublicKey, _DSAPrivateKey
 from cryptography.hazmat.backends.openssl.ed25519 import (
@@ -25,6 +26,8 @@ from cryptography.hazmat.primitives.asymmetric import (
     ed25519 as _ED25519,
     padding as _PADDING,
 )
+
+from cryptography.exceptions import InvalidSignature
 
 from . import exceptions as _EX
 from .utils import (
@@ -147,7 +150,7 @@ class PublicKey:
             raise _EX.InvalidKeyException("Invalid public key") from KeyError
 
     @classmethod
-    def from_string(cls, data: Union[str, bytes]) -> "PublicKey":
+    def from_string(cls, data: Union[str, bytes], encoding: str = 'utf-8') -> "PublicKey":
         """
         Loads an SSH public key from a string containing the data
         in OpenSSH format (SubjectPublickeyInfo)
@@ -159,7 +162,7 @@ class PublicKey:
             PublicKey: Any of the PublicKey child classes
         """
         if isinstance(data, str):
-            data = data.encode("utf-8")
+            data = data.encode(encoding)
 
         split = data.split(b" ")
         comment = None
@@ -326,6 +329,18 @@ class PrivateKey:
         """
         with open(path, "rb") as key_file:
             return cls.from_string(key_file.read(), password)
+        
+    def get_fingerprint(self, hash_method: FingerprintHashes = FingerprintHashes.SHA256) -> str:
+        """
+        Generates a fingerprint of the private key
+
+        Args:
+            hash_method (FingerprintHashes, optional): Type of hash. Defaults to SHA256.
+
+        Returns:
+            str: The hash of the private key
+        """
+        return self.public_key.get_fingerprint(hash_method)
 
     def to_bytes(self, password: Union[str, bytes] = None) -> bytes:
         """
@@ -416,6 +431,25 @@ class RSAPublicKey(PublicKey):
             RSAPublicKey: _description_
         """
         return cls(key=_RSA.RSAPublicNumbers(e, n).public_key())
+
+    def verify(self, data: bytes, signature: bytes, hash_alg: RsaAlgs = RsaAlgs.SHA512) -> None:
+        """
+        Verifies a signature
+
+        Args:
+            data (bytes): The data to verify
+            signature (bytes): The signature to verify
+            hash_method (HashMethods): The hash method to use
+
+        Raises:
+            Raises an sshkey_tools.exceptions.InvalidSignatureException if the signature is invalid
+        """
+        try:
+            return self.key.verify(signature, data, _PADDING.PKCS1v15(), hash_alg.value[1]())
+        except InvalidSignature:
+            raise _EX.InvalidSignatureException(
+                "The signature is invalid for the given data"
+            ) from InvalidSignature
 
 
 class RSAPrivateKey(PrivateKey):
@@ -562,6 +596,24 @@ class DSAPublicKey(PublicKey):
                 y=y, parameter_numbers=_DSA.DSAParameterNumbers(p=p, q=q, g=g)
             ).public_key()
         )
+        
+    def verify(self, data: bytes, signature: bytes) -> None:
+        """
+        Verifies a signature
+
+        Args:
+            data (bytes): The data to verify
+            signature (bytes): The signature to verify
+
+        Raises:
+            Raises an sshkey_tools.exceptions.InvalidSignatureException if the signature is invalid
+        """
+        try:
+            return self.key.verify(signature, data, _HASHES.SHA1())
+        except InvalidSignature:
+            raise _EX.InvalidSignatureException(
+                "The signature is invalid for the given data"
+            ) from InvalidSignature
 
 
 class DSAPrivateKey(PrivateKey):
@@ -671,11 +723,34 @@ class ECDSAPublicKey(PublicKey):
 
         return cls(
             key=_ECDSA.EllipticCurvePublicNumbers(
-                curve=ECDSA_HASHES[curve]() if isinstance(curve, str) else curve,
+                curve=getattr(_ECDSA, curve.upper())(),
                 x=x,
                 y=y,
             ).public_key()
         )
+        
+    def verify(self, data: bytes, signature: bytes) -> None:
+        """
+        Verifies a signature
+
+        Args:
+            data (bytes): The data to verify
+            signature (bytes): The signature to verify
+
+        Raises:
+            Raises an sshkey_tools.exceptions.InvalidSignatureException if the signature is invalid
+        """
+        try:
+            curve_hash = ECDSA_HASHES[self.key.curve.name]()
+            return self.key.verify(
+                signature, 
+                data, 
+                _ECDSA.ECDSA(curve_hash)
+            )
+        except InvalidSignature:
+            raise _EX.InvalidSignatureException(
+                "The signature is invalid for the given data"
+            ) from InvalidSignature
 
 
 class ECDSAPrivateKey(PrivateKey):
@@ -718,7 +793,7 @@ class ECDSAPrivateKey(PrivateKey):
         return cls(
             key=_ECDSA.EllipticCurvePrivateNumbers(
                 public_numbers=_ECDSA.EllipticCurvePublicNumbers(
-                    curve=getattr(_ECDSA, curve.upper())() if isinstance(curve, str) else curve,
+                    curve=getattr(_ECDSA, curve.upper())(),
                     x=x,
                     y=y,
                 ),
@@ -749,8 +824,8 @@ class ECDSAPrivateKey(PrivateKey):
         Returns:
             bytes: The signature bytes
         """
-        curve = ECDSA_HASHES[self.key.curve.name]()
-        return self.key.sign(data, _ECDSA.ECDSA(curve))
+        curve_hash = ECDSA_HASHES[self.key.curve.name]()
+        return self.key.sign(data, _ECDSA.ECDSA(curve_hash))
 
 
 class ED25519PublicKey(PublicKey):
@@ -780,9 +855,31 @@ class ED25519PublicKey(PublicKey):
         Returns:
             ED25519PublicKey: Instance of ED25519PublicKey
         """
+        if b'ssh-ed25519' in raw_bytes:
+            id_length = unpack(">I", raw_bytes[:4])[0] + 8
+            raw_bytes = raw_bytes[id_length:]
+        
         return cls.from_class(
             _ED25519.Ed25519PublicKey.from_public_bytes(data=raw_bytes)
         )
+        
+    def verify(self, data: bytes, signature: bytes) -> None:
+        """
+        Verifies a signature
+
+        Args:
+            data (bytes): The data to verify
+            signature (bytes): The signature to verify
+
+        Raises:
+            Raises an sshkey_tools.exceptions.InvalidSignatureException if the signature is invalid
+        """
+        try:
+            return self.key.verify(signature, data)
+        except InvalidSignature:
+            raise _EX.InvalidSignatureException(
+                "The signature is invalid for the given data"
+            ) from InvalidSignature
 
 
 class ED25519PrivateKey(PrivateKey):

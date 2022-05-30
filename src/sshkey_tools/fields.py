@@ -179,12 +179,7 @@ class StringField(CertificateField):
         if isinstance(value, str):
             value = value.encode(encoding)
 
-        if isinstance(value, bytes):
-            return pack(">I", len(value)) + value
-
-        raise _EX.InvalidDataException(
-            f"Expected unicode or bytes, got {type(value).__name__}."
-        )
+        return pack(">I", len(value)) + value
 
     @staticmethod
     def decode(data: bytes) -> Tuple[str, bytes]:
