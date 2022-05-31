@@ -1,13 +1,49 @@
 from src.sshkey_tools.keys import *
 import src.sshkey_tools.fields as _FLD
+from datetime import datetime, timedelta
 
+print((datetime.now() + timedelta(weeks=52*10)).timestamp())
+print((datetime.now() + timedelta(weeks=52*10, hours=12)).timestamp())
 
+# _FLD.BooleanField.encode('Hello')
+
+# test = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
+# test2 = [b'a', b'b', b'c', b'd', b'e', b'f', b'g']
+
+# field = _FLD.SeparatedListField(test)
+# field2 = _FLD.SeparatedListField(test2)
+
+# by = bytes(field)
+# by2 = bytes(field)
+
+# fieldout = _FLD.SeparatedListField.decode(by)[0]
+# fieldout2 = _FLD.SeparatedListField.decode(by2)[0]
+
+# print("Hold")
+
+# allowed_values = (
+#             "ssh-rsa-cert-v01@openssh.com",
+#             "rsa-sha2-256-cert-v01@openssh.com",
+#             "rsa-sha2-512-cert-v01@openssh.com",
+#             "ssh-dss-cert-v01@openssh.com",
+#             "ecdsa-sha2-nistp256-cert-v01@openssh.com",
+#             "ecdsa-sha2-nistp384-cert-v01@openssh.com",
+#             "ecdsa-sha2-nistp521-cert-v01@openssh.com",
+#             "ssh-ed25519-cert-v01@openssh.com",
+#         )
+
+# for value in allowed_values:
+#     print(f''' ('{value}', {_FLD.PubkeyTypeField.encode(value)}) ''')
+
+# randomized = _FLD.NonceField()
+# randomized.value
+        
 # print(_FLD.BooleanField.encode(False))
 # print(_FLD.BooleanField.encode(True))
 
-test = True
-test = not test
-print(test)
+# test = True
+# test = not test
+# print(test)
 
 # rsa = RSAPrivateKey.generate()
 # dsa = DSAPrivateKey.generate()

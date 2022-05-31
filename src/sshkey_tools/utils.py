@@ -46,10 +46,11 @@ def bytes_to_long(source_bytes: bytes, byteorder: str = "big") -> int:
 
     return int.from_bytes(source_bytes, byteorder)
 
-
-def generate_secure_nonce(length: int = 64):
+def generate_secure_nonce(length: int = 128):
     """Generates a secure random nonce of the specified length.
         Mainly important for ECDSA keys, but is used with all key/certificate types
+        https://blog.trailofbits.com/2020/06/11/ecdsa-handle-with-care/
+        https://datatracker.ietf.org/doc/html/rfc6979
     Args:
         length (int, optional): Length of the nonce. Defaults to 64.
 

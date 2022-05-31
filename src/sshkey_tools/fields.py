@@ -135,6 +135,11 @@ class BooleanField(CertificateField):
         Returns:
             bytes: Packed byte representing the boolean
         """
+        if not isinstance(value, bool):
+            raise _EX.InvalidFieldDataException(
+                f"Expected bool, got {value.__class__.__name__}"
+            )
+        
         return pack("B", 1 if value else 0)
 
     @staticmethod
@@ -176,6 +181,11 @@ class StringField(CertificateField):
         Returns:
             bytes: Packed byte string containing the source data
         """
+        if not isinstance(value, (str, bytes)):
+            raise _EX.InvalidFieldDataException(
+                f"Expected str or bytes, got {value.__class__.__name__}"
+            )
+        
         if isinstance(value, str):
             value = value.encode(encoding)
 
@@ -224,8 +234,8 @@ class Integer32Field(CertificateField):
             bytes: Packed byte string containing integer
         """
         if not isinstance(value, int):
-            raise _EX.InvalidDataException(
-                f"Expected integer, got {type(value).__name__}."
+            raise _EX.InvalidFieldDataException(
+                f"Expected int, got {value.__class__.__name__}"
             )
 
         return pack(">I", value)
@@ -275,8 +285,8 @@ class Integer64Field(CertificateField):
             bytes: Packed byte string containing integer
         """
         if not isinstance(value, int):
-            raise _EX.InvalidDataException(
-                f"Expected integer, got {type(value).__name__}."
+            raise _EX.InvalidFieldDataException(
+                f"Expected int, got {value.__class__.__name__}"
             )
 
         return pack(">Q", value)
@@ -318,10 +328,31 @@ class DateTimeField(Integer64Field):
 
     @staticmethod
     def encode(value: datetime) -> bytes:
+        """Encodes a datetime object to a byte string
+
+        Args:
+            value (datetime): Datetime object
+
+        Returns:
+            bytes: Packed byte string containing datetime timestamp
+        """
+        if not isinstance(value, datetime):
+            raise _EX.InvalidFieldDataException(
+                f"Expected datetime, got {value.__class__.__name__}"
+            )
+
         return Integer64Field.encode(int(value.timestamp()))
 
     @staticmethod
     def decode(data: bytes) -> datetime:
+        """Decodes a datetime object from a block of bytes
+
+        Args:
+            data (bytes): Block of bytes containing a datetime object
+
+        Returns:
+            tuple: Tuple with datetime and remainder of data
+        """
         timestamp, data = Integer64Field.decode(data)
 
         return datetime.fromtimestamp(timestamp), data
@@ -357,6 +388,11 @@ class MpIntegerField(StringField):
         Returns:
             bytes: Packed byte string containing integer
         """
+        if not isinstance(value, int):
+            raise _EX.InvalidFieldDataException(
+                f"Expected int, got {value.__class__.__name__}"
+            )
+        
         return StringField.encode(long_to_bytes(value))
 
     @staticmethod
@@ -400,8 +436,18 @@ class StandardListField(CertificateField):
         Returns:
             bytes: Packed byte string containing the source data
         """
-        if sum([not isinstance(item, Union[str, bytes]) for item in value]) > 0:
-            raise TypeError("Expected list or tuple containing strings or bytes")
+        if not isinstance(value, (list, tuple)):
+            raise _EX.InvalidFieldDataException(
+                f"Expected (list, tuple), got {value.__class__.__name__}"
+            )
+        
+        try:
+            if sum([not isinstance(item, Union[str, bytes]) for item in value]) > 0:
+                raise TypeError
+        except TypeError:
+            raise _EX.InvalidFieldDataException(
+                "Expected list or tuple containing strings or bytes"
+            ) from TypeError
 
         return StringField.encode(b"".join([StringField.encode(x) for x in value]))
 
@@ -431,6 +477,11 @@ class StandardListField(CertificateField):
             return _EX.InvalidFieldDataException(
                 f"Passed value type ({type(self.value)}) is not a list/tuple"
             )
+            
+        if sum([not isinstance(item, Union[str, bytes]) for item in self.value]) > 0:
+            return _EX.InvalidFieldDataException(
+                "Expected list or tuple containing strings or bytes"
+            )
 
         return True
 
@@ -452,9 +503,19 @@ class SeparatedListField(CertificateField):
         Returns:
             bytes: Packed byte string containing the source data
         """
-        if sum([not isinstance(item, Union[str, bytes]) for item in value]) > 0:
-            raise TypeError("Expected list or tuple containing strings or bytes")
-
+        if not isinstance(value, (list, tuple)):
+            raise _EX.InvalidFieldDataException(
+                f"Expected (list, tuple), got {value.__class__.__name__}"
+            )
+        
+        try:
+            if sum([not isinstance(item, Union[str, bytes]) for item in value]) > 0:
+                raise TypeError
+        except TypeError:
+            raise _EX.InvalidFieldDataException(
+                "Expected list or tuple containing strings or bytes"
+            ) from TypeError
+        
         if len(value) < 1:
             return StandardListField.encode(value)
 
@@ -479,7 +540,7 @@ class SeparatedListField(CertificateField):
         while len(list_bytes) > 0:
             elem, list_bytes = StringField.decode(list_bytes)
 
-            if elem != b"":
+            if elem not in [b"", '']:
                 decoded.append(elem)
 
         return decoded, data
@@ -491,6 +552,11 @@ class SeparatedListField(CertificateField):
         if not isinstance(self.value, Union[list, tuple]):
             return _EX.InvalidFieldDataException(
                 f"Passed value type ({type(self.value)}) is not a list/tuple"
+            )
+            
+        if sum([not isinstance(item, Union[str, bytes]) for item in self.value]) > 0:
+            return _EX.InvalidFieldDataException(
+                "Expected list or tuple containing strings or bytes"
             )
 
         return True
@@ -546,7 +612,8 @@ class NonceField(StringField):
         """
         if len(self.value) < 32:
             self.exception = _EX.InsecureNonceException(
-                "Nonce must be at least 32 bytes long to be secure"
+                "Nonce should be at least 32 bytes long to be secure. " +
+                "This is especially important for ECDSA"
             )
             return False
 
@@ -571,7 +638,7 @@ class PublicKeyField(CertificateField):
         )
 
     @staticmethod
-    def encode(value: RSAPublicKey) -> bytes:
+    def encode(value: PublicKey) -> bytes:
         """
         Encode the certificate field to a byte string
 
@@ -581,7 +648,11 @@ class PublicKeyField(CertificateField):
         Returns:
             bytes: A byte string with the encoded public key
         """
-
+        if not isinstance(value, PublicKey):
+            raise _EX.InvalidFieldDataException(
+                f"Expected PublicKey, got {value.__class__.__name__}"
+            )
+        
         return StringField.decode(value.raw_bytes())[1]
 
     @staticmethod
@@ -778,16 +849,44 @@ class CertificateTypeField(Integer32Field):
         super().__init__(
             value=value.value if isinstance(value, CERT_TYPE) else value, name="type"
         )
+        
+    @staticmethod
+    def encode(value: Union[CERT_TYPE, int]) -> bytes:
+        """
+        Encode the certificate type field to a byte string
+
+        Args:
+            value (Union[CERT_TYPE, int]): The type of the certificate
+
+        Returns:
+            bytes: A byte string with the encoded public key
+        """
+        if not isinstance(value, (CERT_TYPE, int)):
+            raise _EX.InvalidFieldDataException(
+                f"Expected (CERT_TYPE, int), got {value.__class__.__name__}"
+            )
+        
+        if isinstance(value, CERT_TYPE):
+            value = value.value
+
+        return Integer32Field.encode(value)
 
     def validate(self) -> Union[bool, Exception]:
         """
         Validates that the field contains a valid type
         """
-        if 0 > self.value > 3:
-            self.exception = _EX.InvalidDataException(
+        if not isinstance(self.value, (CERT_TYPE, int)):
+            return _EX.InvalidFieldDataException(
+                f"Passed value type ({type(self.value)}) is not an integer"
+            )
+
+        if not isinstance(self.value, CERT_TYPE) and (
+            self.value > 2 or
+            self.value < 1
+        ):
+            return _EX.InvalidDataException(
                 "The certificate type is invalid (1: User, 2: Host)"
             )
-            return False
 
         return True
 
@@ -808,7 +907,7 @@ class KeyIDField(StringField):
         if self.value in [None, False, "", " "]:
             return _EX.InvalidDataException("You need to provide a Key ID")
 
-        return True
+        return super().validate()
 
 
 class PrincipalsField(StandardListField):
@@ -887,9 +986,32 @@ class CriticalOptionsField(SeparatedListField):
         """
         Validate that the field contains a valid list of options
         """
-        valid_opts = ("force-command", "source-address", "verify-required")
+        valid_opts = (
+            "no-touch-required",
+            "permit-X11-forwarding",
+            "permit-agent-forwarding",
+            "permit-port-forwarding",
+            "permit-pty",
+            "permit-user-rc",
+            "force-command",
+            "source-address",
+            "verify-required"
+        )
+
+        if not isinstance(self.value, (list, tuple)):
+            return _EX.InvalidFieldDataException(
+                'You need to provide a list/tuple of strings or bytes'
+            )
 
         for item in self.value:
+            if not isinstance(item, Union[str, bytes]):
+                return _EX.InvalidFieldDataException(
+                    'You need to provide a list/tuple of strings or bytes'
+                )
+
+            if isinstance(item, bytes):
+                item = item.decode('utf-8')
+                
             split = item.split("=")
             if split[0] not in valid_opts:
                 return _EX.InvalidFieldDataException(f"The option {item} is invalid")
@@ -943,10 +1065,9 @@ class ExtensionsField(SeparatedListField):
 
         for item in self.value:
             if item not in valid_opts:
-                self.exception = _EX.InvalidDataException(
+                return _EX.InvalidDataException(
                     f"The extension '{item}' is invalid"
                 )
-                return False
 
         return True
 
@@ -1026,7 +1147,7 @@ class CAPublicKeyField(StringField):
             PublicKey.from_string(
                 f"{pubkey_type.decode('utf-8')} {b64encode(pubkey).decode('utf-8')}"
             ),
-            data,
+            data
         )
 
     def __bytes__(self) -> bytes:
@@ -1143,6 +1264,11 @@ class RSASignatureField(SignatureField):
         Returns:
             bytes: The encoded byte string
         """
+        if not isinstance(signature, bytes):
+            raise _EX.InvalidFieldDataException(
+                f"Expected bytes, got {signature.__class__.__name__}"
+            )
+        
         return StringField.encode(
             StringField.encode(hash_alg.value[0]) + StringField.encode(signature)
         )
@@ -1234,6 +1360,11 @@ class DSASignatureField(SignatureField):
         Returns:
             bytes: The encoded byte string
         """
+        if not isinstance(signature, bytes):
+            raise _EX.InvalidFieldDataException(
+                f"Expected bytes, got {signature.__class__.__name__}"
+            )
+        
         r, s = decode_dss_signature(signature)
 
         return StringField.encode(
@@ -1321,6 +1452,11 @@ class ECDSASignatureField(SignatureField):
         Returns:
             bytes: The encoded byte string
         """
+        if not isinstance(signature, bytes):
+            raise _EX.InvalidFieldDataException(
+                f"Expected bytes, got {signature.__class__.__name__}"
+            )
+        
         r, s = decode_dss_signature(signature)
 
         return StringField.encode(
@@ -1405,6 +1541,11 @@ class ED25519SignatureField(SignatureField):
         Returns:
             bytes: The encoded byte string
         """
+        if not isinstance(signature, bytes):
+            raise _EX.InvalidFieldDataException(
+                f"Expected bytes, got {signature.__class__.__name__}"
+            )
+        
         return StringField.encode(
             StringField.encode("ssh-ed25519") + StringField.encode(signature)
         )
