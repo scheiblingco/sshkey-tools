@@ -100,3 +100,8 @@ class InvalidSignatureException(ValueError):
     """
     Raised when the signature checked is invalid
     """
+
+class InvalidClassCallException(ValueError):
+    """
+    Raised when trying to instantiate a parent class
+    """

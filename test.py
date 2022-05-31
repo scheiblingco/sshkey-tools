@@ -1,9 +1,83 @@
-from src.sshkey_tools.keys import *
-import src.sshkey_tools.fields as _FLD
-from datetime import datetime, timedelta
+import os
+import unittest
+import random
+import datetime
+import faker
 
-print((datetime.now() + timedelta(weeks=52*10)).timestamp())
-print((datetime.now() + timedelta(weeks=52*10, hours=12)).timestamp())
+import src.sshkey_tools.keys as _KEY
+import src.sshkey_tools.fields as _FIELD
+import src.sshkey_tools.cert as _CERT
+import src.sshkey_tools.exceptions as _EX
+
+ll = [
+    'permit-x11-forwarding',
+    'permit-pty'
+]
+
+# print(_FIELD.StandardListField.encode(ll))
+# print(_FIELD.KeyValueField.encode(ll))
+# print(_FIELD.SeparatedListField.encode(ll))
+
+cert_opts = {
+    'serial': 1234567890,
+    'cert_type': _FIELD.CERT_TYPE.USER,
+    'key_id': 'KeyIdentifier',
+    'principals': [
+        'pr_a',
+        'pr_b',
+        'pr_c'
+    ],
+    'valid_after': 1968491468,
+    'valid_before': 1968534668,
+    'critical_options': {
+        'force-command': 'sftp-internal',
+        'source-address': '1.2.3.4/8,5.6.7.8/16',
+        'verify-required': ''
+    },
+    'extensions': [
+        'permit-agent-forwarding',
+        'permit-X11-forwarding'
+    ]
+}
+
+user_pub = _KEY.RSAPrivateKey.generate(1024).public_key
+ca_priv = _KEY.RSAPrivateKey.generate(1024)
+
+cert = _CERT.SSHCertificate.from_public_class(user_pub, ca_priv, **cert_opts)
+
+cert.sign()
+cert.to_file('test_certificate')
+
+cert2 = _CERT.SSHCertificate.from_file('test_certificate')
+
+assert cert.get_signable_data() == cert2.get_signable_data()
+
+print("Hold")
+
+
+# cert = _CERT.RSACertificate(
+#     user_pub,
+#     ca_priv,
+#     **cert_opts
+# )
+# cert.sign()
+
+# cert.to_file('test_certificate')
+# cert2 = _CERT.SSHCertificate.from_file('test_certificate')
+
+# print(cert2)
+
+# # print(cert2.fields['critical_options'].value)
+# # print(cert2.fields['extensions'].value)
+
+
+
+# os.system('ssh-keygen -Lf test_certificate')
+
+
+
+# print((datetime.now() + timedelta(weeks=52*10)).timestamp())
+# print((datetime.now() + timedelta(weeks=52*10, hours=12)).timestamp())
 
 # _FLD.BooleanField.encode('Hello')
 
