@@ -150,7 +150,9 @@ class PublicKey:
             raise _EX.InvalidKeyException("Invalid public key") from KeyError
 
     @classmethod
-    def from_string(cls, data: Union[str, bytes], encoding: str = 'utf-8') -> "PublicKey":
+    def from_string(
+        cls, data: Union[str, bytes], encoding: str = "utf-8"
+    ) -> "PublicKey":
         """
         Loads an SSH public key from a string containing the data
         in OpenSSH format (SubjectPublickeyInfo)
@@ -314,7 +316,9 @@ class PrivateKey:
 
     @classmethod
     def from_file(
-        cls, path: str, password: Union[str, bytes] = None,
+        cls,
+        path: str,
+        password: Union[str, bytes] = None,
     ) -> "PrivateKey":
         """
         Loads an SSH private key from a file
@@ -329,8 +333,10 @@ class PrivateKey:
         """
         with open(path, "rb") as key_file:
             return cls.from_string(key_file.read(), password)
-        
-    def get_fingerprint(self, hash_method: FingerprintHashes = FingerprintHashes.SHA256) -> str:
+
+    def get_fingerprint(
+        self, hash_method: FingerprintHashes = FingerprintHashes.SHA256
+    ) -> str:
         """
         Generates a fingerprint of the private key
 
@@ -432,7 +438,9 @@ class RSAPublicKey(PublicKey):
         """
         return cls(key=_RSA.RSAPublicNumbers(e, n).public_key())
 
-    def verify(self, data: bytes, signature: bytes, hash_alg: RsaAlgs = RsaAlgs.SHA512) -> None:
+    def verify(
+        self, data: bytes, signature: bytes, hash_alg: RsaAlgs = RsaAlgs.SHA512
+    ) -> None:
         """
         Verifies a signature
 
@@ -445,7 +453,9 @@ class RSAPublicKey(PublicKey):
             Raises an sshkey_tools.exceptions.InvalidSignatureException if the signature is invalid
         """
         try:
-            return self.key.verify(signature, data, _PADDING.PKCS1v15(), hash_alg.value[1]())
+            return self.key.verify(
+                signature, data, _PADDING.PKCS1v15(), hash_alg.value[1]()
+            )
         except InvalidSignature:
             raise _EX.InvalidSignatureException(
                 "The signature is invalid for the given data"
@@ -596,7 +606,7 @@ class DSAPublicKey(PublicKey):
                 y=y, parameter_numbers=_DSA.DSAParameterNumbers(p=p, q=q, g=g)
             ).public_key()
         )
-        
+
     def verify(self, data: bytes, signature: bytes) -> None:
         """
         Verifies a signature
@@ -658,7 +668,7 @@ class DSAPrivateKey(PrivateKey):
         """
         Generate a new DSA private key
         Key size is fixed since OpenSSH only supports 1024-bit DSA keys
-        
+
         Returns:
             DSAPrivateKey: An instance of DSAPrivateKey
         """
@@ -728,7 +738,7 @@ class ECDSAPublicKey(PublicKey):
                 y=y,
             ).public_key()
         )
-        
+
     def verify(self, data: bytes, signature: bytes) -> None:
         """
         Verifies a signature
@@ -742,11 +752,7 @@ class ECDSAPublicKey(PublicKey):
         """
         try:
             curve_hash = ECDSA_HASHES[self.key.curve.name]()
-            return self.key.verify(
-                signature, 
-                data, 
-                _ECDSA.ECDSA(curve_hash)
-            )
+            return self.key.verify(signature, data, _ECDSA.ECDSA(curve_hash))
         except InvalidSignature:
             raise _EX.InvalidSignatureException(
                 "The signature is invalid for the given data"
@@ -855,14 +861,14 @@ class ED25519PublicKey(PublicKey):
         Returns:
             ED25519PublicKey: Instance of ED25519PublicKey
         """
-        if b'ssh-ed25519' in raw_bytes:
+        if b"ssh-ed25519" in raw_bytes:
             id_length = unpack(">I", raw_bytes[:4])[0] + 8
             raw_bytes = raw_bytes[id_length:]
-        
+
         return cls.from_class(
             _ED25519.Ed25519PublicKey.from_public_bytes(data=raw_bytes)
         )
-        
+
     def verify(self, data: bytes, signature: bytes) -> None:
         """
         Verifies a signature

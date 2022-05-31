@@ -537,7 +537,7 @@ class TestCertificateFields(unittest.TestCase):
         )
         
         self.assertEqual(
-            {x: '' for x in valid_opts_list},
+            valid_opts_list,
             decoded_list
         )
         

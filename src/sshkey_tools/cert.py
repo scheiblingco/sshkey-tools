@@ -70,13 +70,13 @@ class SSHCertificate:
         decoded: dict = None,
         **kwargs,
     ) -> None:
-        if self.__class__.__name__ == 'SSHCertificate':
+        if self.__class__.__name__ == "SSHCertificate":
             raise _EX.InvalidClassCallException(
-                "You cannot instantiate SSHCertificate directly. Use \n" +
-                "one of the child classes, or call via decode, \n" +
-                "or one of the from_-classmethods"
+                "You cannot instantiate SSHCertificate directly. Use \n"
+                + "one of the child classes, or call via decode, \n"
+                + "or one of the from_-classmethods"
             )
-        
+
         if decoded is not None:
             self.signature = decoded.pop("signature")
             self.signature_pubkey = decoded.pop("ca_pubkey")
@@ -93,8 +93,6 @@ class SSHCertificate:
 
         if subject_pubkey is None:
             raise _EX.SSHCertificateException("The subject public key is required")
-        
-        
 
         self.header = {
             "pubkey_type": _FIELD.PubkeyTypeField,
@@ -220,17 +218,15 @@ class SSHCertificate:
             pubkey_type = pubkey_type.decode("utf-8")
 
         cert_type = CERT_TYPES[pubkey_type]
-        cert.pop('reserved')
+        cert.pop("reserved")
         return globals()[cert_type[0]](
             subject_pubkey=cert["public_key"].value, decoded=cert
         )
 
     @classmethod
     def from_public_class(
-        cls, 
-        public_key: PublicKey,
-        ca_privkey: PrivateKey = None,
-        **kwargs) -> "SSHCertificate":
+        cls, public_key: PublicKey, ca_privkey: PrivateKey = None, **kwargs
+    ) -> "SSHCertificate":
         """
         Creates a new certificate from a supplied public key
 
@@ -344,6 +340,7 @@ class SSHCertificate:
         for key, value in kwargs.items():
             self.set_opt(key, value)
 
+    # pylint: disable=used-before-assignment
     def can_sign(self) -> bool:
         """
         Determine if the certificate is ready to be signed
@@ -361,21 +358,22 @@ class SSHCertificate:
                 valid = field.validate()
             except TypeError:
                 valid = _EX.SignatureNotPossibleException(
-                    f'The field {field} is missing a value'
+                    f"The field {field} is missing a value"
                 )
             finally:
                 if isinstance(valid, Exception):
                     exceptions.append(valid)
 
-        if getattr(self, 'signature', False) is False or getattr(self, 'signature_pubkey', False) is False:
-            exceptions.append(_EX.SignatureNotPossibleException(
-                "No CA private key is set"
-            ))   
-        
-        if len(exceptions) > 0:
-            raise _EX.SignatureNotPossibleException(
-                exceptions
+        if (
+            getattr(self, "signature", False) is False
+            or getattr(self, "signature_pubkey", False) is False
+        ):
+            exceptions.append(
+                _EX.SignatureNotPossibleException("No CA private key is set")
             )
+
+        if len(exceptions) > 0:
+            raise _EX.SignatureNotPossibleException(exceptions)
 
         if self.signature.can_sign() is True:
             return True
@@ -390,7 +388,7 @@ class SSHCertificate:
 
         Returns:
             bytes: The data in the certificate which is signed
-        """      
+        """
         return (
             b"".join(
                 [
