@@ -18,7 +18,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install setuptools wheel twine
+        pip install setuptools wheel twine pdoc3
 
     - name: Build and publish
       env:
@@ -29,8 +29,12 @@ jobs:
         python setup.py sdist bdist_wheel
         twine upload dist/*
 
+    - name: Build documentation
+      run: |
+        pdoc --html src/sshkey_tools/ --force
+
     - name: Deploy documentation
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./public
+        publish_dir: ./html
