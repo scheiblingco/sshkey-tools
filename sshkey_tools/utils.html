@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.10.0" />
+<title>sshkey_tools.utils API documentation</title>
+<meta name="description" content="Utilities for handling keys and certificates" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>sshkey_tools.utils</code></h1>
+</header>
+<section id="section-intro">
+<p>Utilities for handling keys and certificates</p>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">&#34;&#34;&#34;
+Utilities for handling keys and certificates
+&#34;&#34;&#34;
+import sys
+from secrets import randbits
+from base64 import b64encode
+import hashlib as hl
+
+
+def long_to_bytes(
+    source_int: int, force_length: int = None, byteorder: str = &#34;big&#34;
+) -&gt; bytes:
+    &#34;&#34;&#34;Converts a positive integer to a byte string conforming with the certificate format.
+        Equivalent to paramiko.util.deflate_long()
+    Args:
+        source_int (int): Integer to convert
+        force_length (int, optional): Pads the resulting bytestring if shorter. Defaults to None.
+        byteorder (str, optional): Byte order. Defaults to &#39;big&#39;.
+
+    Returns:
+        str: Byte string representing the chosen long integer
+    &#34;&#34;&#34;
+    if source_int &lt; 0:
+        raise ValueError(
+            &#34;You can only convert positive long integers to bytes with this method&#34;
+        )
+
+    if not isinstance(source_int, int):
+        raise TypeError(f&#34;Expected integer, got {type(source_int).__name__}.&#34;)
+
+    length = (source_int.bit_length() // 8 + 1) if not force_length else force_length
+    return source_int.to_bytes(length, byteorder)
+
+
+def bytes_to_long(source_bytes: bytes, byteorder: str = &#34;big&#34;) -&gt; int:
+    &#34;&#34;&#34;The opposite of long_to_bytes, converts a byte string to a long integer
+       Equivalent to paramiko.util.inflate_long()
+    Args:
+        source_bytes (bytes): The byte string to convert
+        byteorder (str, optional): Byte order. Defaults to &#39;big&#39;.
+
+    Returns:
+        int: Long integer resulting from decoding the byte string
+    &#34;&#34;&#34;
+    if not isinstance(source_bytes, bytes):
+        raise TypeError(f&#34;Expected bytes, got {type(source_bytes).__name__}.&#34;)
+
+    return int.from_bytes(source_bytes, byteorder)
+
+
+def generate_secure_nonce(length: int = 128):
+    &#34;&#34;&#34;Generates a secure random nonce of the specified length.
+        Mainly important for ECDSA keys, but is used with all key/certificate types
+        https://blog.trailofbits.com/2020/06/11/ecdsa-handle-with-care/
+        https://datatracker.ietf.org/doc/html/rfc6979
+    Args:
+        length (int, optional): Length of the nonce. Defaults to 64.
+
+    Returns:
+        str: Nonce of the specified length
+    &#34;&#34;&#34;
+    return str(randbits(length))
+
+
+def md5_fingerprint(data: bytes, prefix: bool = True) -&gt; str:
+    &#34;&#34;&#34;
+    Returns an MD5 fingerprint of the given data.
+
+    Args:
+        data (bytes): The data to fingerprint
+        prefix (bool, optional): Whether to prefix the fingerprint with MD5:
+
+    Returns:
+        str: The fingerprint (OpenSSH style MD5:xx:xx:xx...)
+    &#34;&#34;&#34;
+    digest = hl.md5(data).hexdigest()
+    return (&#34;MD5:&#34; if prefix else &#34;&#34;) + &#34;:&#34;.join(
+        a + b for a, b in zip(digest[::2], digest[1::2])
+    )
+
+
+def sha256_fingerprint(data: bytes, prefix: bool = True) -&gt; str:
+    &#34;&#34;&#34;
+    Returns a SHA256 fingerprint of the given data.
+
+    Args:
+        data (bytes): The data to fingerprint
+        prefix (bool, optional): Whether to prefix the fingerprint with SHA256:
+
+    Returns:
+        str: The fingerprint (OpenSSH style SHA256:xx:xx:xx...)
+    &#34;&#34;&#34;
+    digest = hl.sha256(data).digest()
+    return (&#34;SHA256:&#34; if prefix else &#34;&#34;) + b64encode(digest).replace(b&#34;=&#34;, b&#34;&#34;).decode(
+        &#34;utf-8&#34;
+    )
+
+
+def sha512_fingerprint(data: bytes, prefix: bool = True) -&gt; str:
+    &#34;&#34;&#34;
+    Returns a SHA512 fingerprint of the given data.
+
+    Args:
+        data (bytes): The data to fingerprint
+        prefix (bool, optional): Whether to prefix the fingerprint with SHA512:
+
+    Returns:
+        str: The fingerprint (OpenSSH style SHA256:xx:xx:xx...)
+    &#34;&#34;&#34;
+    digest = hl.sha512(data).digest()
+    return (&#34;SHA512:&#34; if prefix else &#34;&#34;) + b64encode(digest).replace(b&#34;=&#34;, b&#34;&#34;).decode(
+        &#34;utf-8&#34;
+    )
+
+
+def join_dicts(*dicts) -&gt; dict:
+    &#34;&#34;&#34;
+    Joins two or more dictionaries together.
+    In case of duplicate keys, the latest one wins.
+
+    Returns:
+        dict: Joined dictionary
+    &#34;&#34;&#34;
+    py_version = sys.version_info[0:2]
+    return_dict = {}
+
+    if py_version[0] == 3 and py_version[1] &gt; 9:
+
+        for add_dict in dicts:
+            return_dict = return_dict | add_dict
+
+        return return_dict
+
+    for add_dict in dicts:
+        return_dict = {**return_dict, **add_dict}
+
+    return return_dict</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="sshkey_tools.utils.bytes_to_long"><code class="name flex">
+<span>def <span class="ident">bytes_to_long</span></span>(<span>source_bytes: bytes, byteorder: str = 'big') ‑> int</span>
+</code></dt>
+<dd>
+<div class="desc"><p>The opposite of long_to_bytes, converts a byte string to a long integer
+Equivalent to paramiko.util.inflate_long()</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>source_bytes</code></strong> :&ensp;<code>bytes</code></dt>
+<dd>The byte string to convert</dd>
+<dt><strong><code>byteorder</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>Byte order. Defaults to 'big'.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>int</code></dt>
+<dd>Long integer resulting from decoding the byte string</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def bytes_to_long(source_bytes: bytes, byteorder: str = &#34;big&#34;) -&gt; int:
+    &#34;&#34;&#34;The opposite of long_to_bytes, converts a byte string to a long integer
+       Equivalent to paramiko.util.inflate_long()
+    Args:
+        source_bytes (bytes): The byte string to convert
+        byteorder (str, optional): Byte order. Defaults to &#39;big&#39;.
+
+    Returns:
+        int: Long integer resulting from decoding the byte string
+    &#34;&#34;&#34;
+    if not isinstance(source_bytes, bytes):
+        raise TypeError(f&#34;Expected bytes, got {type(source_bytes).__name__}.&#34;)
+
+    return int.from_bytes(source_bytes, byteorder)</code></pre>
+</details>
+</dd>
+<dt id="sshkey_tools.utils.generate_secure_nonce"><code class="name flex">
+<span>def <span class="ident">generate_secure_nonce</span></span>(<span>length: int = 128)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Generates a secure random nonce of the specified length.
+Mainly important for ECDSA keys, but is used with all key/certificate types
+<a href="https://blog.trailofbits.com/2020/06/11/ecdsa-handle-with-care/">https://blog.trailofbits.com/2020/06/11/ecdsa-handle-with-care/</a>
+<a href="https://datatracker.ietf.org/doc/html/rfc6979">https://datatracker.ietf.org/doc/html/rfc6979</a></p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>length</code></strong> :&ensp;<code>int</code>, optional</dt>
+<dd>Length of the nonce. Defaults to 64.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>str</code></dt>
+<dd>Nonce of the specified length</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def generate_secure_nonce(length: int = 128):
+    &#34;&#34;&#34;Generates a secure random nonce of the specified length.
+        Mainly important for ECDSA keys, but is used with all key/certificate types
+        https://blog.trailofbits.com/2020/06/11/ecdsa-handle-with-care/
+        https://datatracker.ietf.org/doc/html/rfc6979
+    Args:
+        length (int, optional): Length of the nonce. Defaults to 64.
+
+    Returns:
+        str: Nonce of the specified length
+    &#34;&#34;&#34;
+    return str(randbits(length))</code></pre>
+</details>
+</dd>
+<dt id="sshkey_tools.utils.join_dicts"><code class="name flex">
+<span>def <span class="ident">join_dicts</span></span>(<span>*dicts) ‑> dict</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Joins two or more dictionaries together.
+In case of duplicate keys, the latest one wins.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>dict</code></dt>
+<dd>Joined dictionary</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def join_dicts(*dicts) -&gt; dict:
+    &#34;&#34;&#34;
+    Joins two or more dictionaries together.
+    In case of duplicate keys, the latest one wins.
+
+    Returns:
+        dict: Joined dictionary
+    &#34;&#34;&#34;
+    py_version = sys.version_info[0:2]
+    return_dict = {}
+
+    if py_version[0] == 3 and py_version[1] &gt; 9:
+
+        for add_dict in dicts:
+            return_dict = return_dict | add_dict
+
+        return return_dict
+
+    for add_dict in dicts:
+        return_dict = {**return_dict, **add_dict}
+
+    return return_dict</code></pre>
+</details>
+</dd>
+<dt id="sshkey_tools.utils.long_to_bytes"><code class="name flex">
+<span>def <span class="ident">long_to_bytes</span></span>(<span>source_int: int, force_length: int = None, byteorder: str = 'big') ‑> bytes</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Converts a positive integer to a byte string conforming with the certificate format.
+Equivalent to paramiko.util.deflate_long()</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>source_int</code></strong> :&ensp;<code>int</code></dt>
+<dd>Integer to convert</dd>
+<dt><strong><code>force_length</code></strong> :&ensp;<code>int</code>, optional</dt>
+<dd>Pads the resulting bytestring if shorter. Defaults to None.</dd>
+<dt><strong><code>byteorder</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>Byte order. Defaults to 'big'.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>str</code></dt>
+<dd>Byte string representing the chosen long integer</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def long_to_bytes(
+    source_int: int, force_length: int = None, byteorder: str = &#34;big&#34;
+) -&gt; bytes:
+    &#34;&#34;&#34;Converts a positive integer to a byte string conforming with the certificate format.
+        Equivalent to paramiko.util.deflate_long()
+    Args:
+        source_int (int): Integer to convert
+        force_length (int, optional): Pads the resulting bytestring if shorter. Defaults to None.
+        byteorder (str, optional): Byte order. Defaults to &#39;big&#39;.
+
+    Returns:
+        str: Byte string representing the chosen long integer
+    &#34;&#34;&#34;
+    if source_int &lt; 0:
+        raise ValueError(
+            &#34;You can only convert positive long integers to bytes with this method&#34;
+        )
+
+    if not isinstance(source_int, int):
+        raise TypeError(f&#34;Expected integer, got {type(source_int).__name__}.&#34;)
+
+    length = (source_int.bit_length() // 8 + 1) if not force_length else force_length
+    return source_int.to_bytes(length, byteorder)</code></pre>
+</details>
+</dd>
+<dt id="sshkey_tools.utils.md5_fingerprint"><code class="name flex">
+<span>def <span class="ident">md5_fingerprint</span></span>(<span>data: bytes, prefix: bool = True) ‑> str</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Returns an MD5 fingerprint of the given data.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>data</code></strong> :&ensp;<code>bytes</code></dt>
+<dd>The data to fingerprint</dd>
+<dt><strong><code>prefix</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Whether to prefix the fingerprint with MD5:</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>str</code></dt>
+<dd>The fingerprint (OpenSSH style MD5:xx:xx:xx&hellip;)</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def md5_fingerprint(data: bytes, prefix: bool = True) -&gt; str:
+    &#34;&#34;&#34;
+    Returns an MD5 fingerprint of the given data.
+
+    Args:
+        data (bytes): The data to fingerprint
+        prefix (bool, optional): Whether to prefix the fingerprint with MD5:
+
+    Returns:
+        str: The fingerprint (OpenSSH style MD5:xx:xx:xx...)
+    &#34;&#34;&#34;
+    digest = hl.md5(data).hexdigest()
+    return (&#34;MD5:&#34; if prefix else &#34;&#34;) + &#34;:&#34;.join(
+        a + b for a, b in zip(digest[::2], digest[1::2])
+    )</code></pre>
+</details>
+</dd>
+<dt id="sshkey_tools.utils.sha256_fingerprint"><code class="name flex">
+<span>def <span class="ident">sha256_fingerprint</span></span>(<span>data: bytes, prefix: bool = True) ‑> str</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Returns a SHA256 fingerprint of the given data.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>data</code></strong> :&ensp;<code>bytes</code></dt>
+<dd>The data to fingerprint</dd>
+<dt><strong><code>prefix</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Whether to prefix the fingerprint with SHA256:</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>str</code></dt>
+<dd>The fingerprint (OpenSSH style SHA256:xx:xx:xx&hellip;)</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sha256_fingerprint(data: bytes, prefix: bool = True) -&gt; str:
+    &#34;&#34;&#34;
+    Returns a SHA256 fingerprint of the given data.
+
+    Args:
+        data (bytes): The data to fingerprint
+        prefix (bool, optional): Whether to prefix the fingerprint with SHA256:
+
+    Returns:
+        str: The fingerprint (OpenSSH style SHA256:xx:xx:xx...)
+    &#34;&#34;&#34;
+    digest = hl.sha256(data).digest()
+    return (&#34;SHA256:&#34; if prefix else &#34;&#34;) + b64encode(digest).replace(b&#34;=&#34;, b&#34;&#34;).decode(
+        &#34;utf-8&#34;
+    )</code></pre>
+</details>
+</dd>
+<dt id="sshkey_tools.utils.sha512_fingerprint"><code class="name flex">
+<span>def <span class="ident">sha512_fingerprint</span></span>(<span>data: bytes, prefix: bool = True) ‑> str</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Returns a SHA512 fingerprint of the given data.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>data</code></strong> :&ensp;<code>bytes</code></dt>
+<dd>The data to fingerprint</dd>
+<dt><strong><code>prefix</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Whether to prefix the fingerprint with SHA512:</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>str</code></dt>
+<dd>The fingerprint (OpenSSH style SHA256:xx:xx:xx&hellip;)</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sha512_fingerprint(data: bytes, prefix: bool = True) -&gt; str:
+    &#34;&#34;&#34;
+    Returns a SHA512 fingerprint of the given data.
+
+    Args:
+        data (bytes): The data to fingerprint
+        prefix (bool, optional): Whether to prefix the fingerprint with SHA512:
+
+    Returns:
+        str: The fingerprint (OpenSSH style SHA256:xx:xx:xx...)
+    &#34;&#34;&#34;
+    digest = hl.sha512(data).digest()
+    return (&#34;SHA512:&#34; if prefix else &#34;&#34;) + b64encode(digest).replace(b&#34;=&#34;, b&#34;&#34;).decode(
+        &#34;utf-8&#34;
+    )</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="sshkey_tools" href="index.html">sshkey_tools</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="sshkey_tools.utils.bytes_to_long" href="#sshkey_tools.utils.bytes_to_long">bytes_to_long</a></code></li>
+<li><code><a title="sshkey_tools.utils.generate_secure_nonce" href="#sshkey_tools.utils.generate_secure_nonce">generate_secure_nonce</a></code></li>
+<li><code><a title="sshkey_tools.utils.join_dicts" href="#sshkey_tools.utils.join_dicts">join_dicts</a></code></li>
+<li><code><a title="sshkey_tools.utils.long_to_bytes" href="#sshkey_tools.utils.long_to_bytes">long_to_bytes</a></code></li>
+<li><code><a title="sshkey_tools.utils.md5_fingerprint" href="#sshkey_tools.utils.md5_fingerprint">md5_fingerprint</a></code></li>
+<li><code><a title="sshkey_tools.utils.sha256_fingerprint" href="#sshkey_tools.utils.sha256_fingerprint">sha256_fingerprint</a></code></li>
+<li><code><a title="sshkey_tools.utils.sha512_fingerprint" href="#sshkey_tools.utils.sha512_fingerprint">sha512_fingerprint</a></code></li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
+</footer>
+</body>
+</html>
