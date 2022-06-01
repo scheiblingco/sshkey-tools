@@ -29,12 +29,6 @@ jobs:
         python setup.py sdist bdist_wheel
         twine upload dist/*
 
-    - name: Build documentation
+    - name: Rebuild documentation
       run: |
-        pdoc --html src/sshkey_tools/ --force
-
-    - name: Deploy documentation
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./html
+        pdoc --html src/sshkey_tools/ --force --output-dir docs
