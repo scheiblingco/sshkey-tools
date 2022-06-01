@@ -20,6 +20,7 @@ from .keys import (
 from . import fields as _FIELD
 from . import exceptions as _EX
 from .keys import RsaAlgs
+from .utils import join_dicts
 
 CERTIFICATE_FIELDS = {
     "serial": _FIELD.SerialField,
@@ -189,18 +190,18 @@ class SSHCertificate:
                 + "of the specific classes or specify the pubkey_class"
             )
 
-        decode_fields = (
+        decode_fields = join_dicts(
             {
                 "pubkey_type": _FIELD.PubkeyTypeField,
                 "nonce": _FIELD.NonceField,
                 "public_key": pubkey_class,
-            }
-            | CERTIFICATE_FIELDS
-            | {
+            },
+            CERTIFICATE_FIELDS,
+            {
                 "reserved": _FIELD.ReservedField,
                 "ca_pubkey": _FIELD.CAPublicKeyField,
                 "signature": _FIELD.SignatureField,
-            }
+            },
         )
 
         cert = {}

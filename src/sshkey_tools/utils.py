@@ -1,6 +1,7 @@
 """
 Utilities for handling keys and certificates
 """
+import sys
 from secrets import randbits
 from base64 import b64encode
 import hashlib as hl
@@ -110,3 +111,27 @@ def sha512_fingerprint(data: bytes, prefix: bool = True) -> str:
     return ("SHA512:" if prefix else "") + b64encode(digest).replace(b"=", b"").decode(
         "utf-8"
     )
+
+
+def join_dicts(*dicts) -> dict:
+    """
+    Joins two or more dictionaries together.
+    In case of duplicate keys, the latest one wins.
+
+    Returns:
+        dict: Joined dictionary
+    """
+    py_version = sys.version_info[0:2]
+    return_dict = {}
+
+    if py_version[0] == 3 and py_version[1] > 9:
+
+        for add_dict in dicts:
+            return_dict = return_dict | add_dict
+
+        return return_dict
+
+    for add_dict in dicts:
+        return_dict = {**return_dict, **add_dict}
+
+    return return_dict

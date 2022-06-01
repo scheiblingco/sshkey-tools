@@ -477,7 +477,7 @@ class ListField(CertificateField):
     """
 
     @staticmethod
-    def encode(value: Union[list, tuple]) -> bytes:
+    def encode(value: Union[list, tuple, set]) -> bytes:
         """Encodes a list or tuple to a byte string
 
         Args:
@@ -487,13 +487,13 @@ class ListField(CertificateField):
         Returns:
             bytes: Packed byte string containing the source data
         """
-        if not isinstance(value, (list, tuple)):
+        if not isinstance(value, (list, tuple, set)):
             raise _EX.InvalidFieldDataException(
-                f"Expected (list, tuple), got {value.__class__.__name__}"
+                f"Expected (list, tuple, set), got {value.__class__.__name__}"
             )
 
         try:
-            if sum([not isinstance(item, Union[str, bytes]) for item in value]) > 0:
+            if sum([not isinstance(item, (str, bytes)) for item in value]) > 0:
                 raise TypeError
         except TypeError:
             raise _EX.InvalidFieldDataException(
@@ -524,12 +524,12 @@ class ListField(CertificateField):
         """
         Validate the field data
         """
-        if not isinstance(self.value, Union[list, tuple]):
+        if not isinstance(self.value, (list, tuple)):
             return _EX.InvalidFieldDataException(
                 f"Passed value type ({type(self.value)}) is not a list/tuple"
             )
 
-        if sum([not isinstance(item, Union[str, bytes]) for item in self.value]) > 0:
+        if sum([not isinstance(item, (str, bytes)) for item in self.value]) > 0:
             return _EX.InvalidFieldDataException(
                 "Expected list or tuple containing strings or bytes"
             )
@@ -611,19 +611,14 @@ class KeyValueField(CertificateField):
         """
         Validate the field data
         """
-        if not isinstance(self.value, Union[list, tuple, dict, set]):
+        if not isinstance(self.value, (list, tuple, dict, set)):
             return _EX.InvalidFieldDataException(
                 f"Passed value type ({type(self.value)}) is not a list/tuple/dict/set"
             )
 
         if isinstance(self.value, (dict)):
             if (
-                sum(
-                    [
-                        not isinstance(item, Union[str, bytes])
-                        for item in self.value.keys()
-                    ]
-                )
+                sum([not isinstance(item, (str, bytes)) for item in self.value.keys()])
                 > 0
             ):
                 return _EX.InvalidFieldDataException(
@@ -632,8 +627,7 @@ class KeyValueField(CertificateField):
 
         if (
             isinstance(self.value, (list, tuple, set))
-            and sum([not isinstance(item, Union[str, bytes]) for item in self.value])
-            > 0
+            and sum([not isinstance(item, (str, bytes)) for item in self.value]) > 0
         ):
             return _EX.InvalidFieldDataException(
                 "Expected list, tuple or set containing strings or bytes"
