@@ -401,7 +401,7 @@ class SSHCertificate:
             + bytes(self.signature_pubkey)
         )
 
-    def sign(self):
+    def sign(self, **signing_args):
         """
         Sign the certificate
 
@@ -409,7 +409,7 @@ class SSHCertificate:
             SSHCertificate: The signed certificate class
         """
         if self.can_sign():
-            self.signature.sign(data=self.get_signable_data())
+            self.signature.sign(data=self.get_signable_data(), **signing_args)
 
         return self
 
@@ -439,10 +439,7 @@ class SSHCertificate:
         cert_data = self.get_signable_data()
         signature = self.signature.value
 
-        return ca_pubkey.verify(
-            cert_data,
-            signature
-        )
+        return ca_pubkey.verify(cert_data, signature)
 
     def to_bytes(self) -> bytes:
         """
@@ -528,25 +525,6 @@ class RSACertificate(SSHCertificate):
             RSACertificate: The decoded certificate
         """
         return super().decode(cert_bytes, _FIELD.RSAPubkeyField)
-
-    def sign(self, hash_alg: RsaAlgs = RsaAlgs.SHA512):
-        """
-        Sign the certificate
-
-        Args:
-            hash_alg (RsaAlgs): The hashing algorithm to use for creating
-                                the hash of the certificate before signing
-
-        Returns:
-            SSHCertificate: The signed certificate class
-        """
-        if self.can_sign():
-            self.signature.sign(
-                data=self.get_signable_data(), 
-                hash_alg=hash_alg
-            )
-
-        return self
 
 
 class DSACertificate(SSHCertificate):

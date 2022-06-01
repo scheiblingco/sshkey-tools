@@ -446,7 +446,7 @@ class SSHCertificate:
             + bytes(self.signature_pubkey)
         )
 
-    def sign(self):
+    def sign(self, **signing_args):
         &#34;&#34;&#34;
         Sign the certificate
 
@@ -454,7 +454,7 @@ class SSHCertificate:
             SSHCertificate: The signed certificate class
         &#34;&#34;&#34;
         if self.can_sign():
-            self.signature.sign(data=self.get_signable_data())
+            self.signature.sign(data=self.get_signable_data(), **signing_args)
 
         return self
 
@@ -484,10 +484,7 @@ class SSHCertificate:
         cert_data = self.get_signable_data()
         signature = self.signature.value
 
-        return ca_pubkey.verify(
-            cert_data,
-            signature
-        )
+        return ca_pubkey.verify(cert_data, signature)
 
     def to_bytes(self) -&gt; bytes:
         &#34;&#34;&#34;
@@ -573,25 +570,6 @@ class RSACertificate(SSHCertificate):
             RSACertificate: The decoded certificate
         &#34;&#34;&#34;
         return super().decode(cert_bytes, _FIELD.RSAPubkeyField)
-
-    def sign(self, hash_alg: RsaAlgs = RsaAlgs.SHA512):
-        &#34;&#34;&#34;
-        Sign the certificate
-
-        Args:
-            hash_alg (RsaAlgs): The hashing algorithm to use for creating
-                                the hash of the certificate before signing
-
-        Returns:
-            SSHCertificate: The signed certificate class
-        &#34;&#34;&#34;
-        if self.can_sign():
-            self.signature.sign(
-                data=self.get_signable_data(), 
-                hash_alg=hash_alg
-            )
-
-        return self
 
 
 class DSACertificate(SSHCertificate):
@@ -1021,26 +999,7 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;ED25519Certificate&#34;:
         Returns:
             RSACertificate: The decoded certificate
         &#34;&#34;&#34;
-        return super().decode(cert_bytes, _FIELD.RSAPubkeyField)
-
-    def sign(self, hash_alg: RsaAlgs = RsaAlgs.SHA512):
-        &#34;&#34;&#34;
-        Sign the certificate
-
-        Args:
-            hash_alg (RsaAlgs): The hashing algorithm to use for creating
-                                the hash of the certificate before signing
-
-        Returns:
-            SSHCertificate: The signed certificate class
-        &#34;&#34;&#34;
-        if self.can_sign():
-            self.signature.sign(
-                data=self.get_signable_data(), 
-                hash_alg=hash_alg
-            )
-
-        return self</code></pre>
+        return super().decode(cert_bytes, _FIELD.RSAPubkeyField)</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -1083,49 +1042,6 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;SSHCertificate&#34;:
 </details>
 </dd>
 </dl>
-<h3>Methods</h3>
-<dl>
-<dt id="sshkey_tools.cert.RSACertificate.sign"><code class="name flex">
-<span>def <span class="ident">sign</span></span>(<span>self, hash_alg: <a title="sshkey_tools.keys.RsaAlgs" href="keys.html#sshkey_tools.keys.RsaAlgs">RsaAlgs</a> = RsaAlgs.SHA512)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Sign the certificate</p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>hash_alg</code></strong> :&ensp;<code>RsaAlgs</code></dt>
-<dd>The hashing algorithm to use for creating
-the hash of the certificate before signing</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<dl>
-<dt><code><a title="sshkey_tools.cert.SSHCertificate" href="#sshkey_tools.cert.SSHCertificate">SSHCertificate</a></code></dt>
-<dd>The signed certificate class</dd>
-</dl></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def sign(self, hash_alg: RsaAlgs = RsaAlgs.SHA512):
-    &#34;&#34;&#34;
-    Sign the certificate
-
-    Args:
-        hash_alg (RsaAlgs): The hashing algorithm to use for creating
-                            the hash of the certificate before signing
-
-    Returns:
-        SSHCertificate: The signed certificate class
-    &#34;&#34;&#34;
-    if self.can_sign():
-        self.signature.sign(
-            data=self.get_signable_data(), 
-            hash_alg=hash_alg
-        )
-
-    return self</code></pre>
-</details>
-</dd>
-</dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
 <li><code><b><a title="sshkey_tools.cert.SSHCertificate" href="#sshkey_tools.cert.SSHCertificate">SSHCertificate</a></b></code>:
@@ -1140,6 +1056,7 @@ the hash of the certificate before signing</dd>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.set_opt" href="#sshkey_tools.cert.SSHCertificate.set_opt">set_opt</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.set_opts" href="#sshkey_tools.cert.SSHCertificate.set_opts">set_opts</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.set_type" href="#sshkey_tools.cert.SSHCertificate.set_type">set_type</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.sign" href="#sshkey_tools.cert.SSHCertificate.sign">sign</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.to_bytes" href="#sshkey_tools.cert.SSHCertificate.to_bytes">to_bytes</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.to_file" href="#sshkey_tools.cert.SSHCertificate.to_file">to_file</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.to_string" href="#sshkey_tools.cert.SSHCertificate.to_string">to_string</a></code></li>
@@ -1504,7 +1421,7 @@ or the from_public_key classmethod</p></div>
             + bytes(self.signature_pubkey)
         )
 
-    def sign(self):
+    def sign(self, **signing_args):
         &#34;&#34;&#34;
         Sign the certificate
 
@@ -1512,7 +1429,7 @@ or the from_public_key classmethod</p></div>
             SSHCertificate: The signed certificate class
         &#34;&#34;&#34;
         if self.can_sign():
-            self.signature.sign(data=self.get_signable_data())
+            self.signature.sign(data=self.get_signable_data(), **signing_args)
 
         return self
 
@@ -1542,10 +1459,7 @@ or the from_public_key classmethod</p></div>
         cert_data = self.get_signable_data()
         signature = self.signature.value
 
-        return ca_pubkey.verify(
-            cert_data,
-            signature
-        )
+        return ca_pubkey.verify(cert_data, signature)
 
     def to_bytes(self) -&gt; bytes:
         &#34;&#34;&#34;
@@ -2064,7 +1978,7 @@ The child classes will set this automatically</p>
 </details>
 </dd>
 <dt id="sshkey_tools.cert.SSHCertificate.sign"><code class="name flex">
-<span>def <span class="ident">sign</span></span>(<span>self)</span>
+<span>def <span class="ident">sign</span></span>(<span>self, **signing_args)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Sign the certificate</p>
@@ -2077,7 +1991,7 @@ The child classes will set this automatically</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def sign(self):
+<pre><code class="python">def sign(self, **signing_args):
     &#34;&#34;&#34;
     Sign the certificate
 
@@ -2085,7 +1999,7 @@ The child classes will set this automatically</p>
         SSHCertificate: The signed certificate class
     &#34;&#34;&#34;
     if self.can_sign():
-        self.signature.sign(data=self.get_signable_data())
+        self.signature.sign(data=self.get_signable_data(), **signing_args)
 
     return self</code></pre>
 </details>
@@ -2254,10 +2168,7 @@ verificiation.</p>
     cert_data = self.get_signable_data()
     signature = self.signature.value
 
-    return ca_pubkey.verify(
-        cert_data,
-        signature
-    )</code></pre>
+    return ca_pubkey.verify(cert_data, signature)</code></pre>
 </details>
 </dd>
 </dl>
@@ -2300,7 +2211,6 @@ verificiation.</p>
 <h4><code><a title="sshkey_tools.cert.RSACertificate" href="#sshkey_tools.cert.RSACertificate">RSACertificate</a></code></h4>
 <ul class="">
 <li><code><a title="sshkey_tools.cert.RSACertificate.decode" href="#sshkey_tools.cert.RSACertificate.decode">decode</a></code></li>
-<li><code><a title="sshkey_tools.cert.RSACertificate.sign" href="#sshkey_tools.cert.RSACertificate.sign">sign</a></code></li>
 </ul>
 </li>
 <li>

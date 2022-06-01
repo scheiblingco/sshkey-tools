@@ -207,8 +207,8 @@ except SignatureNotPossibleException:
 # Sign the certificate
 certificate.sign()
 
-# For RSA, you can choose the hashing algorithm used for creating
-# the hash of the certificate data before signing
+# For certificates signed by an RSA key, you can choose the hashing algorithm 
+# to be used for creating the hash of the certificate data before signing
 certificate.sign(
     hash_alg=RsaAlgs.SHA512
 )
