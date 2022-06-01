@@ -413,6 +413,37 @@ class SSHCertificate:
 
         return self
 
+    def verify(self, ca_pubkey: PublicKey = None) -> bool:
+        """
+        Verifies a signature against a given public key.
+
+        If no public key is provided, the signature is checked against
+        the public/private key provided to the class on creation
+        or decoding.
+
+        Not providing the public key for the CA with an imported
+        certificate means the verification will succeed even if an
+        attacker has replaced the signature and public key for signing.
+
+        If the certificate wasn't created and signed on the same occasion
+        as the validity check, you should always provide a public key for
+        verificiation.
+
+        Returns:
+            bool: If the certificate signature is valid
+        """
+
+        if ca_pubkey is None:
+            ca_pubkey = self.signature_pubkey.value
+
+        cert_data = self.get_signable_data()
+        signature = self.signature.value
+
+        return ca_pubkey.verify(
+            cert_data,
+            signature
+        )
+
     def to_bytes(self) -> bytes:
         """
         Export the signed certificate in byte-format
@@ -497,6 +528,25 @@ class RSACertificate(SSHCertificate):
             RSACertificate: The decoded certificate
         """
         return super().decode(cert_bytes, _FIELD.RSAPubkeyField)
+
+    def sign(self, hash_alg: RsaAlgs = RsaAlgs.SHA512):
+        """
+        Sign the certificate
+
+        Args:
+            hash_alg (RsaAlgs): The hashing algorithm to use for creating
+                                the hash of the certificate before signing
+
+        Returns:
+            SSHCertificate: The signed certificate class
+        """
+        if self.can_sign():
+            self.signature.sign(
+                data=self.get_signable_data(), 
+                hash_alg=hash_alg
+            )
+
+        return self
 
 
 class DSACertificate(SSHCertificate):

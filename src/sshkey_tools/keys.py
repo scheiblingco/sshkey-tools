@@ -74,6 +74,11 @@ PrivkeyClasses = Union[
 class RsaAlgs(Enum):
     """
     RSA Algorithms
+
+    Values:
+        SHA1
+        SHA256
+        SHA512
     """
 
     SHA1 = ("ssh-rsa", _HASHES.SHA1)
@@ -84,6 +89,11 @@ class RsaAlgs(Enum):
 class EcdsaCurves(Enum):
     """
     ECDSA Curves
+
+    Values:
+        P256
+        P384
+        P521
     """
 
     P256 = _ECDSA.SECP256R1
@@ -94,6 +104,10 @@ class EcdsaCurves(Enum):
 class FingerprintHashes(Enum):
     """
     Fingerprint hashes
+    Values:
+        MD5
+        SHA256
+        SHA512
     """
 
     MD5 = _FP_MD5
@@ -478,8 +492,8 @@ class RSAPrivateKey(PrivateKey):
     # pylint: disable=invalid-name,too-many-arguments
     def from_numbers(
         cls,
-        n: int,
         e: int,
+        n: int,
         d: int,
         p: int = None,
         q: int = None,

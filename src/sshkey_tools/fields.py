@@ -1017,13 +1017,13 @@ class CriticalOptionsField(KeyValueField):
     This should be a list of strings with one of the following
 
     options:
-        force_command=<command>
+        force-command=<command>
             Limits the connecting user to a specific command,
             e.g. sftp-internal
-        source_address=<ip_address>
+        source-address=<ip_address>
             Limits the user to connect only from a certain
             ip, subnet or host
-        verify_required=<true|false>
+        verify-required=<true|false>
             If set to true, the user must verify their identity
             if using a hardware token
     """
