@@ -7,8 +7,8 @@ on:
         paths-ignore:
             - "docs/**"
             - "*.md"
-
-testing:
+jobs:
+  testing:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

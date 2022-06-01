@@ -1,8 +1,8 @@
 on:
   release:
     types: [created]
-
-testing:
+jobs:
+  testing:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
