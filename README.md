@@ -113,7 +113,7 @@ rsa_private = RSAPrivateKey.from_numbers(
 ## SSH Certificates
 ### Attributes
 |Attribute|Type|Key|Example Value|Description|
-|---|---|---|
+|---|---|---|---|---|
 |Certificate Type|Integer (1/2)|cert_type|1|The type of certificate, 1 for User and 2 for Host. Can also be defined as sshkey_tools.fields.CERT_TYPE.USER or sshkey_tools.fields.CERT_TYPE.HOST|
 |Serial|Integer|serial|11223344|The serial number for the certificate, a 64-bit integer|
 |Key ID|String|key_id|someuser@somehost|The key identifier, can be set to any string, for example username, email or other unique identifier|
