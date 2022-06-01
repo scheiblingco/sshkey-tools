@@ -1,7 +1,7 @@
 """
 Field types for SSH Certificates
 """
-# pylint: disable=invalid-name,too-many-lines
+# pylint: disable=invalid-name,too-many-lines,arguments-differ
 from enum import Enum
 from typing import Union, Tuple
 from datetime import datetime

@@ -32,3 +32,5 @@ jobs:
     - name: Rebuild documentation
       run: |
         pdoc --html src/sshkey_tools/ --force --output-dir docs
+        mv docs/sshkey_tools/* docs/
+        rm -r docs/sshkey_tools
