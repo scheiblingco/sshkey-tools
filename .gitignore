@@ -143,3 +143,6 @@ test_ed25519*
 test_flow.py
 temptest.py
 oldsrc/*
+tempfolder
+report.html
+test_certificate

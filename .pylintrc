@@ -1,0 +1,5 @@
+[MASTER]
+load-plugins=pylint_report
+
+[REPORTS]
+output-format=pylint_report.CustomJsonReporter

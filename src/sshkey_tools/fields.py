@@ -9,7 +9,7 @@ from struct import pack, unpack
 from base64 import b64encode
 from cryptography.hazmat.primitives.asymmetric.utils import (
     decode_dss_signature,
-    encode_dss_signature
+    encode_dss_signature,
 )
 from . import exceptions as _EX
 from .keys import (
@@ -23,60 +23,60 @@ from .keys import (
     ECDSAPublicKey,
     ECDSAPrivateKey,
     ED25519PublicKey,
-    ED25519PrivateKey
+    ED25519PrivateKey,
 )
 
-from .utils import (
-    long_to_bytes,
-    bytes_to_long,
-    generate_secure_nonce
-)
+from .utils import long_to_bytes, bytes_to_long, generate_secure_nonce
 
 
 MAX_INT32 = 2**32
 MAX_INT64 = 2**64
 
 ECDSA_CURVE_MAP = {
-    'secp256r1': 'nistp256',
-    'secp384r1': 'nistp384',
-    'secp521r1': 'nistp521'
+    "secp256r1": "nistp256",
+    "secp384r1": "nistp384",
+    "secp521r1": "nistp521",
 }
 
 SUBJECT_PUBKEY_MAP = {
-    RSAPublicKey: 'RSAPubkeyField',
-    DSAPublicKey: 'DSAPubkeyField',
-    ECDSAPublicKey: 'ECDSAPubkeyField',
-    ED25519PublicKey: 'ED25519PubkeyField'
+    RSAPublicKey: "RSAPubkeyField",
+    DSAPublicKey: "DSAPubkeyField",
+    ECDSAPublicKey: "ECDSAPubkeyField",
+    ED25519PublicKey: "ED25519PubkeyField",
 }
 
 CA_SIGNATURE_MAP = {
-    RSAPrivateKey: 'RSASignatureField',
-    DSAPrivateKey: 'DSASignatureField',
-    ECDSAPrivateKey: 'ECDSASignatureField',
-    ED25519PrivateKey: 'ED25519SignatureField'
+    RSAPrivateKey: "RSASignatureField",
+    DSAPrivateKey: "DSASignatureField",
+    ECDSAPrivateKey: "ECDSASignatureField",
+    ED25519PrivateKey: "ED25519SignatureField",
 }
 
 SIGNATURE_TYPE_MAP = {
-    b'rsa': 'RSASignatureField',
-    b'dss': 'DSASignatureField',
-    b'ecdsa': 'ECDSASignatureField',
-    b'ed25519': 'ED25519SignatureField'
+    b"rsa": "RSASignatureField",
+    b"dss": "DSASignatureField",
+    b"ecdsa": "ECDSASignatureField",
+    b"ed25519": "ED25519SignatureField",
 }
+
 
 class CERT_TYPE(Enum):
     """
     Certificate types, User certificate/Host certificate
     """
+
     USER = 1
     HOST = 2
+
 
 class CertificateField:
     """
     The base class for certificate fields
     """
+
     is_set = None
 
-    def __init__(self, value, name = None):
+    def __init__(self, value, name=None):
         self.name = name
         self.value = value
         self.exception = None
@@ -108,7 +108,7 @@ class CertificateField:
         return True
 
     @classmethod
-    def from_decode(cls, data: bytes) -> Tuple['CertificateField', bytes]:
+    def from_decode(cls, data: bytes) -> Tuple["CertificateField", bytes]:
         """
         Creates a field class based on encoded bytes
 
@@ -118,10 +118,12 @@ class CertificateField:
         value, data = cls.decode(data)
         return cls(value), data
 
+
 class BooleanField(CertificateField):
     """
     Field representing a boolean value (True/False)
     """
+
     @staticmethod
     def encode(value: bool) -> bytes:
         """
@@ -133,7 +135,12 @@ class BooleanField(CertificateField):
         Returns:
             bytes: Packed byte representing the boolean
         """
-        return pack('B', 1 if value else 0)
+        if not isinstance(value, bool):
+            raise _EX.InvalidFieldDataException(
+                f"Expected bool, got {value.__class__.__name__}"
+            )
+
+        return pack("B", 1 if value else 0)
 
     @staticmethod
     def decode(data: bytes) -> Tuple[bool, bytes]:
@@ -143,7 +150,7 @@ class BooleanField(CertificateField):
         Args:
             data (bytes): The byte string starting with an encoded boolean
         """
-        return bool(unpack('B', data[:1])[0]), data[1:]
+        return bool(unpack("B", data[:1])[0]), data[1:]
 
     def validate(self) -> Union[bool, Exception]:
         """
@@ -156,12 +163,14 @@ class BooleanField(CertificateField):
 
         return True
 
-class StringField(CertificateField):
+
+class BytestringField(CertificateField):
     """
-    Field representing a string value
+    Field representing a bytestring value
     """
+
     @staticmethod
-    def encode(value: Union[str, bytes], encoding: str = 'utf-8') -> bytes:
+    def encode(value: bytes) -> bytes:
         """
         Encodes a string or bytestring into a packed byte string
 
@@ -172,16 +181,15 @@ class StringField(CertificateField):
         Returns:
             bytes: Packed byte string containing the source data
         """
-        if isinstance(value, str):
-            value = value.encode(encoding)
+        if not isinstance(value, bytes):
+            raise _EX.InvalidFieldDataException(
+                f"Expected bytes, got {value.__class__.__name__}"
+            )
 
-        if isinstance(value, bytes):
-            return pack('>I', len(value)) + value
-
-        raise _EX.InvalidDataException(f"Expected unicode or bytes, got {type(value).__name__}.")
+        return pack(">I", len(value)) + value
 
     @staticmethod
-    def decode(data: bytes) -> Tuple[str, bytes]:
+    def decode(data: bytes) -> Tuple[bytes, bytes]:
         """
         Unpacks the next string from a packed byte string
 
@@ -189,29 +197,80 @@ class StringField(CertificateField):
             data (bytes): The packed byte string to unpack
 
         Returns:
-            tuple(str, bytes):    The next string from the packed byte
+            tuple(bytes, bytes):  The next block of bytes from the packed byte
                                   string and remainder of the data
         """
-        length = unpack('>I', data[:4])[0] + 4
+        length = unpack(">I", data[:4])[0] + 4
         return data[4:length], data[length:]
 
     def validate(self) -> Union[bool, Exception]:
         """
         Validate the field data
         """
-        if not isinstance(self.value, Union[str, bytes]):
+        if not isinstance(self.value, bytes):
             return _EX.InvalidFieldDataException(
-                f"Passed value type ({type(self.value)}) is not a string or bytestring"
+                f"Passed value type ({type(self.value)}) is not a bytestring"
             )
 
         return True
 
+
+class StringField(BytestringField):
+    """
+    Field representing a string value
+    """
+
+    @staticmethod
+    def encode(value: str, encoding: str = "utf-8"):
+        """
+        Encodes a string or bytestring into a packed byte string
+
+        Args:
+            value (Union[str, bytes]): The string/bytestring to encode
+            encoding (str): The encoding to user for the string
+
+        Returns:
+            bytes: Packed byte string containing the source data
+        """
+        if not isinstance(value, str):
+            raise _EX.InvalidFieldDataException(
+                f"Expected str, got {value.__class__.__name__}"
+            )
+        return BytestringField.encode(value.encode(encoding))
+
+    @staticmethod
+    def decode(data: bytes, encoding: str = "utf-8") -> Tuple[str, bytes]:
+        """
+        Unpacks the next string from a packed byte string
+
+        Args:
+            data (bytes): The packed byte string to unpack
+
+        Returns:
+            tuple(bytes, bytes):  The next block of bytes from the packed byte
+                                  string and remainder of the data
+        """
+        value, data = BytestringField.decode(data)
+
+        return value.decode(encoding), data
+
+    def validate(self) -> Union[bool, Exception]:
+        """
+        Validate the field data
+        """
+        if not isinstance(self.value, str):
+            return _EX.InvalidFieldDataException(
+                f"Passed value type ({type(self.value)}) is not a string"
+            )
+
+        return True
 
 
 class Integer32Field(CertificateField):
     """
     Certificate field representing a 32-bit integer
     """
+
     @staticmethod
     def encode(value: int) -> bytes:
         """Encodes a 32-bit integer value to a packed byte string
@@ -223,9 +282,11 @@ class Integer32Field(CertificateField):
             bytes: Packed byte string containing integer
         """
         if not isinstance(value, int):
-            raise _EX.InvalidDataException(f"Expected integer, got {type(value).__name__}.")
+            raise _EX.InvalidFieldDataException(
+                f"Expected int, got {value.__class__.__name__}"
+            )
 
-        return pack('>I', value)
+        return pack(">I", value)
 
     @staticmethod
     def decode(data: bytes) -> Tuple[int, bytes]:
@@ -237,7 +298,7 @@ class Integer32Field(CertificateField):
         Returns:
             tuple: Tuple with integer and remainder of data
         """
-        return int(unpack('>I', data[:4])[0]), data[4:]
+        return int(unpack(">I", data[:4])[0]), data[4:]
 
     def validate(self) -> Union[bool, Exception]:
         """
@@ -255,10 +316,12 @@ class Integer32Field(CertificateField):
 
         return True
 
+
 class Integer64Field(CertificateField):
     """
     Certificate field representing a 64-bit integer
     """
+
     @staticmethod
     def encode(value: int) -> bytes:
         """Encodes a 64-bit integer value to a packed byte string
@@ -270,9 +333,11 @@ class Integer64Field(CertificateField):
             bytes: Packed byte string containing integer
         """
         if not isinstance(value, int):
-            raise _EX.InvalidDataException(f"Expected integer, got {type(value).__name__}.")
+            raise _EX.InvalidFieldDataException(
+                f"Expected int, got {value.__class__.__name__}"
+            )
 
-        return pack('>Q', value)
+        return pack(">Q", value)
 
     @staticmethod
     def decode(data: bytes) -> Tuple[int, bytes]:
@@ -284,7 +349,7 @@ class Integer64Field(CertificateField):
         Returns:
             tuple: Tuple with integer and remainder of data
         """
-        return int(unpack('>Q', data[:8])[0]), data[8:]
+        return int(unpack(">Q", data[:8])[0]), data[8:]
 
     def validate(self) -> Union[bool, Exception]:
         """
@@ -302,39 +367,65 @@ class Integer64Field(CertificateField):
 
         return True
 
+
 class DateTimeField(Integer64Field):
     """
     Certificate field representing a datetime value.
     The value is saved as a 64-bit integer (unix timestamp)
     """
+
     @staticmethod
-    def encode(value: datetime) -> bytes:
-        return Integer64Field.encode(int(value.timestamp()))
+    def encode(value: Union[datetime, int]) -> bytes:
+        """Encodes a datetime object to a byte string
+
+        Args:
+            value (datetime): Datetime object
+
+        Returns:
+            bytes: Packed byte string containing datetime timestamp
+        """
+        if not isinstance(value, (datetime, int)):
+            raise _EX.InvalidFieldDataException(
+                f"Expected datetime, got {value.__class__.__name__}"
+            )
+
+        if isinstance(value, datetime):
+            value = int(value.timestamp())
+
+        return Integer64Field.encode(value)
 
     @staticmethod
     def decode(data: bytes) -> datetime:
+        """Decodes a datetime object from a block of bytes
+
+        Args:
+            data (bytes): Block of bytes containing a datetime object
+
+        Returns:
+            tuple: Tuple with datetime and remainder of data
+        """
         timestamp, data = Integer64Field.decode(data)
 
-        return datetime.fromtimestamp(
-            timestamp
-        ), data
+        return datetime.fromtimestamp(timestamp), data
 
     def validate(self) -> Union[bool, Exception]:
         """
         Validate the field data
         """
-        if not isinstance(self.value, datetime):
+        if not isinstance(self.value, (datetime, int)):
             return _EX.InvalidFieldDataException(
                 f"Passed value type ({type(self.value)}) is not a datetime object"
             )
 
         return True
 
-class MpIntegerField(StringField):
+
+class MpIntegerField(BytestringField):
     """
     Certificate field representing a multiple precision integer,
     an integer too large to fit in 64 bits.
     """
+
     @staticmethod
     # pylint: disable=arguments-differ
     def encode(value: int) -> bytes:
@@ -348,9 +439,12 @@ class MpIntegerField(StringField):
         Returns:
             bytes: Packed byte string containing integer
         """
-        return StringField.encode(
-            long_to_bytes(value)
-        )
+        if not isinstance(value, int):
+            raise _EX.InvalidFieldDataException(
+                f"Expected int, got {value.__class__.__name__}"
+            )
+
+        return BytestringField.encode(long_to_bytes(value))
 
     @staticmethod
     def decode(data: bytes) -> Tuple[int, bytes]:
@@ -362,7 +456,7 @@ class MpIntegerField(StringField):
         Returns:
             tuple: Tuple with integer and remainder of data
         """
-        mpint, data = StringField.decode(data)
+        mpint, data = BytestringField.decode(data)
         return bytes_to_long(mpint), data
 
     def validate(self) -> Union[bool, Exception]:
@@ -376,12 +470,14 @@ class MpIntegerField(StringField):
 
         return True
 
-class StandardListField(CertificateField):
+
+class ListField(CertificateField):
     """
     Certificate field representing a list or tuple of strings
     """
+
     @staticmethod
-    def encode(value: Union[list, tuple]) -> bytes:
+    def encode(value: Union[list, tuple, set]) -> bytes:
         """Encodes a list or tuple to a byte string
 
         Args:
@@ -391,16 +487,20 @@ class StandardListField(CertificateField):
         Returns:
             bytes: Packed byte string containing the source data
         """
-        if sum([ not isinstance(item, Union[str, bytes]) for item in value]) > 0:
-            raise TypeError("Expected list or tuple containing strings or bytes")
-
-        return StringField.encode(
-            b''.join(
-                [
-                    StringField.encode(x) for x in value
-                ]
+        if not isinstance(value, (list, tuple, set)):
+            raise _EX.InvalidFieldDataException(
+                f"Expected (list, tuple, set), got {value.__class__.__name__}"
             )
-        )
+
+        try:
+            if sum([not isinstance(item, (str, bytes)) for item in value]) > 0:
+                raise TypeError
+        except TypeError:
+            raise _EX.InvalidFieldDataException(
+                "Expected list or tuple containing strings or bytes"
+            ) from TypeError
+
+        return BytestringField.encode(b"".join([StringField.encode(x) for x in value]))
 
     @staticmethod
     def decode(data: bytes) -> Tuple[list, bytes]:
@@ -411,7 +511,7 @@ class StandardListField(CertificateField):
         Returns:
             tuple: _description_
         """
-        list_bytes, data = StringField.decode(data)
+        list_bytes, data = BytestringField.decode(data)
 
         decoded = []
         while len(list_bytes) > 0:
@@ -424,46 +524,65 @@ class StandardListField(CertificateField):
         """
         Validate the field data
         """
-        if not isinstance(self.value, Union[list, tuple]):
+        if not isinstance(self.value, (list, tuple)):
             return _EX.InvalidFieldDataException(
                 f"Passed value type ({type(self.value)}) is not a list/tuple"
             )
 
+        if sum([not isinstance(item, (str, bytes)) for item in self.value]) > 0:
+            return _EX.InvalidFieldDataException(
+                "Expected list or tuple containing strings or bytes"
+            )
+
         return True
 
-class SeparatedListField(CertificateField):
+
+class KeyValueField(CertificateField):
     """
     Certificate field representing a list or integer in python,
     separated in byte-form by null-bytes.
     """
 
     @staticmethod
-    def encode(value: Union[list, tuple]) -> bytes:
+    def encode(value: Union[list, tuple, dict, set]) -> bytes:
         """
-        Encodes a list or tuple to a byte string separated by a null byte
+        Encodes a dict, set, list or tuple into a key-value byte string.
+        If a set, list or tuple is provided, the items are considered keys
+        and added with empty values.
 
         Args:
-            source_list (list): list of strings
+            source_list (dict, set, list, tuple): list of strings
 
         Returns:
             bytes: Packed byte string containing the source data
         """
-        if sum([ not isinstance(item, Union[str, bytes]) for item in value ]) > 0:
-            raise TypeError("Expected list or tuple containing strings or bytes")
+        if not isinstance(value, (list, tuple, dict, set)):
+            raise _EX.InvalidFieldDataException(
+                f"Expected (list, tuple), got {value.__class__.__name__}"
+            )
 
-        if len(value) < 1:
-            return StandardListField.encode(value)
+        if not isinstance(value, dict):
+            value = {item: "" for item in value}
 
-        null_byte = StringField.encode('')
+        list_data = b""
 
-        return StringField.encode(
-            null_byte.join(
-                StringField.encode(item) for item in value
-            ) + null_byte
-        )
+        for key, item in value.items():
+            list_data += StringField.encode(key)
+
+            item = (
+                StringField.encode(item)
+                if item in ["", b""]
+                else ListField.encode(
+                    [item] if isinstance(item, (str, bytes)) else item
+                )
+            )
+
+            list_data += item
+
+        return BytestringField.encode(list_data)
 
     @staticmethod
-    def decode(data: bytes) -> Tuple[list, bytes]:
+    def decode(data: bytes) -> Tuple[dict, bytes]:
         """Decodes a list of strings from a block of bytes
 
         Args:
@@ -471,14 +590,20 @@ class SeparatedListField(CertificateField):
         Returns:
             tuple: _description_
         """
-        list_bytes, data = StringField.decode(data)
+        list_bytes, data = BytestringField.decode(data)
 
-        decoded = []
+        decoded = {}
         while len(list_bytes) > 0:
-            elem, list_bytes = StringField.decode(list_bytes)
+            key, list_bytes = StringField.decode(list_bytes)
+            value, list_bytes = BytestringField.decode(list_bytes)
 
-            if elem != b'':
-                decoded.append(elem)
+            if value != b"":
+                value = StringField.decode(value)[0]
+
+            decoded[key] = "" if value == b"" else value
+
+        if "".join(decoded.values()) == "":
+            return list(decoded.keys()), data
 
         return decoded, data
 
@@ -486,12 +611,30 @@ class SeparatedListField(CertificateField):
         """
         Validate the field data
         """
-        if not isinstance(self.value, Union[list, tuple]):
+        if not isinstance(self.value, (list, tuple, dict, set)):
             return _EX.InvalidFieldDataException(
-                f"Passed value type ({type(self.value)}) is not a list/tuple"
+                f"Passed value type ({type(self.value)}) is not a list/tuple/dict/set"
+            )
+
+        if isinstance(self.value, (dict)):
+            if (
+                sum([not isinstance(item, (str, bytes)) for item in self.value.keys()])
+                > 0
+            ):
+                return _EX.InvalidFieldDataException(
+                    "Expected a dict with string or byte keys"
+                )
+
+        if (
+            isinstance(self.value, (list, tuple, set))
+            and sum([not isinstance(item, (str, bytes)) for item in self.value]) > 0
+        ):
+            return _EX.InvalidFieldDataException(
+                "Expected list, tuple or set containing strings or bytes"
             )
 
         return True
+
 
 class PubkeyTypeField(StringField):
     """
@@ -499,10 +642,11 @@ class PubkeyTypeField(StringField):
     public key type the certificate is created for, e.g.
     'ssh-ed25519-cert-v01@openssh.com' for an ED25519 key
     """
+
     def __init__(self, value: str):
         super().__init__(
             value=value,
-            name='pubkey_type',
+            name="pubkey_type",
         )
 
     def validate(self) -> Union[bool, Exception]:
@@ -510,18 +654,19 @@ class PubkeyTypeField(StringField):
         Validate the field data
         """
         if self.value not in (
-            'ssh-rsa-cert-v01@openssh.com',
-            'rsa-sha2-256-cert-v01@openssh.com',
-            'rsa-sha2-512-cert-v01@openssh.com',
-            'ssh-dss-cert-v01@openssh.com',
-            'ecdsa-sha2-nistp256-cert-v01@openssh.com',
-            'ecdsa-sha2-nistp384-cert-v01@openssh.com',
-            'ecdsa-sha2-nistp521-cert-v01@openssh.com',
-            'ssh-ed25519-cert-v01@openssh.com'
+            "ssh-rsa-cert-v01@openssh.com",
+            "rsa-sha2-256-cert-v01@openssh.com",
+            "rsa-sha2-512-cert-v01@openssh.com",
+            "ssh-dss-cert-v01@openssh.com",
+            "ecdsa-sha2-nistp256-cert-v01@openssh.com",
+            "ecdsa-sha2-nistp384-cert-v01@openssh.com",
+            "ecdsa-sha2-nistp521-cert-v01@openssh.com",
+            "ssh-ed25519-cert-v01@openssh.com",
         ):
             return _EX.InvalidDataException(f"Invalid pubkey type: {self.value}")
 
         return True
+
 
 class NonceField(StringField):
     """
@@ -529,10 +674,10 @@ class NonceField(StringField):
     this protects the integrity of the private key, especially
     for ecdsa.
     """
+
     def __init__(self, value: str = None):
         super().__init__(
-            value=value if value is not None else generate_secure_nonce(),
-            name='nonce'
+            value=value if value is not None else generate_secure_nonce(), name="nonce"
         )
 
     def validate(self) -> Union[bool, Exception]:
@@ -541,31 +686,33 @@ class NonceField(StringField):
         """
         if len(self.value) < 32:
             self.exception = _EX.InsecureNonceException(
-                "Nonce must be at least 32 bytes long to be secure"
+                "Nonce should be at least 32 bytes long to be secure. "
+                + "This is especially important for ECDSA"
             )
             return False
 
         return True
+
 
 class PublicKeyField(CertificateField):
     """
     Contains the subject (User or Host) public key for whom/which
     the certificate is created.
     """
+
     def __init__(self, value: PublicKey):
-        super().__init__(
-            value=value,
-            name='public_key'
-        )
+        super().__init__(value=value, name="public_key")
 
     def __str__(self) -> str:
-        return ' '.join([
-            self.__class__.__name__.replace('PubkeyField', ''),
-            self.value.get_fingerprint()
-        ])
+        return " ".join(
+            [
+                self.__class__.__name__.replace("PubkeyField", ""),
+                self.value.get_fingerprint(),
+            ]
+        )
 
     @staticmethod
-    def encode(value: RSAPublicKey) -> bytes:
+    def encode(value: PublicKey) -> bytes:
         """
         Encode the certificate field to a byte string
 
@@ -575,10 +722,12 @@ class PublicKeyField(CertificateField):
         Returns:
             bytes: A byte string with the encoded public key
         """
+        if not isinstance(value, PublicKey):
+            raise _EX.InvalidFieldDataException(
+                f"Expected PublicKey, got {value.__class__.__name__}"
+            )
 
-        return StringField.decode(
-            value.raw_bytes()
-        )[1]
+        return BytestringField.decode(value.raw_bytes())[1]
 
     @staticmethod
     def from_object(public_key: PublicKey):
@@ -598,13 +747,10 @@ class PublicKeyField(CertificateField):
                             to the chosen public key
         """
         try:
-            return globals()[SUBJECT_PUBKEY_MAP[public_key.__class__]](
-                value=public_key
-            )
+            return globals()[SUBJECT_PUBKEY_MAP[public_key.__class__]](value=public_key)
         except KeyError:
-            raise _EX.InvalidKeyException(
-                "The public key is invalid"
-            ) from KeyError
+            raise _EX.InvalidKeyException("The public key is invalid") from KeyError
+
 
 class RSAPubkeyField(PublicKeyField):
     """
@@ -626,10 +772,7 @@ class RSAPubkeyField(PublicKeyField):
         e, data = MpIntegerField.decode(data)
         n, data = MpIntegerField.decode(data)
 
-        return RSAPublicKey.from_numbers(
-            e=e,
-            n=n
-        ), data
+        return RSAPublicKey.from_numbers(e=e, n=n), data
 
     def validate(self) -> Union[bool, Exception]:
         """
@@ -641,6 +784,7 @@ class RSAPubkeyField(PublicKeyField):
             )
 
         return True
+
 
 class DSAPubkeyField(PublicKeyField):
     """
@@ -664,9 +808,7 @@ class DSAPubkeyField(PublicKeyField):
         g, data = MpIntegerField.decode(data)
         y, data = MpIntegerField.decode(data)
 
-        return DSAPublicKey.from_numbers(
-            p=p, q=q, g=g, y=y
-        ), data
+        return DSAPublicKey.from_numbers(p=p, q=q, g=g, y=y), data
 
     def validate(self) -> Union[bool, Exception]:
         """
@@ -678,6 +820,7 @@ class DSAPubkeyField(PublicKeyField):
             )
 
         return True
+
 
 class ECDSAPubkeyField(PublicKeyField):
     """
@@ -697,18 +840,22 @@ class ECDSAPubkeyField(PublicKeyField):
             Tuple[ECPublicKey, bytes]: The PublicKey field and remainder of the data
         """
         curve, data = StringField.decode(data)
-        key, data = StringField.decode(data)
+        key, data = BytestringField.decode(data)
 
-        key_type = b'ecdsa-sha2-' + curve
+        key_type = "ecdsa-sha2-" + curve
 
-        return ECDSAPublicKey.from_string(
-            key_type + b' ' +
-            b64encode(
-                StringField.encode(key_type) +
-                StringField.encode(curve) +
-                StringField.encode(key)
-            )
-        ), data
+        return (
+            ECDSAPublicKey.from_string(
+                key_type
+                + " "
+                + b64encode(
+                    StringField.encode(key_type)
+                    + StringField.encode(curve)
+                    + BytestringField.encode(key)
+                ).decode("utf-8")
+            ),
+            data,
+        )
 
     def validate(self) -> Union[bool, Exception]:
         """
@@ -720,6 +867,7 @@ class ECDSAPubkeyField(PublicKeyField):
             )
 
         return True
+
 
 class ED25519PubkeyField(PublicKeyField):
     """
@@ -738,11 +886,9 @@ class ED25519PubkeyField(PublicKeyField):
         Returns:
             Tuple[ED25519PublicKey, bytes]: The PublicKey field and remainder of the data
         """
-        pubkey, data = StringField.decode(data)
+        pubkey, data = BytestringField.decode(data)
 
-        return ED25519PublicKey.from_raw_bytes(
-            pubkey
-        ), data
+        return ED25519PublicKey.from_raw_bytes(pubkey), data
 
     def validate(self) -> Union[bool, Exception]:
         """
@@ -755,16 +901,16 @@ class ED25519PubkeyField(PublicKeyField):
 
         return True
 
+
 class SerialField(Integer64Field):
     """
     Contains the numeric serial number of the certificate,
     maximum is (2**64)-1
     """
+
     def __init__(self, value: int):
-        super().__init__(
-            value=value,
-            name='serial'
-        )
+        super().__init__(value=value, name="serial")
+
 
 class CertificateTypeField(Integer32Field):
     """
@@ -772,80 +918,100 @@ class CertificateTypeField(Integer32Field):
     User certificate: CERT_TYPE.USER/1
     Host certificate: CERT_TYPE.HOST/2
     """
+
     def __init__(self, value: Union[CERT_TYPE, int]):
         super().__init__(
-            value=value.value if isinstance(value, CERT_TYPE) else value,
-            name='type'
+            value=value.value if isinstance(value, CERT_TYPE) else value, name="type"
         )
+
+    @staticmethod
+    def encode(value: Union[CERT_TYPE, int]) -> bytes:
+        """
+        Encode the certificate type field to a byte string
+
+        Args:
+            value (Union[CERT_TYPE, int]): The type of the certificate
+
+        Returns:
+            bytes: A byte string with the encoded public key
+        """
+        if not isinstance(value, (CERT_TYPE, int)):
+            raise _EX.InvalidFieldDataException(
+                f"Expected (CERT_TYPE, int), got {value.__class__.__name__}"
+            )
+
+        if isinstance(value, CERT_TYPE):
+            value = value.value
+
+        return Integer32Field.encode(value)
 
     def validate(self) -> Union[bool, Exception]:
         """
         Validates that the field contains a valid type
         """
-        if 0 > self.value > 3:
-            self.exception = _EX.InvalidDataException(
+        if not isinstance(self.value, (CERT_TYPE, int)):
+            return _EX.InvalidFieldDataException(
+                f"Passed value type ({type(self.value)}) is not an integer"
+            )
+
+        if not isinstance(self.value, CERT_TYPE) and (self.value > 2 or self.value < 1):
+            return _EX.InvalidDataException(
                 "The certificate type is invalid (1: User, 2: Host)"
             )
-            return False
 
         return True
+
 
 class KeyIDField(StringField):
     """
     Contains the key identifier (subject) of the certificate,
     alphanumeric string
     """
+
     def __init__(self, value: str):
-        super().__init__(
-            value=value,
-            name='key_id'
-        )
+        super().__init__(value=value, name="key_id")
 
     def validate(self) -> Union[bool, Exception]:
         """
         Validates that the field is set and not empty
         """
-        if self.value in [None, False, '', ' ']:
-            return _EX.InvalidDataException(
-                "You need to provide a Key ID"
-            )
+        if self.value in [None, False, "", " "]:
+            return _EX.InvalidDataException("You need to provide a Key ID")
 
-        return True
+        return super().validate()
 
-class PrincipalsField(StandardListField):
+
+class PrincipalsField(ListField):
     """
     Contains a list of principals for the certificate,
     e.g. SERVERHOSTNAME01 or all-web-servers
     """
+
     def __init__(self, value: Union[list, tuple]):
-        super().__init__(
-            value=list(value),
-            name='principals'
-        )
+        super().__init__(value=list(value), name="principals")
+
 
 class ValidityStartField(DateTimeField):
     """
     Contains the start of the validity period for the certificate,
     represented by a datetime object
     """
+
     def __init__(self, value: datetime):
-        super().__init__(
-            value=value,
-            name='valid_after'
-        )
+        super().__init__(value=value, name="valid_after")
+
 
 class ValidityEndField(DateTimeField):
     """
     Contains the end of the validity period for the certificate,
     represented by a datetime object
     """
-    def __init__(self, value: datetime):
-        super().__init__(
-            value=value,
-            name='valid_before'
-        )
 
-class CriticalOptionsField(SeparatedListField):
+    def __init__(self, value: datetime):
+        super().__init__(value=value, name="valid_before")
+
+
+class CriticalOptionsField(KeyValueField):
     """
     Contains the critical options part of the certificate (optional).
     This should be a list of strings with one of the following
@@ -860,55 +1026,36 @@ class CriticalOptionsField(SeparatedListField):
         verify_required=<true|false>
             If set to true, the user must verify their identity
             if using a hardware token
-
-    Additionally, the following flags are also supported (no value):
-    flags:
-        no-touch-required
-            The user doesn't need to touch the
-            physical key to authenticate.
-
-        permit-X11-forwarding
-            Permits the user to use X11 Forwarding
-
-        permit-agent-forwarding
-            Permits the user to use agent forwarding
-
-        permit-port-forwarding
-            Permits the user to forward ports
-
-        permit-pty
-            Permits the user to use a pseudo-terminal
-
-        permit-user-rc
-            Permits the user to use the user rc file
-
     """
-    def __init__(self, value: Union[list, tuple]):
-        super().__init__(
-            value=value,
-            name='critical_options'
-        )
+
+    def __init__(self, value: Union[list, tuple, dict]):
+        super().__init__(value=value, name="critical_options")
 
     def validate(self) -> Union[bool, Exception]:
         """
         Validate that the field contains a valid list of options
         """
-        valid_opts = (
-            'force-command',
-            'source-address',
-            'verify-required'
-        )
+        valid_opts = ("force-command", "source-address", "verify-required")
 
-        for item in self.value:
-            split = item.split('=')
-            if split[0] not in valid_opts:
-                return _EX.InvalidFieldDataException(
-                    f"The option {item} is invalid"
-                )
+        if not isinstance(self.value, (list, tuple, dict, set)):
+            return _EX.InvalidFieldDataException(
+                "You need to provide a list, tuple or set of strings or a dict"
+            )
+
+        if not all(
+            elem in valid_opts
+            for elem in (
+                self.value.keys() if isinstance(self.value, dict) else self.value
+            )
+        ):
+            return _EX.InvalidFieldDataException(
+                "You have provided invalid data to the critical options field"
+            )
 
         return True
 
-class ExtensionsField(SeparatedListField):
+
+class ExtensionsField(KeyValueField):
     """
     Contains a list of extensions for the certificate,
     set to give the user limitations and/or additional
@@ -935,87 +1082,78 @@ class ExtensionsField(SeparatedListField):
             Permits the user to use the user rc file
 
     """
+
     def __init__(self, value: Union[list, tuple]):
-        super().__init__(
-            value=value,
-            name='extensions'
-        )
+        super().__init__(value=value, name="extensions")
 
     def validate(self) -> Union[bool, Exception]:
         """
         Validates that the options provided are valid
         """
         valid_opts = (
-            'no-touch-required',
-            'permit-X11-forwarding',
-            'permit-agent-forwarding',
-            'permit-port-forwarding',
-            'permit-pty',
-            'permit-user-rc'
+            "no-touch-required",
+            "permit-X11-forwarding",
+            "permit-agent-forwarding",
+            "permit-port-forwarding",
+            "permit-pty",
+            "permit-user-rc",
         )
 
         for item in self.value:
             if item not in valid_opts:
-                self.exception = _EX.InvalidDataException(
-                    f"The extension '{item}' is invalid"
-                )
-                return False
+                return _EX.InvalidDataException(f"The extension '{item}' is invalid")
 
         return True
+
 
 class ReservedField(StringField):
     """
     This field is reserved for future use, and
     doesn't contain any actual data, just an empty string.
     """
-    def __init__(self, value: str = ''):
-        super().__init__(
-            value=value,
-            name='reserved'
-        )
+
+    def __init__(self, value: str = ""):
+        super().__init__(value=value, name="reserved")
 
     def validate(self) -> Union[bool, Exception]:
         """
         Validate that the field only contains an empty string
         """
-        if self.value == '':
+        if self.value == "":
             return True
 
         return _EX.InvalidDataException(
             "The reserved field needs to be an empty string"
         )
 
-class CAPublicKeyField(StringField):
+
+class CAPublicKeyField(BytestringField):
     """
     Contains the public key of the certificate authority
     that is used to sign the certificate.
     """
+
     def __init__(self, value: PublicKey):
-        super().__init__(
-            value=value,
-            name='ca_public_key'
-        )
+        super().__init__(value=value, name="ca_public_key")
 
     def __str__(self) -> str:
-        return ' '.join([
-            (
-                self.
-                value.
-                __class__.
-                __name__.replace('PublicKey', '').
-                replace('EllipticCurve', 'ECDSA')
-            ),
-            self.value.get_fingerprint()
-        ])
+        return " ".join(
+            [
+                (
+                    self.value.__class__.__name__.replace("PublicKey", "").replace(
+                        "EllipticCurve", "ECDSA"
+                    )
+                ),
+                self.value.get_fingerprint(),
+            ]
+        )
 
     def validate(self) -> Union[bool, Exception]:
         """
         Validates the contents of the field
         """
-        if self.value in [None, False, '', ' ']:
-            return _EX.InvalidFieldDataException(
-                "You need to provide a CA public key"
-            )
+        if self.value in [None, False, "", " "]:
+            return _EX.InvalidFieldDataException("You need to provide a CA public key")
 
         if not isinstance(self.value, PublicKey):
             return _EX.InvalidFieldDataException(
@@ -1036,39 +1174,33 @@ class CAPublicKeyField(StringField):
         Returns:
             Tuple[PublicKey, bytes]: The PublicKey field and remainder of the data
         """
-        pubkey, data = StringField.decode(data)
+        pubkey, data = BytestringField.decode(data)
         pubkey_type = StringField.decode(pubkey)[0]
 
-        return PublicKey.from_string(
-            f"{pubkey_type.decode('utf-8')} {b64encode(pubkey).decode('utf-8')}"
-        ), data
-
-    def __bytes__(self) -> bytes:
-        return self.encode(
-            self.value.raw_bytes()
+        return (
+            PublicKey.from_string(f"{pubkey_type} {b64encode(pubkey).decode('utf-8')}"),
+            data,
         )
 
+    def __bytes__(self) -> bytes:
+        return self.encode(self.value.raw_bytes())
+
     @classmethod
-    def from_object(cls, public_key: PublicKey) -> 'CAPublicKeyField':
+    def from_object(cls, public_key: PublicKey) -> "CAPublicKeyField":
         """
         Creates a new CAPublicKeyField from a PublicKey object
         """
-        return cls(
-            value=public_key
-        )
+        return cls(value=public_key)
 
 
 class SignatureField(CertificateField):
     """
     Creates and contains the signature of the certificate
     """
+
     # pylint: disable=super-init-not-called
-    def __init__(
-        self,
-        private_key: PrivateKey = None,
-        signature: bytes = None
-    ):
-        self.name = 'signature'
+    def __init__(self, private_key: PrivateKey = None, signature: bytes = None):
+        self.name = "signature"
         self.private_key = private_key
         self.is_signed = False
         self.value = signature
@@ -1094,11 +1226,11 @@ class SignatureField(CertificateField):
             )
         except KeyError:
             raise _EX.InvalidKeyException(
-                'The private key provided is invalid or not supported'
+                "The private key provided is invalid or not supported"
             ) from KeyError
 
     @staticmethod
-    def from_decode(data: bytes) -> Tuple['SignatureField', bytes]:
+    def from_decode(data: bytes) -> Tuple["SignatureField", bytes]:
         """
         Generates a SignatureField child class from the encoded signature
 
@@ -1111,18 +1243,14 @@ class SignatureField(CertificateField):
         Returns:
             SignatureField: child of SignatureField
         """
-        signature, _ = StringField.decode(data)
-        signature_type = StringField.decode(signature)[0]
+        signature, _ = BytestringField.decode(data)
+        signature_type = BytestringField.decode(signature)[0]
 
         for key, value in SIGNATURE_TYPE_MAP.items():
             if key in signature_type:
-                return globals()[value].from_decode(
-                    data
-                )
+                return globals()[value].from_decode(data)
 
-        raise _EX.InvalidDataException(
-            "No matching signature type found"
-        )
+        raise _EX.InvalidDataException("No matching signature type found")
 
     def can_sign(self):
         """
@@ -1137,25 +1265,25 @@ class SignatureField(CertificateField):
         """
 
     def __bytes__(self) -> None:
-        return self.encode(
-            self.value
-        )
+        return self.encode(self.value)
+
 
 class RSASignatureField(SignatureField):
     """
     Creates and contains the RSA signature from an RSA Private Key
     """
+
     def __init__(
         self,
         private_key: RSAPrivateKey = None,
         hash_alg: RsaAlgs = RsaAlgs.SHA512,
-        signature: bytes = None
+        signature: bytes = None,
     ):
         super().__init__(private_key, signature)
         self.hash_alg = hash_alg
 
     @staticmethod
-    #pylint: disable=arguments-renamed
+    # pylint: disable=arguments-renamed
     def encode(signature: bytes, hash_alg: RsaAlgs = RsaAlgs.SHA256) -> bytes:
         """
         Encodes the signature to a byte string
@@ -1168,19 +1296,17 @@ class RSASignatureField(SignatureField):
         Returns:
             bytes: The encoded byte string
         """
-        return StringField.encode(
-            StringField.encode(hash_alg.value[0]) +
-            StringField.encode(signature)
+        if not isinstance(signature, bytes):
+            raise _EX.InvalidFieldDataException(
+                f"Expected bytes, got {signature.__class__.__name__}"
+            )
+
+        return BytestringField.encode(
+            StringField.encode(hash_alg.value[0]) + BytestringField.encode(signature)
         )
 
     @staticmethod
-    def decode(data: bytes) -> Tuple[
-        Tuple[
-            bytes,
-            bytes
-        ],
-        bytes
-    ]:
+    def decode(data: bytes) -> Tuple[Tuple[bytes, bytes], bytes]:
         """
         Decodes a bytestring containing a signature
 
@@ -1190,15 +1316,15 @@ class RSASignatureField(SignatureField):
         Returns:
             Tuple[ Tuple[ bytes, bytes ], bytes ]: (signature_type, signature), remainder of data
         """
-        signature, data = StringField.decode(data)
+        signature, data = BytestringField.decode(data)
 
         sig_type, signature = StringField.decode(signature)
-        signature, _ = StringField.decode(signature)
+        signature, _ = BytestringField.decode(signature)
 
         return (sig_type, signature), data
 
     @classmethod
-    def from_decode(cls, data: bytes) -> Tuple['RSASignatureField', bytes]:
+    def from_decode(cls, data: bytes) -> Tuple["RSASignatureField", bytes]:
         """
         Generates an RSASignatureField class from the encoded signature
 
@@ -1213,17 +1339,16 @@ class RSASignatureField(SignatureField):
         """
         signature, data = cls.decode(data)
 
-        return cls(
-            private_key=None,
-            hash_alg=[alg for alg in RsaAlgs if alg.value[0] == signature[0].decode('utf-8')][0],
-            signature=signature[1]
-        ), data
+        return (
+            cls(
+                private_key=None,
+                hash_alg=[alg for alg in RsaAlgs if alg.value[0] == signature[0]][0],
+                signature=signature[1],
+            ),
+            data,
+        )
 
-    def sign(
-        self,
-        data: bytes,
-        hash_alg: RsaAlgs = RsaAlgs.SHA256
-    ) -> None:
+    def sign(self, data: bytes, hash_alg: RsaAlgs = RsaAlgs.SHA256) -> None:
         """
         Signs the provided data with the provided private key
 
@@ -1232,29 +1357,22 @@ class RSASignatureField(SignatureField):
             hash_alg (RsaAlgs, optional): The RSA algorithm to use for hashing.
                                            Defaults to RsaAlgs.SHA256.
         """
-        self.value = self.private_key.sign(
-            data,
-            hash_alg
-        )
+        self.value = self.private_key.sign(data, hash_alg)
 
         self.hash_alg = hash_alg
         self.is_signed = True
 
     def __bytes__(self):
-        return self.encode(
-            self.value,
-            self.hash_alg
-        )
+        return self.encode(self.value, self.hash_alg)
 
 
 class DSASignatureField(SignatureField):
     """
     Creates and contains the DSA signature from an DSA Private Key
     """
+
     def __init__(
-        self,
-        private_key: DSAPrivateKey = None,
-        signature: bytes = None
+        self, private_key: DSAPrivateKey = None, signature: bytes = None
     ) -> None:
         super().__init__(private_key, signature)
 
@@ -1270,14 +1388,16 @@ class DSASignatureField(SignatureField):
         Returns:
             bytes: The encoded byte string
         """
+        if not isinstance(signature, bytes):
+            raise _EX.InvalidFieldDataException(
+                f"Expected bytes, got {signature.__class__.__name__}"
+            )
+
         r, s = decode_dss_signature(signature)
 
-        return StringField.encode(
-            StringField.encode('ssh-dss') +
-            StringField.encode(
-                long_to_bytes(r, 20) +
-                long_to_bytes(s, 20)
-            )
+        return BytestringField.encode(
+            StringField.encode("ssh-dss")
+            + BytestringField.encode(long_to_bytes(r, 20) + long_to_bytes(s, 20))
         )
 
     @staticmethod
@@ -1291,11 +1411,9 @@ class DSASignatureField(SignatureField):
         Returns:
             Tuple[ bytes, bytes ]: signature, remainder of the data
         """
-        signature, data = StringField.decode(data)
+        signature, data = BytestringField.decode(data)
 
-        signature = StringField.decode(
-            StringField.decode(signature)[1]
-        )[0]
+        signature = BytestringField.decode(BytestringField.decode(signature)[1])[0]
         r = bytes_to_long(signature[:20])
         s = bytes_to_long(signature[20:])
 
@@ -1304,7 +1422,7 @@ class DSASignatureField(SignatureField):
         return signature, data
 
     @classmethod
-    def from_decode(cls, data: bytes) -> Tuple['DSASignatureField', bytes]:
+    def from_decode(cls, data: bytes) -> Tuple["DSASignatureField", bytes]:
         """
         Creates a signature field class from the encoded signature
 
@@ -1316,10 +1434,7 @@ class DSASignatureField(SignatureField):
         """
         signature, data = cls.decode(data)
 
-        return cls(
-            private_key=None,
-            signature=signature
-        ), data
+        return cls(private_key=None, signature=signature), data
 
     def sign(self, data: bytes) -> None:
         """
@@ -1328,31 +1443,31 @@ class DSASignatureField(SignatureField):
         Args:
             data (bytes): The data to be signed
         """
-        self.value = self.private_key.sign(
-            data
-        )
+        self.value = self.private_key.sign(data)
         self.is_signed = True
+
 
 class ECDSASignatureField(SignatureField):
     """
     Creates and contains the ECDSA signature from an ECDSA Private Key
     """
+
     def __init__(
         self,
         private_key: ECDSAPrivateKey = None,
         signature: bytes = None,
-        curve_name: str = None
+        curve_name: str = None,
     ) -> None:
         super().__init__(private_key, signature)
 
         if curve_name is None:
             curve_size = self.private_key.public_key.key.curve.key_size
-            curve_name = f'ecdsa-sha2-nistp{curve_size}'
+            curve_name = f"ecdsa-sha2-nistp{curve_size}"
 
         self.curve = curve_name
 
     @staticmethod
-    #pylint: disable=arguments-renamed
+    # pylint: disable=arguments-renamed
     def encode(signature: bytes, curve_name: str = None) -> bytes:
         """
         Encodes the signature to a byte string
@@ -1365,20 +1480,22 @@ class ECDSASignatureField(SignatureField):
         Returns:
             bytes: The encoded byte string
         """
+        if not isinstance(signature, bytes):
+            raise _EX.InvalidFieldDataException(
+                f"Expected bytes, got {signature.__class__.__name__}"
+            )
+
         r, s = decode_dss_signature(signature)
 
-        return StringField.encode(
-            StringField.encode(
-                curve_name
-            ) +
-            StringField.encode(
-                MpIntegerField.encode(r) +
-                MpIntegerField.encode(s)
+        return BytestringField.encode(
+            StringField.encode(curve_name)
+            + BytestringField.encode(
+                MpIntegerField.encode(r) + MpIntegerField.encode(s)
             )
         )
 
     @staticmethod
-    def decode(data: bytes) -> Tuple[ Tuple[ bytes, bytes ], bytes]:
+    def decode(data: bytes) -> Tuple[Tuple[bytes, bytes], bytes]:
         """
         Decodes a bytestring containing a signature
 
@@ -1388,10 +1505,10 @@ class ECDSASignatureField(SignatureField):
         Returns:
             Tuple[ Tuple[ bytes, bytes ], bytes]: (curve, signature), remainder of the data
         """
-        signature, data = StringField.decode(data)
+        signature, data = BytestringField.decode(data)
 
         curve, signature = StringField.decode(signature)
-        signature, _ = StringField.decode(signature)
+        signature, _ = BytestringField.decode(signature)
 
         r, signature = MpIntegerField.decode(signature)
         s, _ = MpIntegerField.decode(signature)
@@ -1401,7 +1518,7 @@ class ECDSASignatureField(SignatureField):
         return (curve, signature), data
 
     @classmethod
-    def from_decode(cls, data: bytes) -> Tuple['ECDSASignatureField', bytes]:
+    def from_decode(cls, data: bytes) -> Tuple["ECDSASignatureField", bytes]:
         """
         Creates a signature field class from the encoded signature
 
@@ -1413,11 +1530,10 @@ class ECDSASignatureField(SignatureField):
         """
         signature, data = cls.decode(data)
 
-        return cls(
-            private_key=None,
-            signature = signature[1],
-            curve_name = signature[0]
-        ), data
+        return (
+            cls(private_key=None, signature=signature[1], curve_name=signature[0]),
+            data,
+        )
 
     def sign(self, data: bytes) -> None:
         """
@@ -1426,25 +1542,20 @@ class ECDSASignatureField(SignatureField):
         Args:
             data (bytes): The data to be signed
         """
-        self.value = self.private_key.sign(
-            data
-        )
+        self.value = self.private_key.sign(data)
         self.is_signed = True
 
     def __bytes__(self):
-        return self.encode(
-            self.value,
-            self.curve
-        )
+        return self.encode(self.value, self.curve)
+
 
 class ED25519SignatureField(SignatureField):
     """
     Creates and contains the ED25519 signature from an ED25519 Private Key
     """
+
     def __init__(
-        self,
-        private_key: ED25519PrivateKey = None,
-        signature: bytes = None
+        self, private_key: ED25519PrivateKey = None, signature: bytes = None
     ) -> None:
         super().__init__(private_key, signature)
 
@@ -1460,9 +1571,13 @@ class ED25519SignatureField(SignatureField):
         Returns:
             bytes: The encoded byte string
         """
-        return StringField.encode(
-            StringField.encode('ssh-ed25519') +
-            StringField.encode(signature)
+        if not isinstance(signature, bytes):
+            raise _EX.InvalidFieldDataException(
+                f"Expected bytes, got {signature.__class__.__name__}"
+            )
+
+        return BytestringField.encode(
+            StringField.encode("ssh-ed25519") + BytestringField.encode(signature)
         )
 
     @staticmethod
@@ -1476,16 +1591,14 @@ class ED25519SignatureField(SignatureField):
         Returns:
             Tuple[ bytes, bytes ]: signature, remainder of the data
         """
-        signature, data = StringField.decode(data)
+        signature, data = BytestringField.decode(data)
 
-        signature = StringField.decode(
-            StringField.decode(signature)[1]
-        )[0]
+        signature = BytestringField.decode(BytestringField.decode(signature)[1])[0]
 
         return signature, data
 
     @classmethod
-    def from_decode(cls, data: bytes) -> Tuple['ED25519SignatureField', bytes]:
+    def from_decode(cls, data: bytes) -> Tuple["ED25519SignatureField", bytes]:
         """
         Creates a signature field class from the encoded signature
 
@@ -1497,10 +1610,7 @@ class ED25519SignatureField(SignatureField):
         """
         signature, data = cls.decode(data)
 
-        return cls(
-            private_key=None,
-            signature=signature
-        ), data
+        return cls(private_key=None, signature=signature), data
 
     def sign(self, data: bytes) -> None:
         """
@@ -1511,7 +1621,5 @@ class ED25519SignatureField(SignatureField):
             hash_alg (RsaAlgs, optional): The RSA algorithm to use for hashing.
                                            Defaults to RsaAlgs.SHA256.
         """
-        self.value = self.private_key.sign(
-            data
-        )
+        self.value = self.private_key.sign(data)
         self.is_signed = True
