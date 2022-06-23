@@ -1348,7 +1348,7 @@ class RSASignatureField(SignatureField):
             data,
         )
 
-    def sign(self, data: bytes, hash_alg: RsaAlgs = RsaAlgs.SHA256) -> None:
+    def sign(self, data: bytes, hash_alg: RsaAlgs = RsaAlgs.SHA256, **kwargs) -> None:
         """
         Signs the provided data with the provided private key
 
@@ -1436,7 +1436,7 @@ class DSASignatureField(SignatureField):
 
         return cls(private_key=None, signature=signature), data
 
-    def sign(self, data: bytes) -> None:
+    def sign(self, data: bytes, **kwargs) -> None:
         """
         Signs the provided data with the provided private key
 
@@ -1535,7 +1535,7 @@ class ECDSASignatureField(SignatureField):
             data,
         )
 
-    def sign(self, data: bytes) -> None:
+    def sign(self, data: bytes, **kwargs) -> None:
         """
         Signs the provided data with the provided private key
 
@@ -1612,7 +1612,7 @@ class ED25519SignatureField(SignatureField):
 
         return cls(private_key=None, signature=signature), data
 
-    def sign(self, data: bytes) -> None:
+    def sign(self, data: bytes, **kwargs) -> None:
         """
         Signs the provided data with the provided private key
 
