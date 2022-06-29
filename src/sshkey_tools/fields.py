@@ -1210,6 +1210,9 @@ class SignatureField(CertificateField):
         self.private_key = private_key
         self.is_signed = False
         self.value = signature
+        
+        if signature is not None and ensure_string(signature) not in ("", " "):
+            self.is_signed = True
 
     @staticmethod
     def from_object(private_key: PrivateKey):
@@ -1349,7 +1352,7 @@ class RSASignatureField(SignatureField):
             cls(
                 private_key=None,
                 hash_alg=[alg for alg in RsaAlgs if alg.value[0] == signature[0]][0],
-                signature=signature[1],
+                signature=signature[1]
             ),
             data,
         )
