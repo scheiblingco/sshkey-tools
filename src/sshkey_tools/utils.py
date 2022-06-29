@@ -2,10 +2,78 @@
 Utilities for handling keys and certificates
 """
 import sys
+from typing import Union, List, Dict
 from secrets import randbits
 from base64 import b64encode
 import hashlib as hl
 
+def ensure_string(
+    obj: Union[str, bytes, list, tuple, set, dict], 
+    encoding: str = 'utf-8'
+) -> Union[str, List[str], Dict[str, str]]:
+    """Ensure the provided value is or contains a string/strings
+
+    Args:
+        obj (_type_): The object to process
+        encoding (str, optional): The encoding of the provided strings. Defaults to 'utf-8'.
+
+    Returns:
+        Union[str, List[str], Dict[str, str]]: Returns a string, list of strings or dictionary with strings
+    """
+    if isinstance(obj, (str, bytes)):
+        return obj.decode(encoding) if isinstance(obj, bytes) else obj
+    elif isinstance(obj, (list, tuple, set)):
+        return [ensure_string(o, encoding) for o in obj]
+    elif isinstance(obj, dict):
+        return {ensure_string(k, encoding): ensure_string(v, encoding) for k, v in obj.items()}
+    else:
+        raise TypeError(f"Expected one of (str, bytes, list, tuple, dict, set), got {type(obj).__name__}.")
+
+def ensure_bytestring(
+    obj: Union[str, bytes, list, tuple, set, dict], 
+    encoding: str = 'utf-8'
+) -> Union[str, List[str], Dict[str, str]]:
+    """Ensure the provided value is or contains a bytestring/bytestrings
+
+    Args:
+        obj (_type_): The object to process
+        encoding (str, optional): The encoding of the provided bytestrings. Defaults to 'utf-8'.
+
+    Returns:
+        Union[str, List[str], Dict[str, str]]: Returns a bytestring, list of bytestrings or dictionary with bytestrings
+    """
+    if isinstance(obj, (str, bytes)):
+        return obj.encode(encoding) if isinstance(obj, str) else obj
+    elif isinstance(obj, (list, tuple, set)):
+        return [ensure_bytestring(o, encoding) for o in obj]
+    elif isinstance(obj, dict):
+        return {ensure_bytestring(k, encoding): ensure_bytestring(v, encoding) for k, v in obj.items()}
+    else:
+        raise TypeError(f"Expected one of (str, bytes, list, tuple, dict, set), got {type(obj).__name__}.")
+
+def concat_to_string(*strs, encoding: str = 'utf-8') -> str:
+    """Concatenates a list of strings or bytestrings to a single string.
+
+    Args:
+        encoding (str, optional): The encoding of the string/s. Defaults to 'utf-8'.
+        *strs (List[str, bytes]): The strings to concatenate
+
+    Returns:
+        str: Concatenated string
+    """
+    return ''.join(ensure_string(st, encoding) for st in strs)
+    
+def concat_to_bytes(*strs, encoding: str = 'utf-8') -> bytes:
+    """Concatenates a list of strings or bytestrings to a single bytestring.
+
+    Args:
+        encoding (str, optional): The encoding of the string/s. Defaults to 'utf-8'.
+        *strs (List[str, bytes]): The strings to concatenate
+
+    Returns:
+        bytes: Concatenated bytestring
+    """
+    return ''.join(ensure_bytestring(st, encoding) for st in strs)
 
 def long_to_bytes(
     source_int: int, force_length: int = None, byteorder: str = "big"
