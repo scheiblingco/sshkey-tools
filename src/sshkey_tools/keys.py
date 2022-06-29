@@ -34,6 +34,8 @@ from .utils import (
     md5_fingerprint as _FP_MD5,
     sha256_fingerprint as _FP_SHA256,
     sha512_fingerprint as _FP_SHA512,
+    ensure_string,
+    ensure_bytestring
 )
 
 PUBKEY_MAP = {
@@ -176,11 +178,8 @@ class PublicKey:
 
         Returns:
             PublicKey: Any of the PublicKey child classes
-        """
-        if isinstance(data, str):
-            data = data.encode(encoding)
-
-        split = data.split(b" ")
+        """       
+        split = ensure_bytestring(data).split(b" ")
         comment = None
         if len(split) > 2:
             comment = split[2]
@@ -246,12 +245,9 @@ class PublicKey:
             str: The public key in OpenSSH format
             encoding(str, optional): The encoding of the file. Defaults to 'utf-8'.
         """
-        public_bytes = self.serialize()
-
-        if self.comment is not None:
-            public_bytes += b" " + self.comment
-
-        return public_bytes.decode(encoding)
+        return " ".join(
+            [ ensure_string(self.serialize()), ensure_string(getattr(self, 'comment', '')) ]
+        )
 
     def to_file(self, path: str, encoding: str = "utf-8") -> None:
         """
@@ -318,12 +314,7 @@ class PrivateKey:
         Returns:
             PrivateKey: Any of the PrivateKey child classes
         """
-        if isinstance(key_data, str):
-            key_data = key_data.encode(encoding)
-
-        if isinstance(password, str):
-            password = password.encode(encoding)
-
+        key_data, password = ensure_bytestring((key_data, password), encoding=encoding)
         private_key = _SERIALIZATION.load_ssh_private_key(key_data, password=password)
 
         return cls.from_class(private_key)
@@ -373,9 +364,8 @@ class PrivateKey:
         Returns:
             bytes: The private key in PEM format
         """
-        if isinstance(password, str):
-            password = password.encode("utf-8")
-
+        password = ensure_bytestring(password)
+        
         encryption = _SERIALIZATION.NoEncryption()
         if password is not None:
             encryption = self.export_opts["encryption"](password)
@@ -398,7 +388,7 @@ class PrivateKey:
             bytes: The private key in PEM format
         """
 
-        return self.to_bytes(password).decode(encoding)
+        return ensure_string(self.to_bytes(password), encoding)
 
     def to_file(
         self, path: str, password: Union[str, bytes] = None, encoding: str = "utf-8"

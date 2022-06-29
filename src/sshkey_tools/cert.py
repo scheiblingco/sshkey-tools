@@ -20,7 +20,7 @@ from .keys import (
 from . import fields as _FIELD
 from . import exceptions as _EX
 from .keys import RsaAlgs
-from .utils import join_dicts
+from .utils import join_dicts, concat_to_string, ensure_string, ensure_bytestring
 
 CERTIFICATE_FIELDS = {
     "serial": _FIELD.SerialField,
@@ -111,36 +111,26 @@ class SSHCertificate:
         self.set_opts(**kwargs)
 
     def __str__(self):
-        principals = (
-            "\n"
-            + "\n".join(
-                "".join([" "] * 32) + (x.decode("utf-8") if isinstance(x, bytes) else x)
-                for x in self.fields["principals"].value
-            )
+        ls_space = " "*32
+        
+        principals = "\n" + "\n".join(
+            [ ls_space + principal for principal in ensure_string(self.fields["principals"].value) ]
             if len(self.fields["principals"].value) > 0
-            else "none"
+            else "None"
         )
-
-        critical = (
-            "\n"
-            + "\n".join(
-                "".join([" "] * 32) + (x.decode("utf-8") if isinstance(x, bytes) else x)
-                for x in self.fields["critical_options"].value
-            )
-            if len(self.fields["critical_options"].value) > 0
-            else "none"
+        
+        critical = "\n" + "\n".join(
+            [ls_space + cr_opt for cr_opt in ensure_string(self.fields["critical_options"].value)]
+            if not isinstance(self.fields["critical_options"].value, dict)
+            else [f'{ls_space}{cr_opt}={self.fields["critical_options"].value[cr_opt]}' for cr_opt in ensure_string(self.fields["critical_options"].value)]
         )
-
-        extensions = (
-            "\n"
-            + "\n".join(
-                "".join([" "] * 32) + (x.decode("utf-8") if isinstance(x, bytes) else x)
-                for x in self.fields["extensions"].value
-            )
+        
+        extensions = "\n" + "\n".join(
+            [ ls_space + ext for ext in ensure_string(self.fields["extensions"].value) ]
             if len(self.fields["extensions"].value) > 0
-            else "none"
+            else "None"
         )
-
+        
         signature_val = (
             b64encode(self.signature.value).decode("utf-8")
             if isinstance(self.signature.value, bytes)
@@ -214,9 +204,7 @@ class SSHCertificate:
                 "The certificate has additional data after everything has been extracted"
             )
 
-        pubkey_type = cert["pubkey_type"].value
-        if isinstance(pubkey_type, bytes):
-            pubkey_type = pubkey_type.decode("utf-8")
+        pubkey_type = ensure_string(cert["pubkey_type"].value)
 
         cert_type = CERT_TYPES[pubkey_type]
         cert.pop("reserved")
@@ -269,8 +257,7 @@ class SSHCertificate:
         Returns:
             SSHCertificate: SSHCertificate child class
         """
-        if isinstance(cert_str, str):
-            cert_str = cert_str.encode(encoding)
+        cert_str = ensure_bytestring(cert_str)
 
         certificate = b64decode(cert_str.split(b" ")[1])
         return cls.from_bytes(cert_bytes=certificate)
@@ -340,6 +327,23 @@ class SSHCertificate:
         """
         for key, value in kwargs.items():
             self.set_opt(key, value)
+            
+    def get_opt(self, key: str):
+        """
+        Get the value of a field in the certificate
+
+        Args:
+            key (str): The key to get
+
+        Raises:
+            _EX.InvalidCertificateFieldException: Invalid field
+        """
+        if key not in self.fields:
+            raise _EX.InvalidCertificateFieldException(
+                f"{key} is not a valid certificate field"
+            )
+
+        return getattr(self.fields[key], "value", None)
 
     # pylint: disable=used-before-assignment
     def can_sign(self) -> bool:
@@ -469,15 +473,14 @@ class SSHCertificate:
         Returns:
             str: Certificate string
         """
-        return (
-            self.header["pubkey_type"].value.encode(encoding)
-            + b" "
-            + b64encode(
-                self.to_bytes(),
-            )
-            + b" "
-            + (comment if comment else b"")
-        ).decode("utf-8")
+        return concat_to_string(
+            self.header["pubkey_type"].value,
+            " ",
+            b64encode(self.to_bytes()),
+            " ",
+            comment if comment else "",
+            encoding=encoding
+        )
 
     def to_file(
         self, path: str, comment: Union[str, bytes] = None, encoding: str = "utf-8"

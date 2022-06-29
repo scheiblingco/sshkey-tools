@@ -26,7 +26,13 @@ from .keys import (
     ED25519PrivateKey,
 )
 
-from .utils import long_to_bytes, bytes_to_long, generate_secure_nonce
+from .utils import (
+    long_to_bytes, 
+    bytes_to_long, 
+    generate_secure_nonce, 
+    ensure_string, 
+    concat_to_string
+)
 
 
 MAX_INT32 = 2**32
@@ -518,7 +524,7 @@ class ListField(CertificateField):
             elem, list_bytes = StringField.decode(list_bytes)
             decoded.append(elem)
 
-        return decoded, data
+        return ensure_string(decoded), data
 
     def validate(self) -> Union[bool, Exception]:
         """
@@ -558,7 +564,7 @@ class KeyValueField(CertificateField):
         """
         if not isinstance(value, (list, tuple, dict, set)):
             raise _EX.InvalidFieldDataException(
-                f"Expected (list, tuple), got {value.__class__.__name__}"
+                f"Expected (list, tuple, dict, set), got {value.__class__.__name__}"
             )
 
         if not isinstance(value, dict):
@@ -600,12 +606,12 @@ class KeyValueField(CertificateField):
             if value != b"":
                 value = StringField.decode(value)[0]
 
-            decoded[key] = "" if value == b"" else value
+            decoded[key] = value
 
         if "".join(decoded.values()) == "":
             return list(decoded.keys()), data
 
-        return decoded, data
+        return ensure_string(decoded), data
 
     def validate(self) -> Union[bool, Exception]:
         """
@@ -1178,7 +1184,7 @@ class CAPublicKeyField(BytestringField):
         pubkey_type = StringField.decode(pubkey)[0]
 
         return (
-            PublicKey.from_string(f"{pubkey_type} {b64encode(pubkey).decode('utf-8')}"),
+            PublicKey.from_string(concat_to_string(pubkey_type, " ", b64encode(pubkey))),
             data,
         )
 
