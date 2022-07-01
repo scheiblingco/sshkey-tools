@@ -1,4 +1,5 @@
 import unittest
+import faker
 from random import randint
 import src.sshkey_tools.utils as utils
 
@@ -28,6 +29,202 @@ EXPECTED_HASHES = [
     ( b']Beog]hAviJSgTZlbTDcytqftqaDof', 'e0:d3:0a:36:75:31:eb:e8:20:73:25:c3:2e:67:aa:54', 'FRreFuNrKbZ1lkJAhtaQSyqCHkrkRoZ6oKc7JNyLTAE', 'MBrk8xn3kkXmV+KefP7Lg0plxd+rI0dZ+QExCL3NlSfC54Y8j6GENtmheUFknHwaLpiwgKSRtwPN6ZP6EfaK0A' ),
     ( b'XKHCjGvvtJgPdDkGSGDyPkZDBif^BZ', '7e:e4:29:df:b4:77:2a:6f:5d:eb:9f:25:8e:bd:45:b6', 'BmF8Pt4E/z0M8/rMy6mXkUpVlDG9Zje5+KA3dBVIR7c', 'I9lVFWPx6YkwnsZRMf21TPFvquV59+ng11F3EFFhDLKHrK/l6cdGQu1K0idWQQfRK44d77z00TK/aKmPmgZ2kg' ),
 ]
+
+class TestStringBytestringConversion(unittest.TestCase):
+    def setUp(self):
+        self.faker = faker.Faker()
+
+    def test_ensure_string(self):
+        self.assertEqual(
+            utils.ensure_string(""),
+            utils.ensure_string(b"")
+        )
+        
+        self.assertEqual(
+            None,
+            utils.ensure_string(None)
+        )
+
+        for _ in range(100):
+            val = self.faker.pystr()
+            
+            self.assertEqual(
+                utils.ensure_string(val),
+                utils.ensure_string(val.encode('utf-8'))
+            )
+            
+
+        
+        lst = list([self.faker.pystr() for _ in range(10)])
+        lst_byt = list([x.encode('utf-8') if randint(0, 1) == 1 else x for x in lst])
+        
+        self.assertIsInstance(
+            utils.ensure_string(lst),
+            list
+        )
+        self.assertEqual(
+            lst,
+            utils.ensure_string(lst),
+            utils.ensure_string(lst_byt)
+        )
+        
+        tpl = tuple(self.faker.pystr() for _ in range(10))
+        tpl_byt = tuple(x.encode('utf-8') if randint(0, 1) == 1 else x for x in tpl)
+        
+        self.assertIsInstance(
+            utils.ensure_string(tpl),
+            list
+        )
+        
+        self.assertEqual(
+            list(tpl),
+            utils.ensure_string(tpl),
+            utils.ensure_string(tpl_byt)
+        )
+        
+        st = set(self.faker.pystr() for _ in range(10))
+        st_byt = set(x.encode('utf-8') if randint(0, 1) == 1 else x for x in st)
+        
+        self.assertIsInstance(
+            utils.ensure_string(st),
+            list
+        )
+        self.assertEqual(
+            list(st),
+            utils.ensure_string(st),
+            utils.ensure_string(st_byt)
+        )
+        
+        dct = dict({self.faker.pystr(): self.faker.pystr() for _ in range(10)})
+        dct_byt = dict({x.encode('utf-8') if randint(0, 1) == 1 else x: y.encode('utf-8') if randint(0, 1) == 1 else y for x, y in dct.items()})
+        
+        self.assertIsInstance(
+            utils.ensure_string(dct),
+            dict
+        )
+        self.assertEqual(
+            dct,
+            utils.ensure_string(dct),
+            utils.ensure_string(dct_byt)
+        )
+        
+    def test_ensure_bytestring(self):
+        self.assertEqual(
+            utils.ensure_bytestring(""),
+            utils.ensure_bytestring(b"")
+        )
+        
+        self.assertEqual(
+            None,
+            utils.ensure_bytestring(None)
+        )
+
+        for _ in range(100):
+            val = self.faker.pystr().encode('utf-8')
+            
+            self.assertEqual(
+                utils.ensure_bytestring(val),
+                utils.ensure_bytestring(val.decode('utf-8'))
+            )
+            
+
+        
+        lst = list([self.faker.pystr().encode('utf-8') for _ in range(10)])
+        lst_byt = list([x.decode('utf-8') if randint(0, 1) == 1 else x for x in lst])
+        
+        self.assertIsInstance(
+            utils.ensure_bytestring(lst),
+            list
+        )
+        self.assertEqual(
+            lst,
+            utils.ensure_bytestring(lst),
+            utils.ensure_bytestring(lst_byt)
+        )
+        
+        tpl = tuple(self.faker.pystr().encode('utf-8') for _ in range(10))
+        tpl_byt = tuple(x.decode('utf-8') if randint(0, 1) == 1 else x for x in lst)
+        
+        self.assertIsInstance(
+            utils.ensure_bytestring(tpl),
+            list
+        )
+        
+        self.assertEqual(
+            list(tpl),
+            utils.ensure_bytestring(tpl),
+            utils.ensure_bytestring(tpl_byt)
+        )
+        
+        st = set(self.faker.pystr().encode('utf-8') for _ in range(10))
+        st_byt = set(x.decode('utf-8') if randint(0, 1) == 1 else x for x in lst)
+        
+        self.assertIsInstance(
+            utils.ensure_bytestring(st),
+            list
+        )
+        self.assertEqual(
+            list(st),
+            utils.ensure_bytestring(st),
+            utils.ensure_bytestring(st_byt)
+        )
+        
+        dct = dict({self.faker.pystr().encode('utf-8'): self.faker.pystr().encode('utf-8') for _ in range(10)})
+        dct_byt = dict({x.decode('utf-8') if randint(0, 1) == 1 else x: y.decode('utf-8') if randint(0, 1) == 1 else y for x, y in dct.items()})
+        
+        self.assertIsInstance(
+            utils.ensure_bytestring(dct),
+            dict
+        )
+        self.assertEqual(
+            dct,
+            utils.ensure_bytestring(dct),
+            utils.ensure_bytestring(dct_byt)
+        )
+        
+    def test_concat_to_string(self):
+        self.assertEqual(
+            utils.concat_to_string(""),
+            utils.concat_to_string(b"")
+        )
+        self.assertEqual(
+            utils.concat_to_string(
+                None
+            ),
+            ""
+        )
+        
+        for _ in range(100):
+            strs = [self.faker.pystr() for _ in range(randint(10, 100))]
+            strs_byt = [x.encode('utf-8') if randint(0, 1) == 1 else x for x in strs]
+            
+            self.assertEqual(
+                utils.concat_to_string(*strs),
+                utils.concat_to_string(*strs_byt),
+                "".join(strs)
+            )
+            
+    def test_concat_to_bytestring(self):
+        self.assertEqual(
+            utils.concat_to_bytestring(b""),
+            utils.concat_to_bytestring("")
+        )
+        self.assertEqual(
+            utils.concat_to_bytestring(
+                None
+            ),
+            b""
+        )
+        
+        for _ in range(100):
+            byts = [self.faker.pystr().encode('utf-8') for _ in range(randint(10, 100))]
+            byts_str = [x.decode('utf-8') if randint(0, 1) == 1 else x for x in byts]
+            
+            self.assertEqual(
+                utils.concat_to_bytestring(*byts),
+                utils.concat_to_bytestring(*byts_str),
+                b"".join(byts)
+            )
 
 class TestLongConversion(unittest.TestCase):
     def test_expected_deflation(self):

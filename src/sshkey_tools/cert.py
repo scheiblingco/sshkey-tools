@@ -25,10 +25,10 @@ from .utils import join_dicts, concat_to_string, ensure_string, ensure_bytestrin
 CERTIFICATE_FIELDS = {
     "serial": _FIELD.SerialField,
     "cert_type": _FIELD.CertificateTypeField,
-    "key_id": _FIELD.KeyIDField,
+    "key_id": _FIELD.KeyIdField,
     "principals": _FIELD.PrincipalsField,
-    "valid_after": _FIELD.ValidityStartField,
-    "valid_before": _FIELD.ValidityEndField,
+    "valid_after": _FIELD.ValidAfterField,
+    "valid_before": _FIELD.ValidBeforeField,
     "critical_options": _FIELD.CriticalOptionsField,
     "extensions": _FIELD.ExtensionsField,
 }

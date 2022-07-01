@@ -432,12 +432,12 @@ class TestCertificateFields(unittest.TestCase):
         
     def test_key_id_field(self):
         self.assertRandomResponse(
-            _FIELD.KeyIDField,
+            _FIELD.KeyIdField,
             random_function=lambda : self.faker.pystr(8, 128)
         )
         
     def test_invalid_key_id_field(self):
-        field = _FIELD.KeyIDField('')
+        field = _FIELD.KeyIdField('')
         
         self.assertIsInstance(
             field.validate(),
@@ -474,12 +474,12 @@ class TestCertificateFields(unittest.TestCase):
         
     def test_validity_start_field(self):
         self.assertRandomResponse(
-            _FIELD.ValidityStartField,
+            _FIELD.ValidAfterField,
             random_function=lambda : self.faker.date_time()
         )
         
     def test_invalid_validity_start_field(self):
-        field = _FIELD.ValidityStartField(ValueError)
+        field = _FIELD.ValidAfterField(ValueError)
         
         self.assertIsInstance(
             field.validate(),
@@ -491,12 +491,12 @@ class TestCertificateFields(unittest.TestCase):
         
     def test_validity_end_field(self):
         self.assertRandomResponse(
-            _FIELD.ValidityEndField,
+            _FIELD.ValidBeforeField,
             random_function=lambda : self.faker.date_time()
         )
         
     def test_invalid_validity_end_field(self):
-        field = _FIELD.ValidityEndField(ValueError)
+        field = _FIELD.ValidBeforeField(ValueError)
         
         self.assertIsInstance(
             field.validate(),
