@@ -7,3 +7,4 @@ coverage
 black
 pytest-cov
 faker
+cprint
