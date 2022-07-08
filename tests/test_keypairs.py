@@ -10,16 +10,16 @@ from base64 import b64encode
 from src.sshkey_tools.keys import (
     PrivkeyClasses,
     PrivateKey,
-    RSAPrivateKey,
-    DSAPrivateKey,
-    ECDSAPrivateKey,
-    ED25519PrivateKey,
+    RsaPrivateKey,
+    DsaPrivateKey,
+    EcdsaPrivateKey,
+    Ed25519PrivateKey,
     PubkeyClasses,
     PublicKey,
-    RSAPublicKey,
-    DSAPublicKey,
-    ECDSAPublicKey,
-    ED25519PublicKey,
+    RsaPublicKey,
+    DsaPublicKey,
+    EcdsaPublicKey,
+    Ed25519PublicKey,
     EcdsaCurves
 )
 
@@ -34,10 +34,10 @@ from cryptography.exceptions import InvalidSignature
 
 class KeypairMethods(unittest.TestCase):
     def generateClasses(self):
-        self.rsa_key = RSAPrivateKey.generate(2048)
-        self.dsa_key = DSAPrivateKey.generate()
-        self.ecdsa_key = ECDSAPrivateKey.generate(EcdsaCurves.P256)
-        self.ed25519_key = ED25519PrivateKey.generate()
+        self.rsa_key = RsaPrivateKey.generate(2048)
+        self.dsa_key = DsaPrivateKey.generate()
+        self.ecdsa_key = EcdsaPrivateKey.generate(EcdsaCurves.P256)
+        self.ed25519_key = Ed25519PrivateKey.generate()
 
     def generateFiles(self, folder):
         self.folder = folder
@@ -114,17 +114,17 @@ class TestKeypairMethods(KeypairMethods):
     def test_fail_assertions(self):
         with self.assertRaises(AssertionError):
             self.assertEqualPrivateKeys(
-                RSAPrivateKey,
-                RSAPublicKey,
-                RSAPrivateKey.from_file(f'tests/{self.folder}/rsa_key_sshkeygen', 'password'),
-                DSAPrivateKey.from_file(f'tests/{self.folder}/dsa_key_sshkeygen')
+                RsaPrivateKey,
+                RsaPublicKey,
+                RsaPrivateKey.from_file(f'tests/{self.folder}/rsa_key_sshkeygen', 'password'),
+                DsaPrivateKey.from_file(f'tests/{self.folder}/dsa_key_sshkeygen')
             )
 
         with self.assertRaises(AssertionError):
             self.assertEqualPublicKeys(
-                RSAPublicKey,
-                RSAPublicKey.from_file(f'tests/{self.folder}/rsa_key_sshkeygen.pub'),
-                DSAPublicKey.from_file(f'tests/{self.folder}/dsa_key_sshkeygen.pub')
+                RsaPublicKey,
+                RsaPublicKey.from_file(f'tests/{self.folder}/rsa_key_sshkeygen.pub'),
+                DsaPublicKey.from_file(f'tests/{self.folder}/dsa_key_sshkeygen.pub')
             )
 
         with self.assertRaises(AssertionError):
@@ -191,34 +191,34 @@ class TestKeyGeneration(KeypairMethods):
         ]
 
         for bits in key_bits:
-            key = RSAPrivateKey.generate(bits)
+            key = RsaPrivateKey.generate(bits)
 
-            assert isinstance(key, RSAPrivateKey)
+            assert isinstance(key, RsaPrivateKey)
             assert isinstance(key, PrivateKey)
-            assert isinstance(key.key, _RSA.RSAPrivateKey)
+            assert isinstance(key.key, _RSA.RsaPrivateKey)
             assert isinstance(key.private_numbers, _RSA.RSAPrivateNumbers)
 
-            assert isinstance(key.public_key, RSAPublicKey)
+            assert isinstance(key.public_key, RsaPublicKey)
             assert isinstance(key.public_key, PublicKey)
-            assert isinstance(key.public_key.key, _RSA.RSAPublicKey)
+            assert isinstance(key.public_key.key, _RSA.RsaPublicKey)
             assert isinstance(key.public_key.public_numbers, _RSA.RSAPublicNumbers)
 
     def test_rsa_incorrect_keysize(self):
         with self.assertRaises(ValueError):
-            RSAPrivateKey.generate(256)
+            RsaPrivateKey.generate(256)
 
     def test_dsa(self):
 
-        key = DSAPrivateKey.generate()
+        key = DsaPrivateKey.generate()
 
-        assert isinstance(key, DSAPrivateKey)
+        assert isinstance(key, DsaPrivateKey)
         assert isinstance(key, PrivateKey)
-        assert isinstance(key.key, _DSA.DSAPrivateKey)
+        assert isinstance(key.key, _DSA.DsaPrivateKey)
         assert isinstance(key.private_numbers, _DSA.DSAPrivateNumbers)
 
-        assert isinstance(key.public_key, DSAPublicKey)
+        assert isinstance(key.public_key, DsaPublicKey)
         assert isinstance(key.public_key, PublicKey)
-        assert isinstance(key.public_key.key, _DSA.DSAPublicKey)
+        assert isinstance(key.public_key.key, _DSA.DsaPublicKey)
         assert isinstance(key.public_key.public_numbers, _DSA.DSAPublicNumbers)
         assert isinstance(key.public_key.parameters, _DSA.DSAParameterNumbers)
 
@@ -230,15 +230,15 @@ class TestKeyGeneration(KeypairMethods):
         ]
 
         for curve in curves:
-            key = ECDSAPrivateKey.generate(curve)
+            key = EcdsaPrivateKey.generate(curve)
 
 
-            assert isinstance(key, ECDSAPrivateKey)
+            assert isinstance(key, EcdsaPrivateKey)
             assert isinstance(key, PrivateKey)
             assert isinstance(key.key, _EC.EllipticCurvePrivateKey)
             assert isinstance(key.private_numbers, _EC.EllipticCurvePrivateNumbers)
 
-            assert isinstance(key.public_key, ECDSAPublicKey)
+            assert isinstance(key.public_key, EcdsaPublicKey)
             assert isinstance(key.public_key, PublicKey)
             assert isinstance(key.public_key.key, _EC.EllipticCurvePublicKey)
             assert isinstance(key.public_key.public_numbers, _EC.EllipticCurvePublicNumbers)
@@ -246,16 +246,16 @@ class TestKeyGeneration(KeypairMethods):
 
     def test_ecdsa_not_a_curve(self):
         with self.assertRaises(AttributeError):
-            ECDSAPrivateKey.generate('p256')
+            EcdsaPrivateKey.generate('p256')
 
     def test_ed25519(self):
-        key = ED25519PrivateKey.generate()
+        key = Ed25519PrivateKey.generate()
 
-        assert isinstance(key, ED25519PrivateKey)
+        assert isinstance(key, Ed25519PrivateKey)
         assert isinstance(key, PrivateKey)
         assert isinstance(key.key, _ED25519.Ed25519PrivateKey)
 
-        assert isinstance(key.public_key, ED25519PublicKey)
+        assert isinstance(key.public_key, Ed25519PublicKey)
         assert isinstance(key.public_key, PublicKey)
         assert isinstance(key.public_key.key, _ED25519.Ed25519PublicKey)
 
@@ -275,14 +275,14 @@ class TestToFromFiles(KeypairMethods):
         from_file_pub = PublicKey.from_file(f'tests/{self.folder}/rsa_key_sshkeygen.pub')
         
         self.assertEqualPrivateKeys(
-            RSAPrivateKey,
-            RSAPublicKey,
+            RsaPrivateKey,
+            RsaPublicKey,
             from_string,
             from_file
         )
         
         self.assertEqualPublicKeys(
-            RSAPublicKey,
+            RsaPublicKey,
             from_string_pub,
             from_file_pub
         )
@@ -290,10 +290,10 @@ class TestToFromFiles(KeypairMethods):
 
     def test_rsa_files(self):
         parent = PrivateKey.from_file(f'tests/{self.folder}/rsa_key_sshkeygen', 'password')
-        child = RSAPrivateKey.from_file(f'tests/{self.folder}/rsa_key_sshkeygen', 'password')
+        child = RsaPrivateKey.from_file(f'tests/{self.folder}/rsa_key_sshkeygen', 'password')
 
         parent_pub = PublicKey.from_file(f'tests/{self.folder}/rsa_key_sshkeygen.pub')
-        child_pub = RSAPublicKey.from_file(f'tests/{self.folder}/rsa_key_sshkeygen.pub')
+        child_pub = RsaPublicKey.from_file(f'tests/{self.folder}/rsa_key_sshkeygen.pub')
 
         parent.to_file(f'tests/{self.folder}/rsa_key_saved_parent', 'password')
         child.to_file(f'tests/{self.folder}/rsa_key_saved_child')
@@ -303,20 +303,20 @@ class TestToFromFiles(KeypairMethods):
 
 
         self.assertEqualPrivateKeys(
-            RSAPrivateKey,
-            RSAPublicKey,
+            RsaPrivateKey,
+            RsaPublicKey,
             parent,
             child
         )
 
         self.assertEqualPublicKeys(
-            RSAPublicKey,
+            RsaPublicKey,
             parent_pub,
             child_pub
         )
 
         self.assertEqualPublicKeys(
-            RSAPublicKey,
+            RsaPublicKey,
             parent.public_key,
             child_pub
         )
@@ -347,10 +347,10 @@ class TestToFromFiles(KeypairMethods):
 
     def test_dsa_files(self):
         parent = PrivateKey.from_file(f'tests/{self.folder}/dsa_key_sshkeygen')
-        child = DSAPrivateKey.from_file(f'tests/{self.folder}/dsa_key_sshkeygen')
+        child = DsaPrivateKey.from_file(f'tests/{self.folder}/dsa_key_sshkeygen')
 
         parent_pub = PublicKey.from_file(f'tests/{self.folder}/dsa_key_sshkeygen.pub')
-        child_pub = DSAPublicKey.from_file(f'tests/{self.folder}/dsa_key_sshkeygen.pub')
+        child_pub = DsaPublicKey.from_file(f'tests/{self.folder}/dsa_key_sshkeygen.pub')
 
         parent.to_file(f'tests/{self.folder}/dsa_key_saved_parent')
         child.to_file(f'tests/{self.folder}/dsa_key_saved_child')
@@ -359,20 +359,20 @@ class TestToFromFiles(KeypairMethods):
         child_pub.to_file(f'tests/{self.folder}/dsa_key_saved_child.pub')
 
         self.assertEqualPrivateKeys(
-            DSAPrivateKey,
-            DSAPublicKey,
+            DsaPrivateKey,
+            DsaPublicKey,
             parent,
             child
         )
 
         self.assertEqualPublicKeys(
-            DSAPublicKey,
+            DsaPublicKey,
             parent_pub,
             child_pub
         )
 
         self.assertEqualPublicKeys(
-            DSAPublicKey,
+            DsaPublicKey,
             parent.public_key,
             child_pub
         )
@@ -403,10 +403,10 @@ class TestToFromFiles(KeypairMethods):
 
     def test_ecdsa_files(self):
         parent = PrivateKey.from_file(f'tests/{self.folder}/ecdsa_key_sshkeygen')
-        child = ECDSAPrivateKey.from_file(f'tests/{self.folder}/ecdsa_key_sshkeygen')
+        child = EcdsaPrivateKey.from_file(f'tests/{self.folder}/ecdsa_key_sshkeygen')
 
         parent_pub = PublicKey.from_file(f'tests/{self.folder}/ecdsa_key_sshkeygen.pub')
-        child_pub = ECDSAPublicKey.from_file(f'tests/{self.folder}/ecdsa_key_sshkeygen.pub')
+        child_pub = EcdsaPublicKey.from_file(f'tests/{self.folder}/ecdsa_key_sshkeygen.pub')
 
         parent.to_file(f'tests/{self.folder}/ecdsa_key_saved_parent')
         child.to_file(f'tests/{self.folder}/ecdsa_key_saved_child')
@@ -415,20 +415,20 @@ class TestToFromFiles(KeypairMethods):
         child_pub.to_file(f'tests/{self.folder}/ecdsa_key_saved_child.pub')
 
         self.assertEqualPrivateKeys(
-            ECDSAPrivateKey,
-            ECDSAPublicKey,
+            EcdsaPrivateKey,
+            EcdsaPublicKey,
             parent,
             child
         )
 
         self.assertEqualPublicKeys(
-            ECDSAPublicKey,
+            EcdsaPublicKey,
             parent_pub,
             child_pub
         )
 
         self.assertEqualPublicKeys(
-            ECDSAPublicKey,
+            EcdsaPublicKey,
             parent.public_key,
             child_pub
         )
@@ -459,10 +459,10 @@ class TestToFromFiles(KeypairMethods):
 
     def test_ed25519_files(self):
         parent = PrivateKey.from_file(f'tests/{self.folder}/ed25519_key_sshkeygen')
-        child = ED25519PrivateKey.from_file(f'tests/{self.folder}/ed25519_key_sshkeygen')
+        child = Ed25519PrivateKey.from_file(f'tests/{self.folder}/ed25519_key_sshkeygen')
 
         parent_pub = PublicKey.from_file(f'tests/{self.folder}/ed25519_key_sshkeygen.pub')
-        child_pub = ED25519PublicKey.from_file(f'tests/{self.folder}/ed25519_key_sshkeygen.pub')
+        child_pub = Ed25519PublicKey.from_file(f'tests/{self.folder}/ed25519_key_sshkeygen.pub')
 
         parent.to_file(f'tests/{self.folder}/ed25519_key_saved_parent')
         child.to_file(f'tests/{self.folder}/ed25519_key_saved_child')
@@ -471,20 +471,20 @@ class TestToFromFiles(KeypairMethods):
         child_pub.to_file(f'tests/{self.folder}/ed25519_key_saved_child.pub')
 
         self.assertEqualPrivateKeys(
-            ED25519PrivateKey,
-            ED25519PublicKey,
+            Ed25519PrivateKey,
+            Ed25519PublicKey,
             parent,
             child
         )
 
         self.assertEqualPublicKeys(
-            ED25519PublicKey,
+            Ed25519PublicKey,
             parent_pub,
             child_pub
         )
 
         self.assertEqualPublicKeys(
-            ED25519PublicKey,
+            Ed25519PublicKey,
             parent.public_key,
             child_pub
         )
@@ -541,44 +541,44 @@ class TestFromClass(KeypairMethods):
 
     def test_rsa_from_class(self):
         parent = PrivateKey.from_class(self.rsa_key)
-        child = RSAPrivateKey.from_class(self.rsa_key)
+        child = RsaPrivateKey.from_class(self.rsa_key)
 
         self.assertEqualPrivateKeys(
-            RSAPrivateKey,
-            RSAPublicKey,
+            RsaPrivateKey,
+            RsaPublicKey,
             parent,
             child
         )
 
     def test_dsa_from_class(self):
         parent = PrivateKey.from_class(self.dsa_key)
-        child = DSAPrivateKey.from_class(self.dsa_key)
+        child = DsaPrivateKey.from_class(self.dsa_key)
 
         self.assertEqualPrivateKeys(
-            DSAPrivateKey,
-            DSAPublicKey,
+            DsaPrivateKey,
+            DsaPublicKey,
             parent,
             child
         )
 
     def test_ecdsa_from_class(self):
         parent = PrivateKey.from_class(self.ecdsa_key)
-        child = ECDSAPrivateKey.from_class(self.ecdsa_key)
+        child = EcdsaPrivateKey.from_class(self.ecdsa_key)
 
         self.assertEqualPrivateKeys(
-            ECDSAPrivateKey,
-            ECDSAPublicKey,
+            EcdsaPrivateKey,
+            EcdsaPublicKey,
             parent,
             child
         )
 
     def test_ed25519_from_class(self):
         parent = PrivateKey.from_class(self.ed25519_key)
-        child = ED25519PrivateKey.from_class(self.ed25519_key)
+        child = Ed25519PrivateKey.from_class(self.ed25519_key)
 
         self.assertEqualPrivateKeys(
-            ED25519PrivateKey,
-            ED25519PublicKey,
+            Ed25519PrivateKey,
+            Ed25519PublicKey,
             parent,
             child
         )
@@ -591,24 +591,24 @@ class TestFromComponents(KeypairMethods):
         pass
 
     def test_rsa_from_numbers(self):
-        from_numbers = RSAPrivateKey.from_numbers(
+        from_numbers = RsaPrivateKey.from_numbers(
             n=self.rsa_key.public_key.public_numbers.n,
             e=self.rsa_key.public_key.public_numbers.e,
             d=self.rsa_key.private_numbers.d
         )
         
-        from_numbers_pub = RSAPublicKey.from_numbers(
+        from_numbers_pub = RsaPublicKey.from_numbers(
             n=self.rsa_key.public_key.public_numbers.n,
             e=self.rsa_key.public_key.public_numbers.e
         )
 
         self.assertEqualPublicKeys(
-            RSAPublicKey,
+            RsaPublicKey,
             from_numbers_pub,
             from_numbers.public_key
         )
 
-        self.assertIsInstance(from_numbers, RSAPrivateKey)
+        self.assertIsInstance(from_numbers, RsaPrivateKey)
         
         self.assertEqual(
             self.rsa_key.public_key.public_numbers.n,
@@ -626,7 +626,7 @@ class TestFromComponents(KeypairMethods):
         )
 
     def test_dsa_from_numbers(self):
-        from_numbers = DSAPrivateKey.from_numbers(
+        from_numbers = DsaPrivateKey.from_numbers(
             p=self.dsa_key.public_key.parameters.p,
             q=self.dsa_key.public_key.parameters.q,
             g=self.dsa_key.public_key.parameters.g,
@@ -634,7 +634,7 @@ class TestFromComponents(KeypairMethods):
             x=self.dsa_key.private_numbers.x
         )
         
-        from_numbers_pub = DSAPublicKey.from_numbers(
+        from_numbers_pub = DsaPublicKey.from_numbers(
             p=self.dsa_key.public_key.parameters.p,
             q=self.dsa_key.public_key.parameters.q,
             g=self.dsa_key.public_key.parameters.g,
@@ -642,46 +642,46 @@ class TestFromComponents(KeypairMethods):
         )
 
         self.assertEqualPrivateKeys(
-            DSAPrivateKey,
-            DSAPublicKey,
+            DsaPrivateKey,
+            DsaPublicKey,
             self.dsa_key,
             from_numbers
         )
         
         self.assertEqualPublicKeys(
-            DSAPublicKey,
+            DsaPublicKey,
             from_numbers_pub,
             self.dsa_key.public_key
         )
 
     def test_ecdsa_from_numbers(self):
-        from_numbers = ECDSAPrivateKey.from_numbers(
+        from_numbers = EcdsaPrivateKey.from_numbers(
             curve=self.ecdsa_key.public_key.key.curve,
             x=self.ecdsa_key.public_key.public_numbers.x,
             y=self.ecdsa_key.public_key.public_numbers.y,
             private_value=self.ecdsa_key.private_numbers.private_value
         )
         
-        from_numbers_pub = ECDSAPublicKey.from_numbers(
+        from_numbers_pub = EcdsaPublicKey.from_numbers(
             curve=self.ecdsa_key.public_key.key.curve,
             x=self.ecdsa_key.public_key.public_numbers.x,
             y=self.ecdsa_key.public_key.public_numbers.y
         )
 
         self.assertEqualPrivateKeys(
-            ECDSAPrivateKey,
-            ECDSAPublicKey,
+            EcdsaPrivateKey,
+            EcdsaPublicKey,
             self.ecdsa_key,
             from_numbers
         )
         
         self.assertEqualPublicKeys(
-            ECDSAPublicKey,
+            EcdsaPublicKey,
             from_numbers_pub,
             self.ecdsa_key.public_key
         )
 
-        from_numbers = ECDSAPrivateKey.from_numbers(
+        from_numbers = EcdsaPrivateKey.from_numbers(
             curve=self.ecdsa_key.public_key.key.curve.name,
             x=self.ecdsa_key.public_key.public_numbers.x,
             y=self.ecdsa_key.public_key.public_numbers.y,
@@ -689,30 +689,30 @@ class TestFromComponents(KeypairMethods):
         )
 
         self.assertEqualPrivateKeys(
-            ECDSAPrivateKey,
-            ECDSAPublicKey,
+            EcdsaPrivateKey,
+            EcdsaPublicKey,
             self.ecdsa_key,
             from_numbers
         )
         
     def test_ed25519_from_raw_bytes(self):
-        from_raw = ED25519PrivateKey.from_raw_bytes(
+        from_raw = Ed25519PrivateKey.from_raw_bytes(
             self.ed25519_key.raw_bytes()
         )
-        from_raw_pub = ED25519PublicKey.from_raw_bytes(
+        from_raw_pub = Ed25519PublicKey.from_raw_bytes(
             self.ed25519_key.public_key.raw_bytes()
         )
         
         self.assertEqualPrivateKeys(
-            ED25519PrivateKey,
-            ED25519PublicKey,
+            Ed25519PrivateKey,
+            Ed25519PublicKey,
             self.ed25519_key,
             from_raw,
             []
         )
         
         self.assertEqualPublicKeys(
-            ED25519PublicKey,
+            Ed25519PublicKey,
             self.ed25519_key.public_key,
             from_raw_pub
         )
@@ -724,7 +724,7 @@ class TestFingerprint(KeypairMethods):
         self.generateFiles('TestFingerprint')
 
     def test_rsa_fingerprint(self):
-        key = RSAPrivateKey.from_file(
+        key = RsaPrivateKey.from_file(
             f'tests/{self.folder}/rsa_key_sshkeygen',
             'password'
         )
@@ -734,7 +734,7 @@ class TestFingerprint(KeypairMethods):
         self.assertEqual(key.get_fingerprint(), sshkey_fingerprint)
         
     def test_dsa_fingerprint(self):
-        key = DSAPrivateKey.from_file(
+        key = DsaPrivateKey.from_file(
             f'tests/{self.folder}/dsa_key_sshkeygen',
         )
         
@@ -743,7 +743,7 @@ class TestFingerprint(KeypairMethods):
         self.assertEqual(key.get_fingerprint(), sshkey_fingerprint)
 
     def test_ecdsa_fingerprint(self):
-        key = ECDSAPrivateKey.from_file(
+        key = EcdsaPrivateKey.from_file(
             f'tests/{self.folder}/ecdsa_key_sshkeygen',
         )
         
@@ -752,7 +752,7 @@ class TestFingerprint(KeypairMethods):
         self.assertEqual(key.get_fingerprint(), sshkey_fingerprint)
         
     def test_ed25519_fingerprint(self):
-        key = ED25519PrivateKey.from_file(
+        key = Ed25519PrivateKey.from_file(
             f'tests/{self.folder}/ed25519_key_sshkeygen',
         )
         
@@ -852,14 +852,14 @@ class TestExceptions(KeypairMethods):
             
     def test_invalid_ecdsa_curve(self):
         with self.assertRaises(_EX.InvalidCurveException):
-            key = ECDSAPublicKey.from_numbers(
+            key = EcdsaPublicKey.from_numbers(
                 'abc123',
                 x=self.ecdsa_key.public_key.public_numbers.x,
                 y=self.ecdsa_key.public_key.public_numbers.y
             )
             
         with self.assertRaises(_EX.InvalidCurveException):
-            key = ECDSAPrivateKey.from_numbers(
+            key = EcdsaPrivateKey.from_numbers(
                 'abc123',
                 x=self.ecdsa_key.public_key.public_numbers.x,
                 y=self.ecdsa_key.public_key.public_numbers.y,

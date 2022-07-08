@@ -34,8 +34,8 @@ from typing import Union
 from enum import Enum
 from base64 import b64decode
 from struct import unpack
-from cryptography.hazmat.backends.openssl.rsa import _RSAPublicKey, _RSAPrivateKey
-from cryptography.hazmat.backends.openssl.dsa import _DSAPublicKey, _DSAPrivateKey
+from cryptography.hazmat.backends.openssl.rsa import _RsaPublicKey, _RsaPrivateKey
+from cryptography.hazmat.backends.openssl.dsa import _DsaPublicKey, _DsaPrivateKey
 from cryptography.hazmat.backends.openssl.ed25519 import (
     _Ed25519PublicKey,
     _Ed25519PrivateKey,
@@ -66,17 +66,17 @@ from .utils import (
 )
 
 PUBKEY_MAP = {
-    _RSAPublicKey: &#34;RSAPublicKey&#34;,
-    _DSAPublicKey: &#34;DSAPublicKey&#34;,
-    _EllipticCurvePublicKey: &#34;ECDSAPublicKey&#34;,
-    _Ed25519PublicKey: &#34;ED25519PublicKey&#34;,
+    _RsaPublicKey: &#34;RsaPublicKey&#34;,
+    _DsaPublicKey: &#34;DsaPublicKey&#34;,
+    _EllipticCurvePublicKey: &#34;EcdsaPublicKey&#34;,
+    _Ed25519PublicKey: &#34;Ed25519PublicKey&#34;,
 }
 
 PRIVKEY_MAP = {
-    _RSAPrivateKey: &#34;RSAPrivateKey&#34;,
-    _DSAPrivateKey: &#34;DSAPrivateKey&#34;,
-    _EllipticCurvePrivateKey: &#34;ECDSAPrivateKey&#34;,
-    _Ed25519PrivateKey: &#34;ED25519PrivateKey&#34;,
+    _RsaPrivateKey: &#34;RsaPrivateKey&#34;,
+    _DsaPrivateKey: &#34;DsaPrivateKey&#34;,
+    _EllipticCurvePrivateKey: &#34;EcdsaPrivateKey&#34;,
+    _Ed25519PrivateKey: &#34;Ed25519PrivateKey&#34;,
 }
 
 ECDSA_HASHES = {
@@ -86,15 +86,15 @@ ECDSA_HASHES = {
 }
 
 PubkeyClasses = Union[
-    _RSA.RSAPublicKey,
-    _DSA.DSAPublicKey,
+    _RSA.RsaPublicKey,
+    _DSA.DsaPublicKey,
     _ECDSA.EllipticCurvePublicKey,
     _ED25519.Ed25519PublicKey,
 ]
 
 PrivkeyClasses = Union[
-    _RSA.RSAPrivateKey,
-    _DSA.DSAPrivateKey,
+    _RSA.RsaPrivateKey,
+    _DSA.DsaPrivateKey,
     _ECDSA.EllipticCurvePrivateKey,
     _ED25519.Ed25519PrivateKey,
 ]
@@ -446,14 +446,14 @@ class PrivateKey:
             key_file.write(self.to_string(password, encoding))
 
 
-class RSAPublicKey(PublicKey):
+class RsaPublicKey(PublicKey):
     &#34;&#34;&#34;
     Class for holding RSA public keys
     &#34;&#34;&#34;
 
     def __init__(
         self,
-        key: _RSA.RSAPublicKey,
+        key: _RSA.RsaPublicKey,
         comment: Union[str, bytes] = None,
         key_type: Union[str, bytes] = None,
         serialized: bytes = None,
@@ -468,7 +468,7 @@ class RSAPublicKey(PublicKey):
 
     @classmethod
     # pylint: disable=invalid-name
-    def from_numbers(cls, e: int, n: int) -&gt; &#34;RSAPublicKey&#34;:
+    def from_numbers(cls, e: int, n: int) -&gt; &#34;RsaPublicKey&#34;:
         &#34;&#34;&#34;
         Loads an RSA Public Key from the public numbers e and n
 
@@ -477,7 +477,7 @@ class RSAPublicKey(PublicKey):
             n (int): n-value
 
         Returns:
-            RSAPublicKey: _description_
+            RsaPublicKey: _description_
         &#34;&#34;&#34;
         return cls(key=_RSA.RSAPublicNumbers(e, n).public_key())
 
@@ -505,15 +505,15 @@ class RSAPublicKey(PublicKey):
             ) from InvalidSignature
 
 
-class RSAPrivateKey(PrivateKey):
+class RsaPrivateKey(PrivateKey):
     &#34;&#34;&#34;
     Class for holding RSA private keys
     &#34;&#34;&#34;
 
-    def __init__(self, key: _RSA.RSAPrivateKey):
+    def __init__(self, key: _RSA.RsaPrivateKey):
         super().__init__(
             key=key,
-            public_key=RSAPublicKey(key.public_key()),
+            public_key=RsaPublicKey(key.public_key()),
             private_numbers=key.private_numbers(),
         )
 
@@ -529,7 +529,7 @@ class RSAPrivateKey(PrivateKey):
         dmp1: int = None,
         dmq1: int = None,
         iqmp: int = None,
-    ) -&gt; &#34;RSAPrivateKey&#34;:
+    ) -&gt; &#34;RsaPrivateKey&#34;:
         &#34;&#34;&#34;
         Load an RSA private key from numbers
 
@@ -552,7 +552,7 @@ class RSAPrivateKey(PrivateKey):
                                Automatically generates if not provided
 
         Returns:
-            RSAPrivateKey: An instance of RSAPrivateKey
+            RsaPrivateKey: An instance of RsaPrivateKey
         &#34;&#34;&#34;
         if None in (p, q):
             p, q = _RSA.rsa_recover_prime_factors(n, e, d)
@@ -576,7 +576,7 @@ class RSAPrivateKey(PrivateKey):
     @classmethod
     def generate(
         cls, key_size: int = 4096, public_exponent: int = 65537
-    ) -&gt; &#34;RSAPrivateKey&#34;:
+    ) -&gt; &#34;RsaPrivateKey&#34;:
         &#34;&#34;&#34;
         Generates a new RSA private key
 
@@ -585,7 +585,7 @@ class RSAPrivateKey(PrivateKey):
             public_exponent (int, optional): The public exponent to use. Defaults to 65537.
 
         Returns:
-            RSAPrivateKey: Instance of RSAPrivateKey
+            RsaPrivateKey: Instance of RsaPrivateKey
         &#34;&#34;&#34;
         return cls.from_class(
             _RSA.generate_private_key(
@@ -608,14 +608,14 @@ class RSAPrivateKey(PrivateKey):
         return self.key.sign(data, _PADDING.PKCS1v15(), hash_alg.value[1]())
 
 
-class DSAPublicKey(PublicKey):
+class DsaPublicKey(PublicKey):
     &#34;&#34;&#34;
     Class for holding DSA public keys
     &#34;&#34;&#34;
 
     def __init__(
         self,
-        key: _DSA.DSAPublicKey,
+        key: _DSA.DsaPublicKey,
         comment: Union[str, bytes] = None,
         key_type: Union[str, bytes] = None,
         serialized: bytes = None,
@@ -631,7 +631,7 @@ class DSAPublicKey(PublicKey):
 
     @classmethod
     # pylint: disable=invalid-name
-    def from_numbers(cls, p: int, q: int, g: int, y: int) -&gt; &#34;DSAPublicKey&#34;:
+    def from_numbers(cls, p: int, q: int, g: int, y: int) -&gt; &#34;DsaPublicKey&#34;:
         &#34;&#34;&#34;
         Create a DSA public key from public numbers and parameters
 
@@ -642,7 +642,7 @@ class DSAPublicKey(PublicKey):
             y (int): The public number Y
 
         Returns:
-            DSAPublicKey: An instance of DSAPublicKey
+            DsaPublicKey: An instance of DsaPublicKey
         &#34;&#34;&#34;
         return cls(
             key=_DSA.DSAPublicNumbers(
@@ -669,23 +669,23 @@ class DSAPublicKey(PublicKey):
             ) from InvalidSignature
 
 
-class DSAPrivateKey(PrivateKey):
+class DsaPrivateKey(PrivateKey):
     &#34;&#34;&#34;
     Class for holding DSA private keys
     &#34;&#34;&#34;
 
-    def __init__(self, key: _DSA.DSAPrivateKey):
+    def __init__(self, key: _DSA.DsaPrivateKey):
         super().__init__(
             key=key,
-            public_key=DSAPublicKey(key.public_key()),
+            public_key=DsaPublicKey(key.public_key()),
             private_numbers=key.private_numbers(),
         )
 
     @classmethod
     # pylint: disable=invalid-name,too-many-arguments
-    def from_numbers(cls, p: int, q: int, g: int, y: int, x: int) -&gt; &#34;DSAPrivateKey&#34;:
+    def from_numbers(cls, p: int, q: int, g: int, y: int, x: int) -&gt; &#34;DsaPrivateKey&#34;:
         &#34;&#34;&#34;
-        Creates a new DSAPrivateKey object from parameters and public/private numbers
+        Creates a new DsaPrivateKey object from parameters and public/private numbers
 
         Args:
             p (int): P parameter, the prime modulus
@@ -707,13 +707,13 @@ class DSAPrivateKey(PrivateKey):
         )
 
     @classmethod
-    def generate(cls) -&gt; &#34;DSAPrivateKey&#34;:
+    def generate(cls) -&gt; &#34;DsaPrivateKey&#34;:
         &#34;&#34;&#34;
         Generate a new DSA private key
         Key size is fixed since OpenSSH only supports 1024-bit DSA keys
 
         Returns:
-            DSAPrivateKey: An instance of DSAPrivateKey
+            DsaPrivateKey: An instance of DsaPrivateKey
         &#34;&#34;&#34;
         return cls.from_class(_DSA.generate_private_key(key_size=1024))
 
@@ -730,7 +730,7 @@ class DSAPrivateKey(PrivateKey):
         return self.key.sign(data, _HASHES.SHA1())
 
 
-class ECDSAPublicKey(PublicKey):
+class EcdsaPublicKey(PublicKey):
     &#34;&#34;&#34;
     Class for holding ECDSA public keys
     &#34;&#34;&#34;
@@ -754,7 +754,7 @@ class ECDSAPublicKey(PublicKey):
     # pylint: disable=invalid-name
     def from_numbers(
         cls, curve: Union[str, _ECDSA.EllipticCurve], x: int, y: int
-    ) -&gt; &#34;ECDSAPublicKey&#34;:
+    ) -&gt; &#34;EcdsaPublicKey&#34;:
         &#34;&#34;&#34;
         Create an ECDSA public key from public numbers and parameters
 
@@ -764,7 +764,7 @@ class ECDSAPublicKey(PublicKey):
             y (int): The affine Y component of the public point
 
         Returns:
-            ECDSAPublicKey: An instance of ECDSAPublicKey
+            EcdsaPublicKey: An instance of EcdsaPublicKey
         &#34;&#34;&#34;
         if not isinstance(curve, _ECDSA.EllipticCurve) and curve not in ECDSA_HASHES:
             raise _EX.InvalidCurveException(
@@ -802,7 +802,7 @@ class ECDSAPublicKey(PublicKey):
             ) from InvalidSignature
 
 
-class ECDSAPrivateKey(PrivateKey):
+class EcdsaPrivateKey(PrivateKey):
     &#34;&#34;&#34;
     Class for holding ECDSA private keys
     &#34;&#34;&#34;
@@ -810,7 +810,7 @@ class ECDSAPrivateKey(PrivateKey):
     def __init__(self, key: _ECDSA.EllipticCurvePrivateKey):
         super().__init__(
             key=key,
-            public_key=ECDSAPublicKey(key.public_key()),
+            public_key=EcdsaPublicKey(key.public_key()),
             private_numbers=key.private_numbers(),
         )
 
@@ -820,7 +820,7 @@ class ECDSAPrivateKey(PrivateKey):
         cls, curve: Union[str, _ECDSA.EllipticCurve], x: int, y: int, private_value: int
     ):
         &#34;&#34;&#34;
-        Creates a new ECDSAPrivateKey object from parameters and public/private numbers
+        Creates a new EcdsaPrivateKey object from parameters and public/private numbers
 
         Args:
             curve Union[str, _ECDSA.EllipticCurve]: Curve used by the key
@@ -859,7 +859,7 @@ class ECDSAPrivateKey(PrivateKey):
             curve (EcdsaCurves): Which curve to use. Default secp521r1
 
         Returns:
-            ECDSAPrivateKey: An instance of ECDSAPrivateKey
+            EcdsaPrivateKey: An instance of EcdsaPrivateKey
         &#34;&#34;&#34;
         return cls.from_class(_ECDSA.generate_private_key(curve=curve.value))
 
@@ -877,7 +877,7 @@ class ECDSAPrivateKey(PrivateKey):
         return self.key.sign(data, _ECDSA.ECDSA(curve_hash))
 
 
-class ED25519PublicKey(PublicKey):
+class Ed25519PublicKey(PublicKey):
     &#34;&#34;&#34;
     Class for holding ED25519 public keys
     &#34;&#34;&#34;
@@ -894,7 +894,7 @@ class ED25519PublicKey(PublicKey):
         )
 
     @classmethod
-    def from_raw_bytes(cls, raw_bytes: bytes) -&gt; &#34;ED25519PublicKey&#34;:
+    def from_raw_bytes(cls, raw_bytes: bytes) -&gt; &#34;Ed25519PublicKey&#34;:
         &#34;&#34;&#34;
         Load an ED25519 public key from raw bytes
 
@@ -902,7 +902,7 @@ class ED25519PublicKey(PublicKey):
             raw_bytes (bytes): The raw bytes of the key
 
         Returns:
-            ED25519PublicKey: Instance of ED25519PublicKey
+            Ed25519PublicKey: Instance of Ed25519PublicKey
         &#34;&#34;&#34;
         if b&#34;ssh-ed25519&#34; in raw_bytes:
             id_length = unpack(&#34;&gt;I&#34;, raw_bytes[:4])[0] + 8
@@ -931,16 +931,16 @@ class ED25519PublicKey(PublicKey):
             ) from InvalidSignature
 
 
-class ED25519PrivateKey(PrivateKey):
+class Ed25519PrivateKey(PrivateKey):
     &#34;&#34;&#34;
     Class for holding ED25519 private keys
     &#34;&#34;&#34;
 
     def __init__(self, key: _ED25519.Ed25519PrivateKey):
-        super().__init__(key=key, public_key=ED25519PublicKey(key.public_key()))
+        super().__init__(key=key, public_key=Ed25519PublicKey(key.public_key()))
 
     @classmethod
-    def from_raw_bytes(cls, raw_bytes: bytes) -&gt; &#34;ED25519PrivateKey&#34;:
+    def from_raw_bytes(cls, raw_bytes: bytes) -&gt; &#34;Ed25519PrivateKey&#34;:
         &#34;&#34;&#34;
         Load an ED25519 private key from raw bytes
 
@@ -948,19 +948,19 @@ class ED25519PrivateKey(PrivateKey):
             raw_bytes (bytes): The raw bytes of the key
 
         Returns:
-            ED25519PrivateKey: Instance of ED25519PrivateKey
+            Ed25519PrivateKey: Instance of Ed25519PrivateKey
         &#34;&#34;&#34;
         return cls.from_class(
             _ED25519.Ed25519PrivateKey.from_private_bytes(data=raw_bytes)
         )
 
     @classmethod
-    def generate(cls) -&gt; &#34;ED25519PrivateKey&#34;:
+    def generate(cls) -&gt; &#34;Ed25519PrivateKey&#34;:
         &#34;&#34;&#34;
         Generates a new ED25519 Private Key
 
         Returns:
-            ED25519PrivateKey: Instance of ED25519PrivateKey
+            Ed25519PrivateKey: Instance of Ed25519PrivateKey
         &#34;&#34;&#34;
         return cls.from_class(_ED25519.Ed25519PrivateKey.generate())
 
@@ -999,9 +999,9 @@ class ED25519PrivateKey(PrivateKey):
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="sshkey_tools.keys.DSAPrivateKey"><code class="flex name class">
-<span>class <span class="ident">DSAPrivateKey</span></span>
-<span>(</span><span>key: cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey)</span>
+<dt id="sshkey_tools.keys.DsaPrivateKey"><code class="flex name class">
+<span>class <span class="ident">DsaPrivateKey</span></span>
+<span>(</span><span>key: cryptography.hazmat.primitives.asymmetric.dsa.DsaPrivateKey)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Class for holding DSA private keys</p></div>
@@ -1009,23 +1009,23 @@ class ED25519PrivateKey(PrivateKey):
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class DSAPrivateKey(PrivateKey):
+<pre><code class="python">class DsaPrivateKey(PrivateKey):
     &#34;&#34;&#34;
     Class for holding DSA private keys
     &#34;&#34;&#34;
 
-    def __init__(self, key: _DSA.DSAPrivateKey):
+    def __init__(self, key: _DSA.DsaPrivateKey):
         super().__init__(
             key=key,
-            public_key=DSAPublicKey(key.public_key()),
+            public_key=DsaPublicKey(key.public_key()),
             private_numbers=key.private_numbers(),
         )
 
     @classmethod
     # pylint: disable=invalid-name,too-many-arguments
-    def from_numbers(cls, p: int, q: int, g: int, y: int, x: int) -&gt; &#34;DSAPrivateKey&#34;:
+    def from_numbers(cls, p: int, q: int, g: int, y: int, x: int) -&gt; &#34;DsaPrivateKey&#34;:
         &#34;&#34;&#34;
-        Creates a new DSAPrivateKey object from parameters and public/private numbers
+        Creates a new DsaPrivateKey object from parameters and public/private numbers
 
         Args:
             p (int): P parameter, the prime modulus
@@ -1047,13 +1047,13 @@ class ED25519PrivateKey(PrivateKey):
         )
 
     @classmethod
-    def generate(cls) -&gt; &#34;DSAPrivateKey&#34;:
+    def generate(cls) -&gt; &#34;DsaPrivateKey&#34;:
         &#34;&#34;&#34;
         Generate a new DSA private key
         Key size is fixed since OpenSSH only supports 1024-bit DSA keys
 
         Returns:
-            DSAPrivateKey: An instance of DSAPrivateKey
+            DsaPrivateKey: An instance of DsaPrivateKey
         &#34;&#34;&#34;
         return cls.from_class(_DSA.generate_private_key(key_size=1024))
 
@@ -1075,11 +1075,11 @@ class ED25519PrivateKey(PrivateKey):
 </ul>
 <h3>Static methods</h3>
 <dl>
-<dt id="sshkey_tools.keys.DSAPrivateKey.from_numbers"><code class="name flex">
-<span>def <span class="ident">from_numbers</span></span>(<span>p: int, q: int, g: int, y: int, x: int) ‑> <a title="sshkey_tools.keys.DSAPrivateKey" href="#sshkey_tools.keys.DSAPrivateKey">DSAPrivateKey</a></span>
+<dt id="sshkey_tools.keys.DsaPrivateKey.from_numbers"><code class="name flex">
+<span>def <span class="ident">from_numbers</span></span>(<span>p: int, q: int, g: int, y: int, x: int) ‑> <a title="sshkey_tools.keys.DsaPrivateKey" href="#sshkey_tools.keys.DsaPrivateKey">DsaPrivateKey</a></span>
 </code></dt>
 <dd>
-<div class="desc"><p>Creates a new DSAPrivateKey object from parameters and public/private numbers</p>
+<div class="desc"><p>Creates a new DsaPrivateKey object from parameters and public/private numbers</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>p</code></strong> :&ensp;<code>int</code></dt>
@@ -1104,9 +1104,9 @@ class ED25519PrivateKey(PrivateKey):
 </summary>
 <pre><code class="python">@classmethod
 # pylint: disable=invalid-name,too-many-arguments
-def from_numbers(cls, p: int, q: int, g: int, y: int, x: int) -&gt; &#34;DSAPrivateKey&#34;:
+def from_numbers(cls, p: int, q: int, g: int, y: int, x: int) -&gt; &#34;DsaPrivateKey&#34;:
     &#34;&#34;&#34;
-    Creates a new DSAPrivateKey object from parameters and public/private numbers
+    Creates a new DsaPrivateKey object from parameters and public/private numbers
 
     Args:
         p (int): P parameter, the prime modulus
@@ -1128,29 +1128,29 @@ def from_numbers(cls, p: int, q: int, g: int, y: int, x: int) -&gt; &#34;DSAPriv
     )</code></pre>
 </details>
 </dd>
-<dt id="sshkey_tools.keys.DSAPrivateKey.generate"><code class="name flex">
-<span>def <span class="ident">generate</span></span>(<span>) ‑> <a title="sshkey_tools.keys.DSAPrivateKey" href="#sshkey_tools.keys.DSAPrivateKey">DSAPrivateKey</a></span>
+<dt id="sshkey_tools.keys.DsaPrivateKey.generate"><code class="name flex">
+<span>def <span class="ident">generate</span></span>(<span>) ‑> <a title="sshkey_tools.keys.DsaPrivateKey" href="#sshkey_tools.keys.DsaPrivateKey">DsaPrivateKey</a></span>
 </code></dt>
 <dd>
 <div class="desc"><p>Generate a new DSA private key
 Key size is fixed since OpenSSH only supports 1024-bit DSA keys</p>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code><a title="sshkey_tools.keys.DSAPrivateKey" href="#sshkey_tools.keys.DSAPrivateKey">DSAPrivateKey</a></code></dt>
-<dd>An instance of DSAPrivateKey</dd>
+<dt><code><a title="sshkey_tools.keys.DsaPrivateKey" href="#sshkey_tools.keys.DsaPrivateKey">DsaPrivateKey</a></code></dt>
+<dd>An instance of DsaPrivateKey</dd>
 </dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@classmethod
-def generate(cls) -&gt; &#34;DSAPrivateKey&#34;:
+def generate(cls) -&gt; &#34;DsaPrivateKey&#34;:
     &#34;&#34;&#34;
     Generate a new DSA private key
     Key size is fixed since OpenSSH only supports 1024-bit DSA keys
 
     Returns:
-        DSAPrivateKey: An instance of DSAPrivateKey
+        DsaPrivateKey: An instance of DsaPrivateKey
     &#34;&#34;&#34;
     return cls.from_class(_DSA.generate_private_key(key_size=1024))</code></pre>
 </details>
@@ -1158,7 +1158,7 @@ def generate(cls) -&gt; &#34;DSAPrivateKey&#34;:
 </dl>
 <h3>Methods</h3>
 <dl>
-<dt id="sshkey_tools.keys.DSAPrivateKey.sign"><code class="name flex">
+<dt id="sshkey_tools.keys.DsaPrivateKey.sign"><code class="name flex">
 <span>def <span class="ident">sign</span></span>(<span>self, data: bytes)</span>
 </code></dt>
 <dd>
@@ -1206,9 +1206,9 @@ def generate(cls) -&gt; &#34;DSAPrivateKey&#34;:
 </li>
 </ul>
 </dd>
-<dt id="sshkey_tools.keys.DSAPublicKey"><code class="flex name class">
-<span>class <span class="ident">DSAPublicKey</span></span>
-<span>(</span><span>key: cryptography.hazmat.primitives.asymmetric.dsa.DSAPublicKey, comment: Union[str, bytes] = None, key_type: Union[str, bytes] = None, serialized: bytes = None)</span>
+<dt id="sshkey_tools.keys.DsaPublicKey"><code class="flex name class">
+<span>class <span class="ident">DsaPublicKey</span></span>
+<span>(</span><span>key: cryptography.hazmat.primitives.asymmetric.dsa.DsaPublicKey, comment: Union[str, bytes] = None, key_type: Union[str, bytes] = None, serialized: bytes = None)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Class for holding DSA public keys</p></div>
@@ -1216,14 +1216,14 @@ def generate(cls) -&gt; &#34;DSAPrivateKey&#34;:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class DSAPublicKey(PublicKey):
+<pre><code class="python">class DsaPublicKey(PublicKey):
     &#34;&#34;&#34;
     Class for holding DSA public keys
     &#34;&#34;&#34;
 
     def __init__(
         self,
-        key: _DSA.DSAPublicKey,
+        key: _DSA.DsaPublicKey,
         comment: Union[str, bytes] = None,
         key_type: Union[str, bytes] = None,
         serialized: bytes = None,
@@ -1239,7 +1239,7 @@ def generate(cls) -&gt; &#34;DSAPrivateKey&#34;:
 
     @classmethod
     # pylint: disable=invalid-name
-    def from_numbers(cls, p: int, q: int, g: int, y: int) -&gt; &#34;DSAPublicKey&#34;:
+    def from_numbers(cls, p: int, q: int, g: int, y: int) -&gt; &#34;DsaPublicKey&#34;:
         &#34;&#34;&#34;
         Create a DSA public key from public numbers and parameters
 
@@ -1250,7 +1250,7 @@ def generate(cls) -&gt; &#34;DSAPrivateKey&#34;:
             y (int): The public number Y
 
         Returns:
-            DSAPublicKey: An instance of DSAPublicKey
+            DsaPublicKey: An instance of DsaPublicKey
         &#34;&#34;&#34;
         return cls(
             key=_DSA.DSAPublicNumbers(
@@ -1282,8 +1282,8 @@ def generate(cls) -&gt; &#34;DSAPrivateKey&#34;:
 </ul>
 <h3>Static methods</h3>
 <dl>
-<dt id="sshkey_tools.keys.DSAPublicKey.from_numbers"><code class="name flex">
-<span>def <span class="ident">from_numbers</span></span>(<span>p: int, q: int, g: int, y: int) ‑> <a title="sshkey_tools.keys.DSAPublicKey" href="#sshkey_tools.keys.DSAPublicKey">DSAPublicKey</a></span>
+<dt id="sshkey_tools.keys.DsaPublicKey.from_numbers"><code class="name flex">
+<span>def <span class="ident">from_numbers</span></span>(<span>p: int, q: int, g: int, y: int) ‑> <a title="sshkey_tools.keys.DsaPublicKey" href="#sshkey_tools.keys.DsaPublicKey">DsaPublicKey</a></span>
 </code></dt>
 <dd>
 <div class="desc"><p>Create a DSA public key from public numbers and parameters</p>
@@ -1300,8 +1300,8 @@ def generate(cls) -&gt; &#34;DSAPrivateKey&#34;:
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code><a title="sshkey_tools.keys.DSAPublicKey" href="#sshkey_tools.keys.DSAPublicKey">DSAPublicKey</a></code></dt>
-<dd>An instance of DSAPublicKey</dd>
+<dt><code><a title="sshkey_tools.keys.DsaPublicKey" href="#sshkey_tools.keys.DsaPublicKey">DsaPublicKey</a></code></dt>
+<dd>An instance of DsaPublicKey</dd>
 </dl></div>
 <details class="source">
 <summary>
@@ -1309,7 +1309,7 @@ def generate(cls) -&gt; &#34;DSAPrivateKey&#34;:
 </summary>
 <pre><code class="python">@classmethod
 # pylint: disable=invalid-name
-def from_numbers(cls, p: int, q: int, g: int, y: int) -&gt; &#34;DSAPublicKey&#34;:
+def from_numbers(cls, p: int, q: int, g: int, y: int) -&gt; &#34;DsaPublicKey&#34;:
     &#34;&#34;&#34;
     Create a DSA public key from public numbers and parameters
 
@@ -1320,7 +1320,7 @@ def from_numbers(cls, p: int, q: int, g: int, y: int) -&gt; &#34;DSAPublicKey&#3
         y (int): The public number Y
 
     Returns:
-        DSAPublicKey: An instance of DSAPublicKey
+        DsaPublicKey: An instance of DsaPublicKey
     &#34;&#34;&#34;
     return cls(
         key=_DSA.DSAPublicNumbers(
@@ -1332,7 +1332,7 @@ def from_numbers(cls, p: int, q: int, g: int, y: int) -&gt; &#34;DSAPublicKey&#3
 </dl>
 <h3>Methods</h3>
 <dl>
-<dt id="sshkey_tools.keys.DSAPublicKey.verify"><code class="name flex">
+<dt id="sshkey_tools.keys.DsaPublicKey.verify"><code class="name flex">
 <span>def <span class="ident">verify</span></span>(<span>self, data: bytes, signature: bytes) ‑> None</span>
 </code></dt>
 <dd>
@@ -1386,8 +1386,8 @@ def from_numbers(cls, p: int, q: int, g: int, y: int) -&gt; &#34;DSAPublicKey&#3
 </li>
 </ul>
 </dd>
-<dt id="sshkey_tools.keys.ECDSAPrivateKey"><code class="flex name class">
-<span>class <span class="ident">ECDSAPrivateKey</span></span>
+<dt id="sshkey_tools.keys.EcdsaPrivateKey"><code class="flex name class">
+<span>class <span class="ident">EcdsaPrivateKey</span></span>
 <span>(</span><span>key: cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey)</span>
 </code></dt>
 <dd>
@@ -1396,7 +1396,7 @@ def from_numbers(cls, p: int, q: int, g: int, y: int) -&gt; &#34;DSAPublicKey&#3
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class ECDSAPrivateKey(PrivateKey):
+<pre><code class="python">class EcdsaPrivateKey(PrivateKey):
     &#34;&#34;&#34;
     Class for holding ECDSA private keys
     &#34;&#34;&#34;
@@ -1404,7 +1404,7 @@ def from_numbers(cls, p: int, q: int, g: int, y: int) -&gt; &#34;DSAPublicKey&#3
     def __init__(self, key: _ECDSA.EllipticCurvePrivateKey):
         super().__init__(
             key=key,
-            public_key=ECDSAPublicKey(key.public_key()),
+            public_key=EcdsaPublicKey(key.public_key()),
             private_numbers=key.private_numbers(),
         )
 
@@ -1414,7 +1414,7 @@ def from_numbers(cls, p: int, q: int, g: int, y: int) -&gt; &#34;DSAPublicKey&#3
         cls, curve: Union[str, _ECDSA.EllipticCurve], x: int, y: int, private_value: int
     ):
         &#34;&#34;&#34;
-        Creates a new ECDSAPrivateKey object from parameters and public/private numbers
+        Creates a new EcdsaPrivateKey object from parameters and public/private numbers
 
         Args:
             curve Union[str, _ECDSA.EllipticCurve]: Curve used by the key
@@ -1453,7 +1453,7 @@ def from_numbers(cls, p: int, q: int, g: int, y: int) -&gt; &#34;DSAPublicKey&#3
             curve (EcdsaCurves): Which curve to use. Default secp521r1
 
         Returns:
-            ECDSAPrivateKey: An instance of ECDSAPrivateKey
+            EcdsaPrivateKey: An instance of EcdsaPrivateKey
         &#34;&#34;&#34;
         return cls.from_class(_ECDSA.generate_private_key(curve=curve.value))
 
@@ -1476,11 +1476,11 @@ def from_numbers(cls, p: int, q: int, g: int, y: int) -&gt; &#34;DSAPublicKey&#3
 </ul>
 <h3>Static methods</h3>
 <dl>
-<dt id="sshkey_tools.keys.ECDSAPrivateKey.from_numbers"><code class="name flex">
+<dt id="sshkey_tools.keys.EcdsaPrivateKey.from_numbers"><code class="name flex">
 <span>def <span class="ident">from_numbers</span></span>(<span>curve: Union[str, cryptography.hazmat.primitives.asymmetric.ec.EllipticCurve], x: int, y: int, private_value: int)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Creates a new ECDSAPrivateKey object from parameters and public/private numbers</p>
+<div class="desc"><p>Creates a new EcdsaPrivateKey object from parameters and public/private numbers</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt>curve Union[str, _ECDSA.EllipticCurve]: Curve used by the key</dt>
@@ -1506,7 +1506,7 @@ def from_numbers(
     cls, curve: Union[str, _ECDSA.EllipticCurve], x: int, y: int, private_value: int
 ):
     &#34;&#34;&#34;
-    Creates a new ECDSAPrivateKey object from parameters and public/private numbers
+    Creates a new EcdsaPrivateKey object from parameters and public/private numbers
 
     Args:
         curve Union[str, _ECDSA.EllipticCurve]: Curve used by the key
@@ -1537,7 +1537,7 @@ def from_numbers(
     )</code></pre>
 </details>
 </dd>
-<dt id="sshkey_tools.keys.ECDSAPrivateKey.generate"><code class="name flex">
+<dt id="sshkey_tools.keys.EcdsaPrivateKey.generate"><code class="name flex">
 <span>def <span class="ident">generate</span></span>(<span>curve: <a title="sshkey_tools.keys.EcdsaCurves" href="#sshkey_tools.keys.EcdsaCurves">EcdsaCurves</a> = EcdsaCurves.P521)</span>
 </code></dt>
 <dd>
@@ -1549,8 +1549,8 @@ def from_numbers(
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code><a title="sshkey_tools.keys.ECDSAPrivateKey" href="#sshkey_tools.keys.ECDSAPrivateKey">ECDSAPrivateKey</a></code></dt>
-<dd>An instance of ECDSAPrivateKey</dd>
+<dt><code><a title="sshkey_tools.keys.EcdsaPrivateKey" href="#sshkey_tools.keys.EcdsaPrivateKey">EcdsaPrivateKey</a></code></dt>
+<dd>An instance of EcdsaPrivateKey</dd>
 </dl></div>
 <details class="source">
 <summary>
@@ -1565,7 +1565,7 @@ def generate(cls, curve: EcdsaCurves = EcdsaCurves.P521):
         curve (EcdsaCurves): Which curve to use. Default secp521r1
 
     Returns:
-        ECDSAPrivateKey: An instance of ECDSAPrivateKey
+        EcdsaPrivateKey: An instance of EcdsaPrivateKey
     &#34;&#34;&#34;
     return cls.from_class(_ECDSA.generate_private_key(curve=curve.value))</code></pre>
 </details>
@@ -1573,7 +1573,7 @@ def generate(cls, curve: EcdsaCurves = EcdsaCurves.P521):
 </dl>
 <h3>Methods</h3>
 <dl>
-<dt id="sshkey_tools.keys.ECDSAPrivateKey.sign"><code class="name flex">
+<dt id="sshkey_tools.keys.EcdsaPrivateKey.sign"><code class="name flex">
 <span>def <span class="ident">sign</span></span>(<span>self, data: bytes)</span>
 </code></dt>
 <dd>
@@ -1622,8 +1622,8 @@ def generate(cls, curve: EcdsaCurves = EcdsaCurves.P521):
 </li>
 </ul>
 </dd>
-<dt id="sshkey_tools.keys.ECDSAPublicKey"><code class="flex name class">
-<span>class <span class="ident">ECDSAPublicKey</span></span>
+<dt id="sshkey_tools.keys.EcdsaPublicKey"><code class="flex name class">
+<span>class <span class="ident">EcdsaPublicKey</span></span>
 <span>(</span><span>key: cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey, comment: Union[str, bytes] = None, key_type: Union[str, bytes] = None, serialized: bytes = None)</span>
 </code></dt>
 <dd>
@@ -1632,7 +1632,7 @@ def generate(cls, curve: EcdsaCurves = EcdsaCurves.P521):
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class ECDSAPublicKey(PublicKey):
+<pre><code class="python">class EcdsaPublicKey(PublicKey):
     &#34;&#34;&#34;
     Class for holding ECDSA public keys
     &#34;&#34;&#34;
@@ -1656,7 +1656,7 @@ def generate(cls, curve: EcdsaCurves = EcdsaCurves.P521):
     # pylint: disable=invalid-name
     def from_numbers(
         cls, curve: Union[str, _ECDSA.EllipticCurve], x: int, y: int
-    ) -&gt; &#34;ECDSAPublicKey&#34;:
+    ) -&gt; &#34;EcdsaPublicKey&#34;:
         &#34;&#34;&#34;
         Create an ECDSA public key from public numbers and parameters
 
@@ -1666,7 +1666,7 @@ def generate(cls, curve: EcdsaCurves = EcdsaCurves.P521):
             y (int): The affine Y component of the public point
 
         Returns:
-            ECDSAPublicKey: An instance of ECDSAPublicKey
+            EcdsaPublicKey: An instance of EcdsaPublicKey
         &#34;&#34;&#34;
         if not isinstance(curve, _ECDSA.EllipticCurve) and curve not in ECDSA_HASHES:
             raise _EX.InvalidCurveException(
@@ -1709,8 +1709,8 @@ def generate(cls, curve: EcdsaCurves = EcdsaCurves.P521):
 </ul>
 <h3>Static methods</h3>
 <dl>
-<dt id="sshkey_tools.keys.ECDSAPublicKey.from_numbers"><code class="name flex">
-<span>def <span class="ident">from_numbers</span></span>(<span>curve: Union[str, cryptography.hazmat.primitives.asymmetric.ec.EllipticCurve], x: int, y: int) ‑> <a title="sshkey_tools.keys.ECDSAPublicKey" href="#sshkey_tools.keys.ECDSAPublicKey">ECDSAPublicKey</a></span>
+<dt id="sshkey_tools.keys.EcdsaPublicKey.from_numbers"><code class="name flex">
+<span>def <span class="ident">from_numbers</span></span>(<span>curve: Union[str, cryptography.hazmat.primitives.asymmetric.ec.EllipticCurve], x: int, y: int) ‑> <a title="sshkey_tools.keys.EcdsaPublicKey" href="#sshkey_tools.keys.EcdsaPublicKey">EcdsaPublicKey</a></span>
 </code></dt>
 <dd>
 <div class="desc"><p>Create an ECDSA public key from public numbers and parameters</p>
@@ -1724,8 +1724,8 @@ def generate(cls, curve: EcdsaCurves = EcdsaCurves.P521):
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code><a title="sshkey_tools.keys.ECDSAPublicKey" href="#sshkey_tools.keys.ECDSAPublicKey">ECDSAPublicKey</a></code></dt>
-<dd>An instance of ECDSAPublicKey</dd>
+<dt><code><a title="sshkey_tools.keys.EcdsaPublicKey" href="#sshkey_tools.keys.EcdsaPublicKey">EcdsaPublicKey</a></code></dt>
+<dd>An instance of EcdsaPublicKey</dd>
 </dl></div>
 <details class="source">
 <summary>
@@ -1735,7 +1735,7 @@ def generate(cls, curve: EcdsaCurves = EcdsaCurves.P521):
 # pylint: disable=invalid-name
 def from_numbers(
     cls, curve: Union[str, _ECDSA.EllipticCurve], x: int, y: int
-) -&gt; &#34;ECDSAPublicKey&#34;:
+) -&gt; &#34;EcdsaPublicKey&#34;:
     &#34;&#34;&#34;
     Create an ECDSA public key from public numbers and parameters
 
@@ -1745,7 +1745,7 @@ def from_numbers(
         y (int): The affine Y component of the public point
 
     Returns:
-        ECDSAPublicKey: An instance of ECDSAPublicKey
+        EcdsaPublicKey: An instance of EcdsaPublicKey
     &#34;&#34;&#34;
     if not isinstance(curve, _ECDSA.EllipticCurve) and curve not in ECDSA_HASHES:
         raise _EX.InvalidCurveException(
@@ -1767,7 +1767,7 @@ def from_numbers(
 </dl>
 <h3>Methods</h3>
 <dl>
-<dt id="sshkey_tools.keys.ECDSAPublicKey.verify"><code class="name flex">
+<dt id="sshkey_tools.keys.EcdsaPublicKey.verify"><code class="name flex">
 <span>def <span class="ident">verify</span></span>(<span>self, data: bytes, signature: bytes) ‑> None</span>
 </code></dt>
 <dd>
@@ -1822,8 +1822,8 @@ def from_numbers(
 </li>
 </ul>
 </dd>
-<dt id="sshkey_tools.keys.ED25519PrivateKey"><code class="flex name class">
-<span>class <span class="ident">ED25519PrivateKey</span></span>
+<dt id="sshkey_tools.keys.Ed25519PrivateKey"><code class="flex name class">
+<span>class <span class="ident">Ed25519PrivateKey</span></span>
 <span>(</span><span>key: cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey)</span>
 </code></dt>
 <dd>
@@ -1832,16 +1832,16 @@ def from_numbers(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class ED25519PrivateKey(PrivateKey):
+<pre><code class="python">class Ed25519PrivateKey(PrivateKey):
     &#34;&#34;&#34;
     Class for holding ED25519 private keys
     &#34;&#34;&#34;
 
     def __init__(self, key: _ED25519.Ed25519PrivateKey):
-        super().__init__(key=key, public_key=ED25519PublicKey(key.public_key()))
+        super().__init__(key=key, public_key=Ed25519PublicKey(key.public_key()))
 
     @classmethod
-    def from_raw_bytes(cls, raw_bytes: bytes) -&gt; &#34;ED25519PrivateKey&#34;:
+    def from_raw_bytes(cls, raw_bytes: bytes) -&gt; &#34;Ed25519PrivateKey&#34;:
         &#34;&#34;&#34;
         Load an ED25519 private key from raw bytes
 
@@ -1849,19 +1849,19 @@ def from_numbers(
             raw_bytes (bytes): The raw bytes of the key
 
         Returns:
-            ED25519PrivateKey: Instance of ED25519PrivateKey
+            Ed25519PrivateKey: Instance of Ed25519PrivateKey
         &#34;&#34;&#34;
         return cls.from_class(
             _ED25519.Ed25519PrivateKey.from_private_bytes(data=raw_bytes)
         )
 
     @classmethod
-    def generate(cls) -&gt; &#34;ED25519PrivateKey&#34;:
+    def generate(cls) -&gt; &#34;Ed25519PrivateKey&#34;:
         &#34;&#34;&#34;
         Generates a new ED25519 Private Key
 
         Returns:
-            ED25519PrivateKey: Instance of ED25519PrivateKey
+            Ed25519PrivateKey: Instance of Ed25519PrivateKey
         &#34;&#34;&#34;
         return cls.from_class(_ED25519.Ed25519PrivateKey.generate())
 
@@ -1896,8 +1896,8 @@ def from_numbers(
 </ul>
 <h3>Static methods</h3>
 <dl>
-<dt id="sshkey_tools.keys.ED25519PrivateKey.from_raw_bytes"><code class="name flex">
-<span>def <span class="ident">from_raw_bytes</span></span>(<span>raw_bytes: bytes) ‑> <a title="sshkey_tools.keys.ED25519PrivateKey" href="#sshkey_tools.keys.ED25519PrivateKey">ED25519PrivateKey</a></span>
+<dt id="sshkey_tools.keys.Ed25519PrivateKey.from_raw_bytes"><code class="name flex">
+<span>def <span class="ident">from_raw_bytes</span></span>(<span>raw_bytes: bytes) ‑> <a title="sshkey_tools.keys.Ed25519PrivateKey" href="#sshkey_tools.keys.Ed25519PrivateKey">Ed25519PrivateKey</a></span>
 </code></dt>
 <dd>
 <div class="desc"><p>Load an ED25519 private key from raw bytes</p>
@@ -1908,15 +1908,15 @@ def from_numbers(
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code><a title="sshkey_tools.keys.ED25519PrivateKey" href="#sshkey_tools.keys.ED25519PrivateKey">ED25519PrivateKey</a></code></dt>
-<dd>Instance of ED25519PrivateKey</dd>
+<dt><code><a title="sshkey_tools.keys.Ed25519PrivateKey" href="#sshkey_tools.keys.Ed25519PrivateKey">Ed25519PrivateKey</a></code></dt>
+<dd>Instance of Ed25519PrivateKey</dd>
 </dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@classmethod
-def from_raw_bytes(cls, raw_bytes: bytes) -&gt; &#34;ED25519PrivateKey&#34;:
+def from_raw_bytes(cls, raw_bytes: bytes) -&gt; &#34;Ed25519PrivateKey&#34;:
     &#34;&#34;&#34;
     Load an ED25519 private key from raw bytes
 
@@ -1924,34 +1924,34 @@ def from_raw_bytes(cls, raw_bytes: bytes) -&gt; &#34;ED25519PrivateKey&#34;:
         raw_bytes (bytes): The raw bytes of the key
 
     Returns:
-        ED25519PrivateKey: Instance of ED25519PrivateKey
+        Ed25519PrivateKey: Instance of Ed25519PrivateKey
     &#34;&#34;&#34;
     return cls.from_class(
         _ED25519.Ed25519PrivateKey.from_private_bytes(data=raw_bytes)
     )</code></pre>
 </details>
 </dd>
-<dt id="sshkey_tools.keys.ED25519PrivateKey.generate"><code class="name flex">
-<span>def <span class="ident">generate</span></span>(<span>) ‑> <a title="sshkey_tools.keys.ED25519PrivateKey" href="#sshkey_tools.keys.ED25519PrivateKey">ED25519PrivateKey</a></span>
+<dt id="sshkey_tools.keys.Ed25519PrivateKey.generate"><code class="name flex">
+<span>def <span class="ident">generate</span></span>(<span>) ‑> <a title="sshkey_tools.keys.Ed25519PrivateKey" href="#sshkey_tools.keys.Ed25519PrivateKey">Ed25519PrivateKey</a></span>
 </code></dt>
 <dd>
 <div class="desc"><p>Generates a new ED25519 Private Key</p>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code><a title="sshkey_tools.keys.ED25519PrivateKey" href="#sshkey_tools.keys.ED25519PrivateKey">ED25519PrivateKey</a></code></dt>
-<dd>Instance of ED25519PrivateKey</dd>
+<dt><code><a title="sshkey_tools.keys.Ed25519PrivateKey" href="#sshkey_tools.keys.Ed25519PrivateKey">Ed25519PrivateKey</a></code></dt>
+<dd>Instance of Ed25519PrivateKey</dd>
 </dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@classmethod
-def generate(cls) -&gt; &#34;ED25519PrivateKey&#34;:
+def generate(cls) -&gt; &#34;Ed25519PrivateKey&#34;:
     &#34;&#34;&#34;
     Generates a new ED25519 Private Key
 
     Returns:
-        ED25519PrivateKey: Instance of ED25519PrivateKey
+        Ed25519PrivateKey: Instance of Ed25519PrivateKey
     &#34;&#34;&#34;
     return cls.from_class(_ED25519.Ed25519PrivateKey.generate())</code></pre>
 </details>
@@ -1959,7 +1959,7 @@ def generate(cls) -&gt; &#34;ED25519PrivateKey&#34;:
 </dl>
 <h3>Methods</h3>
 <dl>
-<dt id="sshkey_tools.keys.ED25519PrivateKey.raw_bytes"><code class="name flex">
+<dt id="sshkey_tools.keys.Ed25519PrivateKey.raw_bytes"><code class="name flex">
 <span>def <span class="ident">raw_bytes</span></span>(<span>self) ‑> bytes</span>
 </code></dt>
 <dd>
@@ -1987,7 +1987,7 @@ def generate(cls) -&gt; &#34;ED25519PrivateKey&#34;:
     )</code></pre>
 </details>
 </dd>
-<dt id="sshkey_tools.keys.ED25519PrivateKey.sign"><code class="name flex">
+<dt id="sshkey_tools.keys.Ed25519PrivateKey.sign"><code class="name flex">
 <span>def <span class="ident">sign</span></span>(<span>self, data: bytes)</span>
 </code></dt>
 <dd>
@@ -2035,8 +2035,8 @@ def generate(cls) -&gt; &#34;ED25519PrivateKey&#34;:
 </li>
 </ul>
 </dd>
-<dt id="sshkey_tools.keys.ED25519PublicKey"><code class="flex name class">
-<span>class <span class="ident">ED25519PublicKey</span></span>
+<dt id="sshkey_tools.keys.Ed25519PublicKey"><code class="flex name class">
+<span>class <span class="ident">Ed25519PublicKey</span></span>
 <span>(</span><span>key: cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PublicKey, comment: Union[str, bytes] = None, key_type: Union[str, bytes] = None, serialized: bytes = None)</span>
 </code></dt>
 <dd>
@@ -2045,7 +2045,7 @@ def generate(cls) -&gt; &#34;ED25519PrivateKey&#34;:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class ED25519PublicKey(PublicKey):
+<pre><code class="python">class Ed25519PublicKey(PublicKey):
     &#34;&#34;&#34;
     Class for holding ED25519 public keys
     &#34;&#34;&#34;
@@ -2062,7 +2062,7 @@ def generate(cls) -&gt; &#34;ED25519PrivateKey&#34;:
         )
 
     @classmethod
-    def from_raw_bytes(cls, raw_bytes: bytes) -&gt; &#34;ED25519PublicKey&#34;:
+    def from_raw_bytes(cls, raw_bytes: bytes) -&gt; &#34;Ed25519PublicKey&#34;:
         &#34;&#34;&#34;
         Load an ED25519 public key from raw bytes
 
@@ -2070,7 +2070,7 @@ def generate(cls) -&gt; &#34;ED25519PrivateKey&#34;:
             raw_bytes (bytes): The raw bytes of the key
 
         Returns:
-            ED25519PublicKey: Instance of ED25519PublicKey
+            Ed25519PublicKey: Instance of Ed25519PublicKey
         &#34;&#34;&#34;
         if b&#34;ssh-ed25519&#34; in raw_bytes:
             id_length = unpack(&#34;&gt;I&#34;, raw_bytes[:4])[0] + 8
@@ -2104,8 +2104,8 @@ def generate(cls) -&gt; &#34;ED25519PrivateKey&#34;:
 </ul>
 <h3>Static methods</h3>
 <dl>
-<dt id="sshkey_tools.keys.ED25519PublicKey.from_raw_bytes"><code class="name flex">
-<span>def <span class="ident">from_raw_bytes</span></span>(<span>raw_bytes: bytes) ‑> <a title="sshkey_tools.keys.ED25519PublicKey" href="#sshkey_tools.keys.ED25519PublicKey">ED25519PublicKey</a></span>
+<dt id="sshkey_tools.keys.Ed25519PublicKey.from_raw_bytes"><code class="name flex">
+<span>def <span class="ident">from_raw_bytes</span></span>(<span>raw_bytes: bytes) ‑> <a title="sshkey_tools.keys.Ed25519PublicKey" href="#sshkey_tools.keys.Ed25519PublicKey">Ed25519PublicKey</a></span>
 </code></dt>
 <dd>
 <div class="desc"><p>Load an ED25519 public key from raw bytes</p>
@@ -2116,15 +2116,15 @@ def generate(cls) -&gt; &#34;ED25519PrivateKey&#34;:
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code><a title="sshkey_tools.keys.ED25519PublicKey" href="#sshkey_tools.keys.ED25519PublicKey">ED25519PublicKey</a></code></dt>
-<dd>Instance of ED25519PublicKey</dd>
+<dt><code><a title="sshkey_tools.keys.Ed25519PublicKey" href="#sshkey_tools.keys.Ed25519PublicKey">Ed25519PublicKey</a></code></dt>
+<dd>Instance of Ed25519PublicKey</dd>
 </dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@classmethod
-def from_raw_bytes(cls, raw_bytes: bytes) -&gt; &#34;ED25519PublicKey&#34;:
+def from_raw_bytes(cls, raw_bytes: bytes) -&gt; &#34;Ed25519PublicKey&#34;:
     &#34;&#34;&#34;
     Load an ED25519 public key from raw bytes
 
@@ -2132,7 +2132,7 @@ def from_raw_bytes(cls, raw_bytes: bytes) -&gt; &#34;ED25519PublicKey&#34;:
         raw_bytes (bytes): The raw bytes of the key
 
     Returns:
-        ED25519PublicKey: Instance of ED25519PublicKey
+        Ed25519PublicKey: Instance of Ed25519PublicKey
     &#34;&#34;&#34;
     if b&#34;ssh-ed25519&#34; in raw_bytes:
         id_length = unpack(&#34;&gt;I&#34;, raw_bytes[:4])[0] + 8
@@ -2146,7 +2146,7 @@ def from_raw_bytes(cls, raw_bytes: bytes) -&gt; &#34;ED25519PublicKey&#34;:
 </dl>
 <h3>Methods</h3>
 <dl>
-<dt id="sshkey_tools.keys.ED25519PublicKey.verify"><code class="name flex">
+<dt id="sshkey_tools.keys.Ed25519PublicKey.verify"><code class="name flex">
 <span>def <span class="ident">verify</span></span>(<span>self, data: bytes, signature: bytes) ‑> None</span>
 </code></dt>
 <dd>
@@ -2399,7 +2399,7 @@ SHA512</p></div>
 </dd>
 <dt id="sshkey_tools.keys.PrivateKey"><code class="flex name class">
 <span>class <span class="ident">PrivateKey</span></span>
-<span>(</span><span>key: Union[cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey, cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey, cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey, cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey], public_key: <a title="sshkey_tools.keys.PublicKey" href="#sshkey_tools.keys.PublicKey">PublicKey</a>, **kwargs)</span>
+<span>(</span><span>key: Union[cryptography.hazmat.primitives.asymmetric.rsa.RsaPrivateKey, cryptography.hazmat.primitives.asymmetric.dsa.DsaPrivateKey, cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey, cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey], public_key: <a title="sshkey_tools.keys.PublicKey" href="#sshkey_tools.keys.PublicKey">PublicKey</a>, **kwargs)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Class for handling SSH Private keys</p></div>
@@ -2560,15 +2560,15 @@ SHA512</p></div>
 </details>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="sshkey_tools.keys.DSAPrivateKey" href="#sshkey_tools.keys.DSAPrivateKey">DSAPrivateKey</a></li>
-<li><a title="sshkey_tools.keys.ECDSAPrivateKey" href="#sshkey_tools.keys.ECDSAPrivateKey">ECDSAPrivateKey</a></li>
-<li><a title="sshkey_tools.keys.ED25519PrivateKey" href="#sshkey_tools.keys.ED25519PrivateKey">ED25519PrivateKey</a></li>
-<li><a title="sshkey_tools.keys.RSAPrivateKey" href="#sshkey_tools.keys.RSAPrivateKey">RSAPrivateKey</a></li>
+<li><a title="sshkey_tools.keys.DsaPrivateKey" href="#sshkey_tools.keys.DsaPrivateKey">DsaPrivateKey</a></li>
+<li><a title="sshkey_tools.keys.EcdsaPrivateKey" href="#sshkey_tools.keys.EcdsaPrivateKey">EcdsaPrivateKey</a></li>
+<li><a title="sshkey_tools.keys.Ed25519PrivateKey" href="#sshkey_tools.keys.Ed25519PrivateKey">Ed25519PrivateKey</a></li>
+<li><a title="sshkey_tools.keys.RsaPrivateKey" href="#sshkey_tools.keys.RsaPrivateKey">RsaPrivateKey</a></li>
 </ul>
 <h3>Static methods</h3>
 <dl>
 <dt id="sshkey_tools.keys.PrivateKey.from_class"><code class="name flex">
-<span>def <span class="ident">from_class</span></span>(<span>key_class: Union[cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey, cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey, cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey, cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey]) ‑> <a title="sshkey_tools.keys.PrivateKey" href="#sshkey_tools.keys.PrivateKey">PrivateKey</a></span>
+<span>def <span class="ident">from_class</span></span>(<span>key_class: Union[cryptography.hazmat.primitives.asymmetric.rsa.RsaPrivateKey, cryptography.hazmat.primitives.asymmetric.dsa.DsaPrivateKey, cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey, cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey]) ‑> <a title="sshkey_tools.keys.PrivateKey" href="#sshkey_tools.keys.PrivateKey">PrivateKey</a></span>
 </code></dt>
 <dd>
 <div class="desc"><p>Import an SSH Private key from a cryptography key class</p>
@@ -2865,7 +2865,7 @@ Defaults to None.</dd>
 </dd>
 <dt id="sshkey_tools.keys.PublicKey"><code class="flex name class">
 <span>class <span class="ident">PublicKey</span></span>
-<span>(</span><span>key: Union[cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey, cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey, cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey, cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey] = None, comment: Union[str, bytes] = None, **kwargs)</span>
+<span>(</span><span>key: Union[cryptography.hazmat.primitives.asymmetric.rsa.RsaPrivateKey, cryptography.hazmat.primitives.asymmetric.dsa.DsaPrivateKey, cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey, cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey] = None, comment: Union[str, bytes] = None, **kwargs)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Class for handling SSH public keys</p></div>
@@ -3024,15 +3024,15 @@ Defaults to None.</dd>
 </details>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="sshkey_tools.keys.DSAPublicKey" href="#sshkey_tools.keys.DSAPublicKey">DSAPublicKey</a></li>
-<li><a title="sshkey_tools.keys.ECDSAPublicKey" href="#sshkey_tools.keys.ECDSAPublicKey">ECDSAPublicKey</a></li>
-<li><a title="sshkey_tools.keys.ED25519PublicKey" href="#sshkey_tools.keys.ED25519PublicKey">ED25519PublicKey</a></li>
-<li><a title="sshkey_tools.keys.RSAPublicKey" href="#sshkey_tools.keys.RSAPublicKey">RSAPublicKey</a></li>
+<li><a title="sshkey_tools.keys.DsaPublicKey" href="#sshkey_tools.keys.DsaPublicKey">DsaPublicKey</a></li>
+<li><a title="sshkey_tools.keys.EcdsaPublicKey" href="#sshkey_tools.keys.EcdsaPublicKey">EcdsaPublicKey</a></li>
+<li><a title="sshkey_tools.keys.Ed25519PublicKey" href="#sshkey_tools.keys.Ed25519PublicKey">Ed25519PublicKey</a></li>
+<li><a title="sshkey_tools.keys.RsaPublicKey" href="#sshkey_tools.keys.RsaPublicKey">RsaPublicKey</a></li>
 </ul>
 <h3>Static methods</h3>
 <dl>
 <dt id="sshkey_tools.keys.PublicKey.from_class"><code class="name flex">
-<span>def <span class="ident">from_class</span></span>(<span>key_class: Union[cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey, cryptography.hazmat.primitives.asymmetric.dsa.DSAPublicKey, cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey, cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PublicKey], comment: Union[str, bytes] = None, key_type: Union[str, bytes] = None) ‑> <a title="sshkey_tools.keys.PublicKey" href="#sshkey_tools.keys.PublicKey">PublicKey</a></span>
+<span>def <span class="ident">from_class</span></span>(<span>key_class: Union[cryptography.hazmat.primitives.asymmetric.rsa.RsaPublicKey, cryptography.hazmat.primitives.asymmetric.dsa.DsaPublicKey, cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey, cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PublicKey], comment: Union[str, bytes] = None, key_type: Union[str, bytes] = None) ‑> <a title="sshkey_tools.keys.PublicKey" href="#sshkey_tools.keys.PublicKey">PublicKey</a></span>
 </code></dt>
 <dd>
 <div class="desc"><p>Creates a new SSH Public key from a cryptography class</p>
@@ -3318,9 +3318,9 @@ def from_string(
 </dd>
 </dl>
 </dd>
-<dt id="sshkey_tools.keys.RSAPrivateKey"><code class="flex name class">
-<span>class <span class="ident">RSAPrivateKey</span></span>
-<span>(</span><span>key: cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey)</span>
+<dt id="sshkey_tools.keys.RsaPrivateKey"><code class="flex name class">
+<span>class <span class="ident">RsaPrivateKey</span></span>
+<span>(</span><span>key: cryptography.hazmat.primitives.asymmetric.rsa.RsaPrivateKey)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Class for holding RSA private keys</p></div>
@@ -3328,15 +3328,15 @@ def from_string(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class RSAPrivateKey(PrivateKey):
+<pre><code class="python">class RsaPrivateKey(PrivateKey):
     &#34;&#34;&#34;
     Class for holding RSA private keys
     &#34;&#34;&#34;
 
-    def __init__(self, key: _RSA.RSAPrivateKey):
+    def __init__(self, key: _RSA.RsaPrivateKey):
         super().__init__(
             key=key,
-            public_key=RSAPublicKey(key.public_key()),
+            public_key=RsaPublicKey(key.public_key()),
             private_numbers=key.private_numbers(),
         )
 
@@ -3352,7 +3352,7 @@ def from_string(
         dmp1: int = None,
         dmq1: int = None,
         iqmp: int = None,
-    ) -&gt; &#34;RSAPrivateKey&#34;:
+    ) -&gt; &#34;RsaPrivateKey&#34;:
         &#34;&#34;&#34;
         Load an RSA private key from numbers
 
@@ -3375,7 +3375,7 @@ def from_string(
                                Automatically generates if not provided
 
         Returns:
-            RSAPrivateKey: An instance of RSAPrivateKey
+            RsaPrivateKey: An instance of RsaPrivateKey
         &#34;&#34;&#34;
         if None in (p, q):
             p, q = _RSA.rsa_recover_prime_factors(n, e, d)
@@ -3399,7 +3399,7 @@ def from_string(
     @classmethod
     def generate(
         cls, key_size: int = 4096, public_exponent: int = 65537
-    ) -&gt; &#34;RSAPrivateKey&#34;:
+    ) -&gt; &#34;RsaPrivateKey&#34;:
         &#34;&#34;&#34;
         Generates a new RSA private key
 
@@ -3408,7 +3408,7 @@ def from_string(
             public_exponent (int, optional): The public exponent to use. Defaults to 65537.
 
         Returns:
-            RSAPrivateKey: Instance of RSAPrivateKey
+            RsaPrivateKey: Instance of RsaPrivateKey
         &#34;&#34;&#34;
         return cls.from_class(
             _RSA.generate_private_key(
@@ -3436,8 +3436,8 @@ def from_string(
 </ul>
 <h3>Static methods</h3>
 <dl>
-<dt id="sshkey_tools.keys.RSAPrivateKey.from_numbers"><code class="name flex">
-<span>def <span class="ident">from_numbers</span></span>(<span>e: int, n: int, d: int, p: int = None, q: int = None, dmp1: int = None, dmq1: int = None, iqmp: int = None) ‑> <a title="sshkey_tools.keys.RSAPrivateKey" href="#sshkey_tools.keys.RSAPrivateKey">RSAPrivateKey</a></span>
+<dt id="sshkey_tools.keys.RsaPrivateKey.from_numbers"><code class="name flex">
+<span>def <span class="ident">from_numbers</span></span>(<span>e: int, n: int, d: int, p: int = None, q: int = None, dmp1: int = None, dmq1: int = None, iqmp: int = None) ‑> <a title="sshkey_tools.keys.RsaPrivateKey" href="#sshkey_tools.keys.RsaPrivateKey">RsaPrivateKey</a></span>
 </code></dt>
 <dd>
 <div class="desc"><p>Load an RSA private key from numbers</p>
@@ -3470,8 +3470,8 @@ Automatically generates if not provided</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code><a title="sshkey_tools.keys.RSAPrivateKey" href="#sshkey_tools.keys.RSAPrivateKey">RSAPrivateKey</a></code></dt>
-<dd>An instance of RSAPrivateKey</dd>
+<dt><code><a title="sshkey_tools.keys.RsaPrivateKey" href="#sshkey_tools.keys.RsaPrivateKey">RsaPrivateKey</a></code></dt>
+<dd>An instance of RsaPrivateKey</dd>
 </dl></div>
 <details class="source">
 <summary>
@@ -3489,7 +3489,7 @@ def from_numbers(
     dmp1: int = None,
     dmq1: int = None,
     iqmp: int = None,
-) -&gt; &#34;RSAPrivateKey&#34;:
+) -&gt; &#34;RsaPrivateKey&#34;:
     &#34;&#34;&#34;
     Load an RSA private key from numbers
 
@@ -3512,7 +3512,7 @@ def from_numbers(
                            Automatically generates if not provided
 
     Returns:
-        RSAPrivateKey: An instance of RSAPrivateKey
+        RsaPrivateKey: An instance of RsaPrivateKey
     &#34;&#34;&#34;
     if None in (p, q):
         p, q = _RSA.rsa_recover_prime_factors(n, e, d)
@@ -3534,8 +3534,8 @@ def from_numbers(
     )</code></pre>
 </details>
 </dd>
-<dt id="sshkey_tools.keys.RSAPrivateKey.generate"><code class="name flex">
-<span>def <span class="ident">generate</span></span>(<span>key_size: int = 4096, public_exponent: int = 65537) ‑> <a title="sshkey_tools.keys.RSAPrivateKey" href="#sshkey_tools.keys.RSAPrivateKey">RSAPrivateKey</a></span>
+<dt id="sshkey_tools.keys.RsaPrivateKey.generate"><code class="name flex">
+<span>def <span class="ident">generate</span></span>(<span>key_size: int = 4096, public_exponent: int = 65537) ‑> <a title="sshkey_tools.keys.RsaPrivateKey" href="#sshkey_tools.keys.RsaPrivateKey">RsaPrivateKey</a></span>
 </code></dt>
 <dd>
 <div class="desc"><p>Generates a new RSA private key</p>
@@ -3548,8 +3548,8 @@ def from_numbers(
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code><a title="sshkey_tools.keys.RSAPrivateKey" href="#sshkey_tools.keys.RSAPrivateKey">RSAPrivateKey</a></code></dt>
-<dd>Instance of RSAPrivateKey</dd>
+<dt><code><a title="sshkey_tools.keys.RsaPrivateKey" href="#sshkey_tools.keys.RsaPrivateKey">RsaPrivateKey</a></code></dt>
+<dd>Instance of RsaPrivateKey</dd>
 </dl></div>
 <details class="source">
 <summary>
@@ -3558,7 +3558,7 @@ def from_numbers(
 <pre><code class="python">@classmethod
 def generate(
     cls, key_size: int = 4096, public_exponent: int = 65537
-) -&gt; &#34;RSAPrivateKey&#34;:
+) -&gt; &#34;RsaPrivateKey&#34;:
     &#34;&#34;&#34;
     Generates a new RSA private key
 
@@ -3567,7 +3567,7 @@ def generate(
         public_exponent (int, optional): The public exponent to use. Defaults to 65537.
 
     Returns:
-        RSAPrivateKey: Instance of RSAPrivateKey
+        RsaPrivateKey: Instance of RsaPrivateKey
     &#34;&#34;&#34;
     return cls.from_class(
         _RSA.generate_private_key(
@@ -3579,7 +3579,7 @@ def generate(
 </dl>
 <h3>Methods</h3>
 <dl>
-<dt id="sshkey_tools.keys.RSAPrivateKey.sign"><code class="name flex">
+<dt id="sshkey_tools.keys.RsaPrivateKey.sign"><code class="name flex">
 <span>def <span class="ident">sign</span></span>(<span>self, data: bytes, hash_alg: <a title="sshkey_tools.keys.RsaAlgs" href="#sshkey_tools.keys.RsaAlgs">RsaAlgs</a> = RsaAlgs.SHA512) ‑> bytes</span>
 </code></dt>
 <dd>
@@ -3632,9 +3632,9 @@ Defaults to SHA512.</dd>
 </li>
 </ul>
 </dd>
-<dt id="sshkey_tools.keys.RSAPublicKey"><code class="flex name class">
-<span>class <span class="ident">RSAPublicKey</span></span>
-<span>(</span><span>key: cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey, comment: Union[str, bytes] = None, key_type: Union[str, bytes] = None, serialized: bytes = None)</span>
+<dt id="sshkey_tools.keys.RsaPublicKey"><code class="flex name class">
+<span>class <span class="ident">RsaPublicKey</span></span>
+<span>(</span><span>key: cryptography.hazmat.primitives.asymmetric.rsa.RsaPublicKey, comment: Union[str, bytes] = None, key_type: Union[str, bytes] = None, serialized: bytes = None)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Class for holding RSA public keys</p></div>
@@ -3642,14 +3642,14 @@ Defaults to SHA512.</dd>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class RSAPublicKey(PublicKey):
+<pre><code class="python">class RsaPublicKey(PublicKey):
     &#34;&#34;&#34;
     Class for holding RSA public keys
     &#34;&#34;&#34;
 
     def __init__(
         self,
-        key: _RSA.RSAPublicKey,
+        key: _RSA.RsaPublicKey,
         comment: Union[str, bytes] = None,
         key_type: Union[str, bytes] = None,
         serialized: bytes = None,
@@ -3664,7 +3664,7 @@ Defaults to SHA512.</dd>
 
     @classmethod
     # pylint: disable=invalid-name
-    def from_numbers(cls, e: int, n: int) -&gt; &#34;RSAPublicKey&#34;:
+    def from_numbers(cls, e: int, n: int) -&gt; &#34;RsaPublicKey&#34;:
         &#34;&#34;&#34;
         Loads an RSA Public Key from the public numbers e and n
 
@@ -3673,7 +3673,7 @@ Defaults to SHA512.</dd>
             n (int): n-value
 
         Returns:
-            RSAPublicKey: _description_
+            RsaPublicKey: _description_
         &#34;&#34;&#34;
         return cls(key=_RSA.RSAPublicNumbers(e, n).public_key())
 
@@ -3706,8 +3706,8 @@ Defaults to SHA512.</dd>
 </ul>
 <h3>Static methods</h3>
 <dl>
-<dt id="sshkey_tools.keys.RSAPublicKey.from_numbers"><code class="name flex">
-<span>def <span class="ident">from_numbers</span></span>(<span>e: int, n: int) ‑> <a title="sshkey_tools.keys.RSAPublicKey" href="#sshkey_tools.keys.RSAPublicKey">RSAPublicKey</a></span>
+<dt id="sshkey_tools.keys.RsaPublicKey.from_numbers"><code class="name flex">
+<span>def <span class="ident">from_numbers</span></span>(<span>e: int, n: int) ‑> <a title="sshkey_tools.keys.RsaPublicKey" href="#sshkey_tools.keys.RsaPublicKey">RsaPublicKey</a></span>
 </code></dt>
 <dd>
 <div class="desc"><p>Loads an RSA Public Key from the public numbers e and n</p>
@@ -3720,7 +3720,7 @@ Defaults to SHA512.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code><a title="sshkey_tools.keys.RSAPublicKey" href="#sshkey_tools.keys.RSAPublicKey">RSAPublicKey</a></code></dt>
+<dt><code><a title="sshkey_tools.keys.RsaPublicKey" href="#sshkey_tools.keys.RsaPublicKey">RsaPublicKey</a></code></dt>
 <dd><em>description</em></dd>
 </dl></div>
 <details class="source">
@@ -3729,7 +3729,7 @@ Defaults to SHA512.</dd>
 </summary>
 <pre><code class="python">@classmethod
 # pylint: disable=invalid-name
-def from_numbers(cls, e: int, n: int) -&gt; &#34;RSAPublicKey&#34;:
+def from_numbers(cls, e: int, n: int) -&gt; &#34;RsaPublicKey&#34;:
     &#34;&#34;&#34;
     Loads an RSA Public Key from the public numbers e and n
 
@@ -3738,7 +3738,7 @@ def from_numbers(cls, e: int, n: int) -&gt; &#34;RSAPublicKey&#34;:
         n (int): n-value
 
     Returns:
-        RSAPublicKey: _description_
+        RsaPublicKey: _description_
     &#34;&#34;&#34;
     return cls(key=_RSA.RSAPublicNumbers(e, n).public_key())</code></pre>
 </details>
@@ -3746,7 +3746,7 @@ def from_numbers(cls, e: int, n: int) -&gt; &#34;RSAPublicKey&#34;:
 </dl>
 <h3>Methods</h3>
 <dl>
-<dt id="sshkey_tools.keys.RSAPublicKey.verify"><code class="name flex">
+<dt id="sshkey_tools.keys.RsaPublicKey.verify"><code class="name flex">
 <span>def <span class="ident">verify</span></span>(<span>self, data: bytes, signature: bytes, hash_alg: <a title="sshkey_tools.keys.RsaAlgs" href="#sshkey_tools.keys.RsaAlgs">RsaAlgs</a> = RsaAlgs.SHA512) ‑> None</span>
 </code></dt>
 <dd>
@@ -3872,49 +3872,49 @@ SHA512</p></div>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="sshkey_tools.keys.DSAPrivateKey" href="#sshkey_tools.keys.DSAPrivateKey">DSAPrivateKey</a></code></h4>
+<h4><code><a title="sshkey_tools.keys.DsaPrivateKey" href="#sshkey_tools.keys.DsaPrivateKey">DsaPrivateKey</a></code></h4>
 <ul class="">
-<li><code><a title="sshkey_tools.keys.DSAPrivateKey.from_numbers" href="#sshkey_tools.keys.DSAPrivateKey.from_numbers">from_numbers</a></code></li>
-<li><code><a title="sshkey_tools.keys.DSAPrivateKey.generate" href="#sshkey_tools.keys.DSAPrivateKey.generate">generate</a></code></li>
-<li><code><a title="sshkey_tools.keys.DSAPrivateKey.sign" href="#sshkey_tools.keys.DSAPrivateKey.sign">sign</a></code></li>
+<li><code><a title="sshkey_tools.keys.DsaPrivateKey.from_numbers" href="#sshkey_tools.keys.DsaPrivateKey.from_numbers">from_numbers</a></code></li>
+<li><code><a title="sshkey_tools.keys.DsaPrivateKey.generate" href="#sshkey_tools.keys.DsaPrivateKey.generate">generate</a></code></li>
+<li><code><a title="sshkey_tools.keys.DsaPrivateKey.sign" href="#sshkey_tools.keys.DsaPrivateKey.sign">sign</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="sshkey_tools.keys.DSAPublicKey" href="#sshkey_tools.keys.DSAPublicKey">DSAPublicKey</a></code></h4>
+<h4><code><a title="sshkey_tools.keys.DsaPublicKey" href="#sshkey_tools.keys.DsaPublicKey">DsaPublicKey</a></code></h4>
 <ul class="">
-<li><code><a title="sshkey_tools.keys.DSAPublicKey.from_numbers" href="#sshkey_tools.keys.DSAPublicKey.from_numbers">from_numbers</a></code></li>
-<li><code><a title="sshkey_tools.keys.DSAPublicKey.verify" href="#sshkey_tools.keys.DSAPublicKey.verify">verify</a></code></li>
+<li><code><a title="sshkey_tools.keys.DsaPublicKey.from_numbers" href="#sshkey_tools.keys.DsaPublicKey.from_numbers">from_numbers</a></code></li>
+<li><code><a title="sshkey_tools.keys.DsaPublicKey.verify" href="#sshkey_tools.keys.DsaPublicKey.verify">verify</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="sshkey_tools.keys.ECDSAPrivateKey" href="#sshkey_tools.keys.ECDSAPrivateKey">ECDSAPrivateKey</a></code></h4>
+<h4><code><a title="sshkey_tools.keys.EcdsaPrivateKey" href="#sshkey_tools.keys.EcdsaPrivateKey">EcdsaPrivateKey</a></code></h4>
 <ul class="">
-<li><code><a title="sshkey_tools.keys.ECDSAPrivateKey.from_numbers" href="#sshkey_tools.keys.ECDSAPrivateKey.from_numbers">from_numbers</a></code></li>
-<li><code><a title="sshkey_tools.keys.ECDSAPrivateKey.generate" href="#sshkey_tools.keys.ECDSAPrivateKey.generate">generate</a></code></li>
-<li><code><a title="sshkey_tools.keys.ECDSAPrivateKey.sign" href="#sshkey_tools.keys.ECDSAPrivateKey.sign">sign</a></code></li>
+<li><code><a title="sshkey_tools.keys.EcdsaPrivateKey.from_numbers" href="#sshkey_tools.keys.EcdsaPrivateKey.from_numbers">from_numbers</a></code></li>
+<li><code><a title="sshkey_tools.keys.EcdsaPrivateKey.generate" href="#sshkey_tools.keys.EcdsaPrivateKey.generate">generate</a></code></li>
+<li><code><a title="sshkey_tools.keys.EcdsaPrivateKey.sign" href="#sshkey_tools.keys.EcdsaPrivateKey.sign">sign</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="sshkey_tools.keys.ECDSAPublicKey" href="#sshkey_tools.keys.ECDSAPublicKey">ECDSAPublicKey</a></code></h4>
+<h4><code><a title="sshkey_tools.keys.EcdsaPublicKey" href="#sshkey_tools.keys.EcdsaPublicKey">EcdsaPublicKey</a></code></h4>
 <ul class="">
-<li><code><a title="sshkey_tools.keys.ECDSAPublicKey.from_numbers" href="#sshkey_tools.keys.ECDSAPublicKey.from_numbers">from_numbers</a></code></li>
-<li><code><a title="sshkey_tools.keys.ECDSAPublicKey.verify" href="#sshkey_tools.keys.ECDSAPublicKey.verify">verify</a></code></li>
+<li><code><a title="sshkey_tools.keys.EcdsaPublicKey.from_numbers" href="#sshkey_tools.keys.EcdsaPublicKey.from_numbers">from_numbers</a></code></li>
+<li><code><a title="sshkey_tools.keys.EcdsaPublicKey.verify" href="#sshkey_tools.keys.EcdsaPublicKey.verify">verify</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="sshkey_tools.keys.ED25519PrivateKey" href="#sshkey_tools.keys.ED25519PrivateKey">ED25519PrivateKey</a></code></h4>
+<h4><code><a title="sshkey_tools.keys.Ed25519PrivateKey" href="#sshkey_tools.keys.Ed25519PrivateKey">Ed25519PrivateKey</a></code></h4>
 <ul class="">
-<li><code><a title="sshkey_tools.keys.ED25519PrivateKey.from_raw_bytes" href="#sshkey_tools.keys.ED25519PrivateKey.from_raw_bytes">from_raw_bytes</a></code></li>
-<li><code><a title="sshkey_tools.keys.ED25519PrivateKey.generate" href="#sshkey_tools.keys.ED25519PrivateKey.generate">generate</a></code></li>
-<li><code><a title="sshkey_tools.keys.ED25519PrivateKey.raw_bytes" href="#sshkey_tools.keys.ED25519PrivateKey.raw_bytes">raw_bytes</a></code></li>
-<li><code><a title="sshkey_tools.keys.ED25519PrivateKey.sign" href="#sshkey_tools.keys.ED25519PrivateKey.sign">sign</a></code></li>
+<li><code><a title="sshkey_tools.keys.Ed25519PrivateKey.from_raw_bytes" href="#sshkey_tools.keys.Ed25519PrivateKey.from_raw_bytes">from_raw_bytes</a></code></li>
+<li><code><a title="sshkey_tools.keys.Ed25519PrivateKey.generate" href="#sshkey_tools.keys.Ed25519PrivateKey.generate">generate</a></code></li>
+<li><code><a title="sshkey_tools.keys.Ed25519PrivateKey.raw_bytes" href="#sshkey_tools.keys.Ed25519PrivateKey.raw_bytes">raw_bytes</a></code></li>
+<li><code><a title="sshkey_tools.keys.Ed25519PrivateKey.sign" href="#sshkey_tools.keys.Ed25519PrivateKey.sign">sign</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="sshkey_tools.keys.ED25519PublicKey" href="#sshkey_tools.keys.ED25519PublicKey">ED25519PublicKey</a></code></h4>
+<h4><code><a title="sshkey_tools.keys.Ed25519PublicKey" href="#sshkey_tools.keys.Ed25519PublicKey">Ed25519PublicKey</a></code></h4>
 <ul class="">
-<li><code><a title="sshkey_tools.keys.ED25519PublicKey.from_raw_bytes" href="#sshkey_tools.keys.ED25519PublicKey.from_raw_bytes">from_raw_bytes</a></code></li>
-<li><code><a title="sshkey_tools.keys.ED25519PublicKey.verify" href="#sshkey_tools.keys.ED25519PublicKey.verify">verify</a></code></li>
+<li><code><a title="sshkey_tools.keys.Ed25519PublicKey.from_raw_bytes" href="#sshkey_tools.keys.Ed25519PublicKey.from_raw_bytes">from_raw_bytes</a></code></li>
+<li><code><a title="sshkey_tools.keys.Ed25519PublicKey.verify" href="#sshkey_tools.keys.Ed25519PublicKey.verify">verify</a></code></li>
 </ul>
 </li>
 <li>
@@ -3959,18 +3959,18 @@ SHA512</p></div>
 </ul>
 </li>
 <li>
-<h4><code><a title="sshkey_tools.keys.RSAPrivateKey" href="#sshkey_tools.keys.RSAPrivateKey">RSAPrivateKey</a></code></h4>
+<h4><code><a title="sshkey_tools.keys.RsaPrivateKey" href="#sshkey_tools.keys.RsaPrivateKey">RsaPrivateKey</a></code></h4>
 <ul class="">
-<li><code><a title="sshkey_tools.keys.RSAPrivateKey.from_numbers" href="#sshkey_tools.keys.RSAPrivateKey.from_numbers">from_numbers</a></code></li>
-<li><code><a title="sshkey_tools.keys.RSAPrivateKey.generate" href="#sshkey_tools.keys.RSAPrivateKey.generate">generate</a></code></li>
-<li><code><a title="sshkey_tools.keys.RSAPrivateKey.sign" href="#sshkey_tools.keys.RSAPrivateKey.sign">sign</a></code></li>
+<li><code><a title="sshkey_tools.keys.RsaPrivateKey.from_numbers" href="#sshkey_tools.keys.RsaPrivateKey.from_numbers">from_numbers</a></code></li>
+<li><code><a title="sshkey_tools.keys.RsaPrivateKey.generate" href="#sshkey_tools.keys.RsaPrivateKey.generate">generate</a></code></li>
+<li><code><a title="sshkey_tools.keys.RsaPrivateKey.sign" href="#sshkey_tools.keys.RsaPrivateKey.sign">sign</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="sshkey_tools.keys.RSAPublicKey" href="#sshkey_tools.keys.RSAPublicKey">RSAPublicKey</a></code></h4>
+<h4><code><a title="sshkey_tools.keys.RsaPublicKey" href="#sshkey_tools.keys.RsaPublicKey">RsaPublicKey</a></code></h4>
 <ul class="">
-<li><code><a title="sshkey_tools.keys.RSAPublicKey.from_numbers" href="#sshkey_tools.keys.RSAPublicKey.from_numbers">from_numbers</a></code></li>
-<li><code><a title="sshkey_tools.keys.RSAPublicKey.verify" href="#sshkey_tools.keys.RSAPublicKey.verify">verify</a></code></li>
+<li><code><a title="sshkey_tools.keys.RsaPublicKey.from_numbers" href="#sshkey_tools.keys.RsaPublicKey.from_numbers">from_numbers</a></code></li>
+<li><code><a title="sshkey_tools.keys.RsaPublicKey.verify" href="#sshkey_tools.keys.RsaPublicKey.verify">verify</a></code></li>
 </ul>
 </li>
 <li>

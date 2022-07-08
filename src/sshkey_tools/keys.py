@@ -39,17 +39,17 @@ from .utils import (
 )
 
 PUBKEY_MAP = {
-    _RSAPublicKey: "RSAPublicKey",
-    _DSAPublicKey: "DSAPublicKey",
-    _EllipticCurvePublicKey: "ECDSAPublicKey",
-    _Ed25519PublicKey: "ED25519PublicKey",
+    _RSAPublicKey: "RsaPublicKey",
+    _DSAPublicKey: "DsaPublicKey",
+    _EllipticCurvePublicKey: "EcdsaPublicKey",
+    _Ed25519PublicKey: "Ed25519PublicKey",
 }
 
 PRIVKEY_MAP = {
-    _RSAPrivateKey: "RSAPrivateKey",
-    _DSAPrivateKey: "DSAPrivateKey",
-    _EllipticCurvePrivateKey: "ECDSAPrivateKey",
-    _Ed25519PrivateKey: "ED25519PrivateKey",
+    _RSAPrivateKey: "RsaPrivateKey",
+    _DSAPrivateKey: "DsaPrivateKey",
+    _EllipticCurvePrivateKey: "EcdsaPrivateKey",
+    _Ed25519PrivateKey: "Ed25519PrivateKey",
 }
 
 ECDSA_HASHES = {
@@ -407,7 +407,7 @@ class PrivateKey:
             key_file.write(self.to_string(password, encoding))
 
 
-class RSAPublicKey(PublicKey):
+class RsaPublicKey(PublicKey):
     """
     Class for holding RSA public keys
     """
@@ -429,7 +429,7 @@ class RSAPublicKey(PublicKey):
 
     @classmethod
     # pylint: disable=invalid-name
-    def from_numbers(cls, e: int, n: int) -> "RSAPublicKey":
+    def from_numbers(cls, e: int, n: int) -> "RsaPublicKey":
         """
         Loads an RSA Public Key from the public numbers e and n
 
@@ -438,7 +438,7 @@ class RSAPublicKey(PublicKey):
             n (int): n-value
 
         Returns:
-            RSAPublicKey: _description_
+            RsaPublicKey: _description_
         """
         return cls(key=_RSA.RSAPublicNumbers(e, n).public_key())
 
@@ -466,7 +466,7 @@ class RSAPublicKey(PublicKey):
             ) from InvalidSignature
 
 
-class RSAPrivateKey(PrivateKey):
+class RsaPrivateKey(PrivateKey):
     """
     Class for holding RSA private keys
     """
@@ -474,7 +474,7 @@ class RSAPrivateKey(PrivateKey):
     def __init__(self, key: _RSA.RSAPrivateKey):
         super().__init__(
             key=key,
-            public_key=RSAPublicKey(key.public_key()),
+            public_key=RsaPublicKey(key.public_key()),
             private_numbers=key.private_numbers(),
         )
 
@@ -490,7 +490,7 @@ class RSAPrivateKey(PrivateKey):
         dmp1: int = None,
         dmq1: int = None,
         iqmp: int = None,
-    ) -> "RSAPrivateKey":
+    ) -> "RsaPrivateKey":
         """
         Load an RSA private key from numbers
 
@@ -513,7 +513,7 @@ class RSAPrivateKey(PrivateKey):
                                Automatically generates if not provided
 
         Returns:
-            RSAPrivateKey: An instance of RSAPrivateKey
+            RsaPrivateKey: An instance of RsaPrivateKey
         """
         if None in (p, q):
             p, q = _RSA.rsa_recover_prime_factors(n, e, d)
@@ -537,7 +537,7 @@ class RSAPrivateKey(PrivateKey):
     @classmethod
     def generate(
         cls, key_size: int = 4096, public_exponent: int = 65537
-    ) -> "RSAPrivateKey":
+    ) -> "RsaPrivateKey":
         """
         Generates a new RSA private key
 
@@ -546,7 +546,7 @@ class RSAPrivateKey(PrivateKey):
             public_exponent (int, optional): The public exponent to use. Defaults to 65537.
 
         Returns:
-            RSAPrivateKey: Instance of RSAPrivateKey
+            RsaPrivateKey: Instance of RsaPrivateKey
         """
         return cls.from_class(
             _RSA.generate_private_key(
@@ -569,7 +569,7 @@ class RSAPrivateKey(PrivateKey):
         return self.key.sign(data, _PADDING.PKCS1v15(), hash_alg.value[1]())
 
 
-class DSAPublicKey(PublicKey):
+class DsaPublicKey(PublicKey):
     """
     Class for holding DSA public keys
     """
@@ -592,7 +592,7 @@ class DSAPublicKey(PublicKey):
 
     @classmethod
     # pylint: disable=invalid-name
-    def from_numbers(cls, p: int, q: int, g: int, y: int) -> "DSAPublicKey":
+    def from_numbers(cls, p: int, q: int, g: int, y: int) -> "DsaPublicKey":
         """
         Create a DSA public key from public numbers and parameters
 
@@ -603,7 +603,7 @@ class DSAPublicKey(PublicKey):
             y (int): The public number Y
 
         Returns:
-            DSAPublicKey: An instance of DSAPublicKey
+            DsaPublicKey: An instance of DsaPublicKey
         """
         return cls(
             key=_DSA.DSAPublicNumbers(
@@ -630,7 +630,7 @@ class DSAPublicKey(PublicKey):
             ) from InvalidSignature
 
 
-class DSAPrivateKey(PrivateKey):
+class DsaPrivateKey(PrivateKey):
     """
     Class for holding DSA private keys
     """
@@ -638,15 +638,15 @@ class DSAPrivateKey(PrivateKey):
     def __init__(self, key: _DSA.DSAPrivateKey):
         super().__init__(
             key=key,
-            public_key=DSAPublicKey(key.public_key()),
+            public_key=DsaPublicKey(key.public_key()),
             private_numbers=key.private_numbers(),
         )
 
     @classmethod
     # pylint: disable=invalid-name,too-many-arguments
-    def from_numbers(cls, p: int, q: int, g: int, y: int, x: int) -> "DSAPrivateKey":
+    def from_numbers(cls, p: int, q: int, g: int, y: int, x: int) -> "DsaPrivateKey":
         """
-        Creates a new DSAPrivateKey object from parameters and public/private numbers
+        Creates a new DsaPrivateKey object from parameters and public/private numbers
 
         Args:
             p (int): P parameter, the prime modulus
@@ -668,13 +668,13 @@ class DSAPrivateKey(PrivateKey):
         )
 
     @classmethod
-    def generate(cls) -> "DSAPrivateKey":
+    def generate(cls) -> "DsaPrivateKey":
         """
         Generate a new DSA private key
         Key size is fixed since OpenSSH only supports 1024-bit DSA keys
 
         Returns:
-            DSAPrivateKey: An instance of DSAPrivateKey
+            DsaPrivateKey: An instance of DsaPrivateKey
         """
         return cls.from_class(_DSA.generate_private_key(key_size=1024))
 
@@ -691,7 +691,7 @@ class DSAPrivateKey(PrivateKey):
         return self.key.sign(data, _HASHES.SHA1())
 
 
-class ECDSAPublicKey(PublicKey):
+class EcdsaPublicKey(PublicKey):
     """
     Class for holding ECDSA public keys
     """
@@ -715,7 +715,7 @@ class ECDSAPublicKey(PublicKey):
     # pylint: disable=invalid-name
     def from_numbers(
         cls, curve: Union[str, _ECDSA.EllipticCurve], x: int, y: int
-    ) -> "ECDSAPublicKey":
+    ) -> "EcdsaPublicKey":
         """
         Create an ECDSA public key from public numbers and parameters
 
@@ -725,7 +725,7 @@ class ECDSAPublicKey(PublicKey):
             y (int): The affine Y component of the public point
 
         Returns:
-            ECDSAPublicKey: An instance of ECDSAPublicKey
+            EcdsaPublicKey: An instance of EcdsaPublicKey
         """
         if not isinstance(curve, _ECDSA.EllipticCurve) and curve not in ECDSA_HASHES:
             raise _EX.InvalidCurveException(
@@ -763,7 +763,7 @@ class ECDSAPublicKey(PublicKey):
             ) from InvalidSignature
 
 
-class ECDSAPrivateKey(PrivateKey):
+class EcdsaPrivateKey(PrivateKey):
     """
     Class for holding ECDSA private keys
     """
@@ -771,7 +771,7 @@ class ECDSAPrivateKey(PrivateKey):
     def __init__(self, key: _ECDSA.EllipticCurvePrivateKey):
         super().__init__(
             key=key,
-            public_key=ECDSAPublicKey(key.public_key()),
+            public_key=EcdsaPublicKey(key.public_key()),
             private_numbers=key.private_numbers(),
         )
 
@@ -781,7 +781,7 @@ class ECDSAPrivateKey(PrivateKey):
         cls, curve: Union[str, _ECDSA.EllipticCurve], x: int, y: int, private_value: int
     ):
         """
-        Creates a new ECDSAPrivateKey object from parameters and public/private numbers
+        Creates a new EcdsaPrivateKey object from parameters and public/private numbers
 
         Args:
             curve Union[str, _ECDSA.EllipticCurve]: Curve used by the key
@@ -820,7 +820,7 @@ class ECDSAPrivateKey(PrivateKey):
             curve (EcdsaCurves): Which curve to use. Default secp521r1
 
         Returns:
-            ECDSAPrivateKey: An instance of ECDSAPrivateKey
+            EcdsaPrivateKey: An instance of EcdsaPrivateKey
         """
         return cls.from_class(_ECDSA.generate_private_key(curve=curve.value))
 
@@ -838,7 +838,7 @@ class ECDSAPrivateKey(PrivateKey):
         return self.key.sign(data, _ECDSA.ECDSA(curve_hash))
 
 
-class ED25519PublicKey(PublicKey):
+class Ed25519PublicKey(PublicKey):
     """
     Class for holding ED25519 public keys
     """
@@ -855,7 +855,7 @@ class ED25519PublicKey(PublicKey):
         )
 
     @classmethod
-    def from_raw_bytes(cls, raw_bytes: bytes) -> "ED25519PublicKey":
+    def from_raw_bytes(cls, raw_bytes: bytes) -> "Ed25519PublicKey":
         """
         Load an ED25519 public key from raw bytes
 
@@ -863,7 +863,7 @@ class ED25519PublicKey(PublicKey):
             raw_bytes (bytes): The raw bytes of the key
 
         Returns:
-            ED25519PublicKey: Instance of ED25519PublicKey
+            Ed25519PublicKey: Instance of Ed25519PublicKey
         """
         if b"ssh-ed25519" in raw_bytes:
             id_length = unpack(">I", raw_bytes[:4])[0] + 8
@@ -892,16 +892,16 @@ class ED25519PublicKey(PublicKey):
             ) from InvalidSignature
 
 
-class ED25519PrivateKey(PrivateKey):
+class Ed25519PrivateKey(PrivateKey):
     """
     Class for holding ED25519 private keys
     """
 
     def __init__(self, key: _ED25519.Ed25519PrivateKey):
-        super().__init__(key=key, public_key=ED25519PublicKey(key.public_key()))
+        super().__init__(key=key, public_key=Ed25519PublicKey(key.public_key()))
 
     @classmethod
-    def from_raw_bytes(cls, raw_bytes: bytes) -> "ED25519PrivateKey":
+    def from_raw_bytes(cls, raw_bytes: bytes) -> "Ed25519PrivateKey":
         """
         Load an ED25519 private key from raw bytes
 
@@ -909,19 +909,19 @@ class ED25519PrivateKey(PrivateKey):
             raw_bytes (bytes): The raw bytes of the key
 
         Returns:
-            ED25519PrivateKey: Instance of ED25519PrivateKey
+            Ed25519PrivateKey: Instance of Ed25519PrivateKey
         """
         return cls.from_class(
             _ED25519.Ed25519PrivateKey.from_private_bytes(data=raw_bytes)
         )
 
     @classmethod
-    def generate(cls) -> "ED25519PrivateKey":
+    def generate(cls) -> "Ed25519PrivateKey":
         """
         Generates a new ED25519 Private Key
 
         Returns:
-            ED25519PrivateKey: Instance of ED25519PrivateKey
+            Ed25519PrivateKey: Instance of Ed25519PrivateKey
         """
         return cls.from_class(_ED25519.Ed25519PrivateKey.generate())
 
