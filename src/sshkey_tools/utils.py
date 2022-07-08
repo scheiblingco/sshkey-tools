@@ -2,13 +2,14 @@
 Utilities for handling keys and certificates
 """
 import sys
-from types import NoneType
 from typing import Union, List, Dict
 from secrets import randbits
 from random import randint
 from uuid import uuid4
 from base64 import b64encode
 import hashlib as hl
+
+NoneType = type(None)
 
 def ensure_string(
     obj: Union[str, bytes, list, tuple, set, dict, NoneType], 
@@ -90,7 +91,7 @@ def random_keyid() -> str:
     Returns:
         str: Random keyid
     """
-    return uuid4()
+    return str(uuid4())
 
 def random_serial() -> str:
     """ Generates a random serial number 

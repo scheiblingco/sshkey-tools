@@ -57,10 +57,10 @@ from typing import Union
 from .keys import (
     PublicKey,
     PrivateKey,
-    RSAPublicKey,
-    DSAPublicKey,
-    ECDSAPublicKey,
-    ED25519PublicKey,
+    RsaPublicKey,
+    DsaPublicKey,
+    EcdsaPublicKey,
+    Ed25519PublicKey,
 )
 from . import fields as _FIELD
 from . import exceptions as _EX
@@ -79,24 +79,24 @@ CERTIFICATE_FIELDS = {
 }
 
 CERT_TYPES = {
-    &#34;ssh-rsa-cert-v01@openssh.com&#34;: (&#34;RSACertificate&#34;, &#34;_FIELD.RSAPubkeyField&#34;),
-    &#34;rsa-sha2-256-cert-v01@openssh.com&#34;: (&#34;RSACertificate&#34;, &#34;_FIELD.RSAPubkeyField&#34;),
-    &#34;rsa-sha2-512-cert-v01@openssh.com&#34;: (&#34;RSACertificate&#34;, &#34;_FIELD.RSAPubkeyField&#34;),
-    &#34;ssh-dss-cert-v01@openssh.com&#34;: (&#34;DSACertificate&#34;, &#34;_FIELD.DSAPubkeyField&#34;),
+    &#34;ssh-rsa-cert-v01@openssh.com&#34;: (&#34;RsaCertificate&#34;, &#34;_FIELD.RSAPubkeyField&#34;),
+    &#34;rsa-sha2-256-cert-v01@openssh.com&#34;: (&#34;RsaCertificate&#34;, &#34;_FIELD.RSAPubkeyField&#34;),
+    &#34;rsa-sha2-512-cert-v01@openssh.com&#34;: (&#34;RsaCertificate&#34;, &#34;_FIELD.RSAPubkeyField&#34;),
+    &#34;ssh-dss-cert-v01@openssh.com&#34;: (&#34;DsaCertificate&#34;, &#34;_FIELD.DSAPubkeyField&#34;),
     &#34;ecdsa-sha2-nistp256-cert-v01@openssh.com&#34;: (
-        &#34;ECDSACertificate&#34;,
+        &#34;EcdsaCertificate&#34;,
         &#34;_FIELD.ECDSAPubkeyField&#34;,
     ),
     &#34;ecdsa-sha2-nistp384-cert-v01@openssh.com&#34;: (
-        &#34;ECDSACertificate&#34;,
+        &#34;EcdsaCertificate&#34;,
         &#34;_FIELD.ECDSAPubkeyField&#34;,
     ),
     &#34;ecdsa-sha2-nistp521-cert-v01@openssh.com&#34;: (
-        &#34;ECDSACertificate&#34;,
+        &#34;EcdsaCertificate&#34;,
         &#34;_FIELD.ECDSAPubkeyField&#34;,
     ),
     &#34;ssh-ed25519-cert-v01@openssh.com&#34;: (
-        &#34;ED25519Certificate&#34;,
+        &#34;Ed25519Certificate&#34;,
         &#34;_FIELD.ED25519PubkeyField&#34;,
     ),
 }
@@ -540,14 +540,14 @@ class SSHCertificate:
             file.write(self.to_string(comment, encoding))
 
 
-class RSACertificate(SSHCertificate):
+class RsaCertificate(SSHCertificate):
     &#34;&#34;&#34;
     Specific class for RSA Certificates. Inherits from SSHCertificate
     &#34;&#34;&#34;
 
     def __init__(
         self,
-        subject_pubkey: RSAPublicKey,
+        subject_pubkey: RsaPublicKey,
         ca_privkey: PrivateKey = None,
         rsa_alg: RsaAlgs = RsaAlgs.SHA512,
         **kwargs,
@@ -567,25 +567,25 @@ class RSACertificate(SSHCertificate):
             cert_bytes (bytes): The base64-decoded bytes for the certificate
 
         Returns:
-            RSACertificate: The decoded certificate
+            RsaCertificate: The decoded certificate
         &#34;&#34;&#34;
         return super().decode(cert_bytes, _FIELD.RSAPubkeyField)
 
 
-class DSACertificate(SSHCertificate):
+class DsaCertificate(SSHCertificate):
     &#34;&#34;&#34;
     Specific class for DSA/DSS Certificates. Inherits from SSHCertificate
     &#34;&#34;&#34;
 
     def __init__(
-        self, subject_pubkey: DSAPublicKey, ca_privkey: PrivateKey = None, **kwargs
+        self, subject_pubkey: DsaPublicKey, ca_privkey: PrivateKey = None, **kwargs
     ):
         super().__init__(subject_pubkey, ca_privkey, **kwargs)
         self.set_type(&#34;ssh-dss-cert-v01@openssh.com&#34;)
 
     @classmethod
     # pylint: disable=arguments-differ
-    def decode(cls, cert_bytes: bytes) -&gt; &#34;DSACertificate&#34;:
+    def decode(cls, cert_bytes: bytes) -&gt; &#34;DsaCertificate&#34;:
         &#34;&#34;&#34;
         Decode an existing DSA Certificate
 
@@ -593,18 +593,18 @@ class DSACertificate(SSHCertificate):
             cert_bytes (bytes): The base64-decoded bytes for the certificate
 
         Returns:
-            DSACertificate: The decoded certificate
+            DsaCertificate: The decoded certificate
         &#34;&#34;&#34;
         return super().decode(cert_bytes, _FIELD.DSAPubkeyField)
 
 
-class ECDSACertificate(SSHCertificate):
+class EcdsaCertificate(SSHCertificate):
     &#34;&#34;&#34;
     Specific class for ECDSA Certificates. Inherits from SSHCertificate
     &#34;&#34;&#34;
 
     def __init__(
-        self, subject_pubkey: ECDSAPublicKey, ca_privkey: PrivateKey = None, **kwargs
+        self, subject_pubkey: EcdsaPublicKey, ca_privkey: PrivateKey = None, **kwargs
     ):
         super().__init__(subject_pubkey, ca_privkey, **kwargs)
         self.set_type(
@@ -613,7 +613,7 @@ class ECDSACertificate(SSHCertificate):
 
     @classmethod
     # pylint: disable=arguments-differ
-    def decode(cls, cert_bytes: bytes) -&gt; &#34;ECDSACertificate&#34;:
+    def decode(cls, cert_bytes: bytes) -&gt; &#34;EcdsaCertificate&#34;:
         &#34;&#34;&#34;
         Decode an existing ECDSA Certificate
 
@@ -621,25 +621,25 @@ class ECDSACertificate(SSHCertificate):
             cert_bytes (bytes): The base64-decoded bytes for the certificate
 
         Returns:
-            ECDSACertificate: The decoded certificate
+            EcdsaCertificate: The decoded certificate
         &#34;&#34;&#34;
         return super().decode(cert_bytes, _FIELD.ECDSAPubkeyField)
 
 
-class ED25519Certificate(SSHCertificate):
+class Ed25519Certificate(SSHCertificate):
     &#34;&#34;&#34;
     Specific class for ED25519 Certificates. Inherits from SSHCertificate
     &#34;&#34;&#34;
 
     def __init__(
-        self, subject_pubkey: ED25519PublicKey, ca_privkey: PrivateKey = None, **kwargs
+        self, subject_pubkey: Ed25519PublicKey, ca_privkey: PrivateKey = None, **kwargs
     ):
         super().__init__(subject_pubkey, ca_privkey, **kwargs)
         self.set_type(&#34;ssh-ed25519-cert-v01@openssh.com&#34;)
 
     @classmethod
     # pylint: disable=arguments-differ
-    def decode(cls, cert_bytes: bytes) -&gt; &#34;ED25519Certificate&#34;:
+    def decode(cls, cert_bytes: bytes) -&gt; &#34;Ed25519Certificate&#34;:
         &#34;&#34;&#34;
         Decode an existing ED25519 Certificate
 
@@ -647,7 +647,7 @@ class ED25519Certificate(SSHCertificate):
             cert_bytes (bytes): The base64-decoded bytes for the certificate
 
         Returns:
-            ED25519Certificate: The decoded certificate
+            Ed25519Certificate: The decoded certificate
         &#34;&#34;&#34;
         return super().decode(cert_bytes, _FIELD.ED25519PubkeyField)</code></pre>
 </details>
@@ -661,9 +661,9 @@ class ED25519Certificate(SSHCertificate):
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="sshkey_tools.cert.DSACertificate"><code class="flex name class">
-<span>class <span class="ident">DSACertificate</span></span>
-<span>(</span><span>subject_pubkey: <a title="sshkey_tools.keys.DSAPublicKey" href="keys.html#sshkey_tools.keys.DSAPublicKey">DSAPublicKey</a>, ca_privkey: <a title="sshkey_tools.keys.PrivateKey" href="keys.html#sshkey_tools.keys.PrivateKey">PrivateKey</a> = None, **kwargs)</span>
+<dt id="sshkey_tools.cert.DsaCertificate"><code class="flex name class">
+<span>class <span class="ident">DsaCertificate</span></span>
+<span>(</span><span>subject_pubkey: <a title="sshkey_tools.keys.DsaPublicKey" href="keys.html#sshkey_tools.keys.DsaPublicKey">DsaPublicKey</a>, ca_privkey: <a title="sshkey_tools.keys.PrivateKey" href="keys.html#sshkey_tools.keys.PrivateKey">PrivateKey</a> = None, **kwargs)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Specific class for DSA/DSS Certificates. Inherits from SSHCertificate</p></div>
@@ -671,20 +671,20 @@ class ED25519Certificate(SSHCertificate):
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class DSACertificate(SSHCertificate):
+<pre><code class="python">class DsaCertificate(SSHCertificate):
     &#34;&#34;&#34;
     Specific class for DSA/DSS Certificates. Inherits from SSHCertificate
     &#34;&#34;&#34;
 
     def __init__(
-        self, subject_pubkey: DSAPublicKey, ca_privkey: PrivateKey = None, **kwargs
+        self, subject_pubkey: DsaPublicKey, ca_privkey: PrivateKey = None, **kwargs
     ):
         super().__init__(subject_pubkey, ca_privkey, **kwargs)
         self.set_type(&#34;ssh-dss-cert-v01@openssh.com&#34;)
 
     @classmethod
     # pylint: disable=arguments-differ
-    def decode(cls, cert_bytes: bytes) -&gt; &#34;DSACertificate&#34;:
+    def decode(cls, cert_bytes: bytes) -&gt; &#34;DsaCertificate&#34;:
         &#34;&#34;&#34;
         Decode an existing DSA Certificate
 
@@ -692,7 +692,7 @@ class ED25519Certificate(SSHCertificate):
             cert_bytes (bytes): The base64-decoded bytes for the certificate
 
         Returns:
-            DSACertificate: The decoded certificate
+            DsaCertificate: The decoded certificate
         &#34;&#34;&#34;
         return super().decode(cert_bytes, _FIELD.DSAPubkeyField)</code></pre>
 </details>
@@ -702,8 +702,8 @@ class ED25519Certificate(SSHCertificate):
 </ul>
 <h3>Static methods</h3>
 <dl>
-<dt id="sshkey_tools.cert.DSACertificate.decode"><code class="name flex">
-<span>def <span class="ident">decode</span></span>(<span>cert_bytes: bytes) ‑> <a title="sshkey_tools.cert.DSACertificate" href="#sshkey_tools.cert.DSACertificate">DSACertificate</a></span>
+<dt id="sshkey_tools.cert.DsaCertificate.decode"><code class="name flex">
+<span>def <span class="ident">decode</span></span>(<span>cert_bytes: bytes) ‑> <a title="sshkey_tools.cert.DsaCertificate" href="#sshkey_tools.cert.DsaCertificate">DsaCertificate</a></span>
 </code></dt>
 <dd>
 <div class="desc"><p>Decode an existing DSA Certificate</p>
@@ -714,7 +714,7 @@ class ED25519Certificate(SSHCertificate):
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code><a title="sshkey_tools.cert.DSACertificate" href="#sshkey_tools.cert.DSACertificate">DSACertificate</a></code></dt>
+<dt><code><a title="sshkey_tools.cert.DsaCertificate" href="#sshkey_tools.cert.DsaCertificate">DsaCertificate</a></code></dt>
 <dd>The decoded certificate</dd>
 </dl></div>
 <details class="source">
@@ -723,7 +723,7 @@ class ED25519Certificate(SSHCertificate):
 </summary>
 <pre><code class="python">@classmethod
 # pylint: disable=arguments-differ
-def decode(cls, cert_bytes: bytes) -&gt; &#34;DSACertificate&#34;:
+def decode(cls, cert_bytes: bytes) -&gt; &#34;DsaCertificate&#34;:
     &#34;&#34;&#34;
     Decode an existing DSA Certificate
 
@@ -731,7 +731,7 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;DSACertificate&#34;:
         cert_bytes (bytes): The base64-decoded bytes for the certificate
 
     Returns:
-        DSACertificate: The decoded certificate
+        DsaCertificate: The decoded certificate
     &#34;&#34;&#34;
     return super().decode(cert_bytes, _FIELD.DSAPubkeyField)</code></pre>
 </details>
@@ -760,9 +760,9 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;DSACertificate&#34;:
 </li>
 </ul>
 </dd>
-<dt id="sshkey_tools.cert.ECDSACertificate"><code class="flex name class">
-<span>class <span class="ident">ECDSACertificate</span></span>
-<span>(</span><span>subject_pubkey: <a title="sshkey_tools.keys.ECDSAPublicKey" href="keys.html#sshkey_tools.keys.ECDSAPublicKey">ECDSAPublicKey</a>, ca_privkey: <a title="sshkey_tools.keys.PrivateKey" href="keys.html#sshkey_tools.keys.PrivateKey">PrivateKey</a> = None, **kwargs)</span>
+<dt id="sshkey_tools.cert.EcdsaCertificate"><code class="flex name class">
+<span>class <span class="ident">EcdsaCertificate</span></span>
+<span>(</span><span>subject_pubkey: <a title="sshkey_tools.keys.EcdsaPublicKey" href="keys.html#sshkey_tools.keys.EcdsaPublicKey">EcdsaPublicKey</a>, ca_privkey: <a title="sshkey_tools.keys.PrivateKey" href="keys.html#sshkey_tools.keys.PrivateKey">PrivateKey</a> = None, **kwargs)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Specific class for ECDSA Certificates. Inherits from SSHCertificate</p></div>
@@ -770,13 +770,13 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;DSACertificate&#34;:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class ECDSACertificate(SSHCertificate):
+<pre><code class="python">class EcdsaCertificate(SSHCertificate):
     &#34;&#34;&#34;
     Specific class for ECDSA Certificates. Inherits from SSHCertificate
     &#34;&#34;&#34;
 
     def __init__(
-        self, subject_pubkey: ECDSAPublicKey, ca_privkey: PrivateKey = None, **kwargs
+        self, subject_pubkey: EcdsaPublicKey, ca_privkey: PrivateKey = None, **kwargs
     ):
         super().__init__(subject_pubkey, ca_privkey, **kwargs)
         self.set_type(
@@ -785,7 +785,7 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;DSACertificate&#34;:
 
     @classmethod
     # pylint: disable=arguments-differ
-    def decode(cls, cert_bytes: bytes) -&gt; &#34;ECDSACertificate&#34;:
+    def decode(cls, cert_bytes: bytes) -&gt; &#34;EcdsaCertificate&#34;:
         &#34;&#34;&#34;
         Decode an existing ECDSA Certificate
 
@@ -793,7 +793,7 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;DSACertificate&#34;:
             cert_bytes (bytes): The base64-decoded bytes for the certificate
 
         Returns:
-            ECDSACertificate: The decoded certificate
+            EcdsaCertificate: The decoded certificate
         &#34;&#34;&#34;
         return super().decode(cert_bytes, _FIELD.ECDSAPubkeyField)</code></pre>
 </details>
@@ -803,8 +803,8 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;DSACertificate&#34;:
 </ul>
 <h3>Static methods</h3>
 <dl>
-<dt id="sshkey_tools.cert.ECDSACertificate.decode"><code class="name flex">
-<span>def <span class="ident">decode</span></span>(<span>cert_bytes: bytes) ‑> <a title="sshkey_tools.cert.ECDSACertificate" href="#sshkey_tools.cert.ECDSACertificate">ECDSACertificate</a></span>
+<dt id="sshkey_tools.cert.EcdsaCertificate.decode"><code class="name flex">
+<span>def <span class="ident">decode</span></span>(<span>cert_bytes: bytes) ‑> <a title="sshkey_tools.cert.EcdsaCertificate" href="#sshkey_tools.cert.EcdsaCertificate">EcdsaCertificate</a></span>
 </code></dt>
 <dd>
 <div class="desc"><p>Decode an existing ECDSA Certificate</p>
@@ -815,7 +815,7 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;DSACertificate&#34;:
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code><a title="sshkey_tools.cert.ECDSACertificate" href="#sshkey_tools.cert.ECDSACertificate">ECDSACertificate</a></code></dt>
+<dt><code><a title="sshkey_tools.cert.EcdsaCertificate" href="#sshkey_tools.cert.EcdsaCertificate">EcdsaCertificate</a></code></dt>
 <dd>The decoded certificate</dd>
 </dl></div>
 <details class="source">
@@ -824,7 +824,7 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;DSACertificate&#34;:
 </summary>
 <pre><code class="python">@classmethod
 # pylint: disable=arguments-differ
-def decode(cls, cert_bytes: bytes) -&gt; &#34;ECDSACertificate&#34;:
+def decode(cls, cert_bytes: bytes) -&gt; &#34;EcdsaCertificate&#34;:
     &#34;&#34;&#34;
     Decode an existing ECDSA Certificate
 
@@ -832,7 +832,7 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;ECDSACertificate&#34;:
         cert_bytes (bytes): The base64-decoded bytes for the certificate
 
     Returns:
-        ECDSACertificate: The decoded certificate
+        EcdsaCertificate: The decoded certificate
     &#34;&#34;&#34;
     return super().decode(cert_bytes, _FIELD.ECDSAPubkeyField)</code></pre>
 </details>
@@ -861,9 +861,9 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;ECDSACertificate&#34;:
 </li>
 </ul>
 </dd>
-<dt id="sshkey_tools.cert.ED25519Certificate"><code class="flex name class">
-<span>class <span class="ident">ED25519Certificate</span></span>
-<span>(</span><span>subject_pubkey: <a title="sshkey_tools.keys.ED25519PublicKey" href="keys.html#sshkey_tools.keys.ED25519PublicKey">ED25519PublicKey</a>, ca_privkey: <a title="sshkey_tools.keys.PrivateKey" href="keys.html#sshkey_tools.keys.PrivateKey">PrivateKey</a> = None, **kwargs)</span>
+<dt id="sshkey_tools.cert.Ed25519Certificate"><code class="flex name class">
+<span>class <span class="ident">Ed25519Certificate</span></span>
+<span>(</span><span>subject_pubkey: <a title="sshkey_tools.keys.Ed25519PublicKey" href="keys.html#sshkey_tools.keys.Ed25519PublicKey">Ed25519PublicKey</a>, ca_privkey: <a title="sshkey_tools.keys.PrivateKey" href="keys.html#sshkey_tools.keys.PrivateKey">PrivateKey</a> = None, **kwargs)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Specific class for ED25519 Certificates. Inherits from SSHCertificate</p></div>
@@ -871,20 +871,20 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;ECDSACertificate&#34;:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class ED25519Certificate(SSHCertificate):
+<pre><code class="python">class Ed25519Certificate(SSHCertificate):
     &#34;&#34;&#34;
     Specific class for ED25519 Certificates. Inherits from SSHCertificate
     &#34;&#34;&#34;
 
     def __init__(
-        self, subject_pubkey: ED25519PublicKey, ca_privkey: PrivateKey = None, **kwargs
+        self, subject_pubkey: Ed25519PublicKey, ca_privkey: PrivateKey = None, **kwargs
     ):
         super().__init__(subject_pubkey, ca_privkey, **kwargs)
         self.set_type(&#34;ssh-ed25519-cert-v01@openssh.com&#34;)
 
     @classmethod
     # pylint: disable=arguments-differ
-    def decode(cls, cert_bytes: bytes) -&gt; &#34;ED25519Certificate&#34;:
+    def decode(cls, cert_bytes: bytes) -&gt; &#34;Ed25519Certificate&#34;:
         &#34;&#34;&#34;
         Decode an existing ED25519 Certificate
 
@@ -892,7 +892,7 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;ECDSACertificate&#34;:
             cert_bytes (bytes): The base64-decoded bytes for the certificate
 
         Returns:
-            ED25519Certificate: The decoded certificate
+            Ed25519Certificate: The decoded certificate
         &#34;&#34;&#34;
         return super().decode(cert_bytes, _FIELD.ED25519PubkeyField)</code></pre>
 </details>
@@ -902,8 +902,8 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;ECDSACertificate&#34;:
 </ul>
 <h3>Static methods</h3>
 <dl>
-<dt id="sshkey_tools.cert.ED25519Certificate.decode"><code class="name flex">
-<span>def <span class="ident">decode</span></span>(<span>cert_bytes: bytes) ‑> <a title="sshkey_tools.cert.ED25519Certificate" href="#sshkey_tools.cert.ED25519Certificate">ED25519Certificate</a></span>
+<dt id="sshkey_tools.cert.Ed25519Certificate.decode"><code class="name flex">
+<span>def <span class="ident">decode</span></span>(<span>cert_bytes: bytes) ‑> <a title="sshkey_tools.cert.Ed25519Certificate" href="#sshkey_tools.cert.Ed25519Certificate">Ed25519Certificate</a></span>
 </code></dt>
 <dd>
 <div class="desc"><p>Decode an existing ED25519 Certificate</p>
@@ -914,7 +914,7 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;ECDSACertificate&#34;:
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code><a title="sshkey_tools.cert.ED25519Certificate" href="#sshkey_tools.cert.ED25519Certificate">ED25519Certificate</a></code></dt>
+<dt><code><a title="sshkey_tools.cert.Ed25519Certificate" href="#sshkey_tools.cert.Ed25519Certificate">Ed25519Certificate</a></code></dt>
 <dd>The decoded certificate</dd>
 </dl></div>
 <details class="source">
@@ -923,7 +923,7 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;ECDSACertificate&#34;:
 </summary>
 <pre><code class="python">@classmethod
 # pylint: disable=arguments-differ
-def decode(cls, cert_bytes: bytes) -&gt; &#34;ED25519Certificate&#34;:
+def decode(cls, cert_bytes: bytes) -&gt; &#34;Ed25519Certificate&#34;:
     &#34;&#34;&#34;
     Decode an existing ED25519 Certificate
 
@@ -931,7 +931,7 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;ED25519Certificate&#34;:
         cert_bytes (bytes): The base64-decoded bytes for the certificate
 
     Returns:
-        ED25519Certificate: The decoded certificate
+        Ed25519Certificate: The decoded certificate
     &#34;&#34;&#34;
     return super().decode(cert_bytes, _FIELD.ED25519PubkeyField)</code></pre>
 </details>
@@ -960,9 +960,9 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;ED25519Certificate&#34;:
 </li>
 </ul>
 </dd>
-<dt id="sshkey_tools.cert.RSACertificate"><code class="flex name class">
-<span>class <span class="ident">RSACertificate</span></span>
-<span>(</span><span>subject_pubkey: <a title="sshkey_tools.keys.RSAPublicKey" href="keys.html#sshkey_tools.keys.RSAPublicKey">RSAPublicKey</a>, ca_privkey: <a title="sshkey_tools.keys.PrivateKey" href="keys.html#sshkey_tools.keys.PrivateKey">PrivateKey</a> = None, rsa_alg: <a title="sshkey_tools.keys.RsaAlgs" href="keys.html#sshkey_tools.keys.RsaAlgs">RsaAlgs</a> = RsaAlgs.SHA512, **kwargs)</span>
+<dt id="sshkey_tools.cert.RsaCertificate"><code class="flex name class">
+<span>class <span class="ident">RsaCertificate</span></span>
+<span>(</span><span>subject_pubkey: <a title="sshkey_tools.keys.RsaPublicKey" href="keys.html#sshkey_tools.keys.RsaPublicKey">RsaPublicKey</a>, ca_privkey: <a title="sshkey_tools.keys.PrivateKey" href="keys.html#sshkey_tools.keys.PrivateKey">PrivateKey</a> = None, rsa_alg: <a title="sshkey_tools.keys.RsaAlgs" href="keys.html#sshkey_tools.keys.RsaAlgs">RsaAlgs</a> = RsaAlgs.SHA512, **kwargs)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Specific class for RSA Certificates. Inherits from SSHCertificate</p></div>
@@ -970,14 +970,14 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;ED25519Certificate&#34;:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class RSACertificate(SSHCertificate):
+<pre><code class="python">class RsaCertificate(SSHCertificate):
     &#34;&#34;&#34;
     Specific class for RSA Certificates. Inherits from SSHCertificate
     &#34;&#34;&#34;
 
     def __init__(
         self,
-        subject_pubkey: RSAPublicKey,
+        subject_pubkey: RsaPublicKey,
         ca_privkey: PrivateKey = None,
         rsa_alg: RsaAlgs = RsaAlgs.SHA512,
         **kwargs,
@@ -997,7 +997,7 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;ED25519Certificate&#34;:
             cert_bytes (bytes): The base64-decoded bytes for the certificate
 
         Returns:
-            RSACertificate: The decoded certificate
+            RsaCertificate: The decoded certificate
         &#34;&#34;&#34;
         return super().decode(cert_bytes, _FIELD.RSAPubkeyField)</code></pre>
 </details>
@@ -1007,7 +1007,7 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;ED25519Certificate&#34;:
 </ul>
 <h3>Static methods</h3>
 <dl>
-<dt id="sshkey_tools.cert.RSACertificate.decode"><code class="name flex">
+<dt id="sshkey_tools.cert.RsaCertificate.decode"><code class="name flex">
 <span>def <span class="ident">decode</span></span>(<span>cert_bytes: bytes) ‑> <a title="sshkey_tools.cert.SSHCertificate" href="#sshkey_tools.cert.SSHCertificate">SSHCertificate</a></span>
 </code></dt>
 <dd>
@@ -1019,7 +1019,7 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;ED25519Certificate&#34;:
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code><a title="sshkey_tools.cert.RSACertificate" href="#sshkey_tools.cert.RSACertificate">RSACertificate</a></code></dt>
+<dt><code><a title="sshkey_tools.cert.RsaCertificate" href="#sshkey_tools.cert.RsaCertificate">RsaCertificate</a></code></dt>
 <dd>The decoded certificate</dd>
 </dl></div>
 <details class="source">
@@ -1036,7 +1036,7 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;SSHCertificate&#34;:
         cert_bytes (bytes): The base64-decoded bytes for the certificate
 
     Returns:
-        RSACertificate: The decoded certificate
+        RsaCertificate: The decoded certificate
     &#34;&#34;&#34;
     return super().decode(cert_bytes, _FIELD.RSAPubkeyField)</code></pre>
 </details>
@@ -1516,10 +1516,10 @@ or the from_public_key classmethod</p></div>
 </details>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="sshkey_tools.cert.DSACertificate" href="#sshkey_tools.cert.DSACertificate">DSACertificate</a></li>
-<li><a title="sshkey_tools.cert.ECDSACertificate" href="#sshkey_tools.cert.ECDSACertificate">ECDSACertificate</a></li>
-<li><a title="sshkey_tools.cert.ED25519Certificate" href="#sshkey_tools.cert.ED25519Certificate">ED25519Certificate</a></li>
-<li><a title="sshkey_tools.cert.RSACertificate" href="#sshkey_tools.cert.RSACertificate">RSACertificate</a></li>
+<li><a title="sshkey_tools.cert.DsaCertificate" href="#sshkey_tools.cert.DsaCertificate">DsaCertificate</a></li>
+<li><a title="sshkey_tools.cert.EcdsaCertificate" href="#sshkey_tools.cert.EcdsaCertificate">EcdsaCertificate</a></li>
+<li><a title="sshkey_tools.cert.Ed25519Certificate" href="#sshkey_tools.cert.Ed25519Certificate">Ed25519Certificate</a></li>
+<li><a title="sshkey_tools.cert.RsaCertificate" href="#sshkey_tools.cert.RsaCertificate">RsaCertificate</a></li>
 </ul>
 <h3>Static methods</h3>
 <dl>
@@ -2190,27 +2190,27 @@ verificiation.</p>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="sshkey_tools.cert.DSACertificate" href="#sshkey_tools.cert.DSACertificate">DSACertificate</a></code></h4>
+<h4><code><a title="sshkey_tools.cert.DsaCertificate" href="#sshkey_tools.cert.DsaCertificate">DsaCertificate</a></code></h4>
 <ul class="">
-<li><code><a title="sshkey_tools.cert.DSACertificate.decode" href="#sshkey_tools.cert.DSACertificate.decode">decode</a></code></li>
+<li><code><a title="sshkey_tools.cert.DsaCertificate.decode" href="#sshkey_tools.cert.DsaCertificate.decode">decode</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="sshkey_tools.cert.ECDSACertificate" href="#sshkey_tools.cert.ECDSACertificate">ECDSACertificate</a></code></h4>
+<h4><code><a title="sshkey_tools.cert.EcdsaCertificate" href="#sshkey_tools.cert.EcdsaCertificate">EcdsaCertificate</a></code></h4>
 <ul class="">
-<li><code><a title="sshkey_tools.cert.ECDSACertificate.decode" href="#sshkey_tools.cert.ECDSACertificate.decode">decode</a></code></li>
+<li><code><a title="sshkey_tools.cert.EcdsaCertificate.decode" href="#sshkey_tools.cert.EcdsaCertificate.decode">decode</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="sshkey_tools.cert.ED25519Certificate" href="#sshkey_tools.cert.ED25519Certificate">ED25519Certificate</a></code></h4>
+<h4><code><a title="sshkey_tools.cert.Ed25519Certificate" href="#sshkey_tools.cert.Ed25519Certificate">Ed25519Certificate</a></code></h4>
 <ul class="">
-<li><code><a title="sshkey_tools.cert.ED25519Certificate.decode" href="#sshkey_tools.cert.ED25519Certificate.decode">decode</a></code></li>
+<li><code><a title="sshkey_tools.cert.Ed25519Certificate.decode" href="#sshkey_tools.cert.Ed25519Certificate.decode">decode</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="sshkey_tools.cert.RSACertificate" href="#sshkey_tools.cert.RSACertificate">RSACertificate</a></code></h4>
+<h4><code><a title="sshkey_tools.cert.RsaCertificate" href="#sshkey_tools.cert.RsaCertificate">RsaCertificate</a></code></h4>
 <ul class="">
-<li><code><a title="sshkey_tools.cert.RSACertificate.decode" href="#sshkey_tools.cert.RSACertificate.decode">decode</a></code></li>
+<li><code><a title="sshkey_tools.cert.RsaCertificate.decode" href="#sshkey_tools.cert.RsaCertificate.decode">decode</a></code></li>
 </ul>
 </li>
 <li>

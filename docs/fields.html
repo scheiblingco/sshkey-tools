@@ -45,14 +45,14 @@ from .keys import (
     RsaAlgs,
     PrivateKey,
     PublicKey,
-    RSAPublicKey,
-    RSAPrivateKey,
-    DSAPublicKey,
-    DSAPrivateKey,
-    ECDSAPublicKey,
-    ECDSAPrivateKey,
-    ED25519PublicKey,
-    ED25519PrivateKey,
+    RsaPublicKey,
+    RsaPrivateKey,
+    DsaPublicKey,
+    DsaPrivateKey,
+    EcdsaPublicKey,
+    EcdsaPrivateKey,
+    Ed25519PublicKey,
+    Ed25519PrivateKey,
 )
 
 from .utils import long_to_bytes, bytes_to_long, generate_secure_nonce
@@ -68,17 +68,17 @@ ECDSA_CURVE_MAP = {
 }
 
 SUBJECT_PUBKEY_MAP = {
-    RSAPublicKey: &#34;RSAPubkeyField&#34;,
-    DSAPublicKey: &#34;DSAPubkeyField&#34;,
-    ECDSAPublicKey: &#34;ECDSAPubkeyField&#34;,
-    ED25519PublicKey: &#34;ED25519PubkeyField&#34;,
+    RsaPublicKey: &#34;RSAPubkeyField&#34;,
+    DsaPublicKey: &#34;DSAPubkeyField&#34;,
+    EcdsaPublicKey: &#34;ECDSAPubkeyField&#34;,
+    Ed25519PublicKey: &#34;ED25519PubkeyField&#34;,
 }
 
 CA_SIGNATURE_MAP = {
-    RSAPrivateKey: &#34;RSASignatureField&#34;,
-    DSAPrivateKey: &#34;DSASignatureField&#34;,
-    ECDSAPrivateKey: &#34;ECDSASignatureField&#34;,
-    ED25519PrivateKey: &#34;ED25519SignatureField&#34;,
+    RsaPrivateKey: &#34;RSASignatureField&#34;,
+    DsaPrivateKey: &#34;DSASignatureField&#34;,
+    EcdsaPrivateKey: &#34;ECDSASignatureField&#34;,
+    Ed25519PrivateKey: &#34;ED25519SignatureField&#34;,
 }
 
 SIGNATURE_TYPE_MAP = {
@@ -746,7 +746,7 @@ class PublicKeyField(CertificateField):
         Encode the certificate field to a byte string
 
         Args:
-            value (RSAPublicKey): The public key to encode
+            value (RsaPublicKey): The public key to encode
 
         Returns:
             bytes: A byte string with the encoded public key
@@ -787,7 +787,7 @@ class RSAPubkeyField(PublicKeyField):
     &#34;&#34;&#34;
 
     @staticmethod
-    def decode(data: bytes) -&gt; Tuple[RSAPublicKey, bytes]:
+    def decode(data: bytes) -&gt; Tuple[RsaPublicKey, bytes]:
         &#34;&#34;&#34;
         Decode the certificate field from a byte string
         starting with the encoded public key
@@ -796,18 +796,18 @@ class RSAPubkeyField(PublicKeyField):
             data (bytes): The byte string starting with the encoded key
 
         Returns:
-            Tuple[RSAPublicKey, bytes]: The PublicKey field and remainder of the data
+            Tuple[RsaPublicKey, bytes]: The PublicKey field and remainder of the data
         &#34;&#34;&#34;
         e, data = MpIntegerField.decode(data)
         n, data = MpIntegerField.decode(data)
 
-        return RSAPublicKey.from_numbers(e=e, n=n), data
+        return RsaPublicKey.from_numbers(e=e, n=n), data
 
     def validate(self) -&gt; Union[bool, Exception]:
         &#34;&#34;&#34;
         Validates that the field data is a valid RSA Public Key
         &#34;&#34;&#34;
-        if not isinstance(self.value, RSAPublicKey):
+        if not isinstance(self.value, RsaPublicKey):
             return _EX.InvalidFieldDataException(
                 &#34;This public key class is not valid for use in a certificate&#34;
             )
@@ -821,7 +821,7 @@ class DSAPubkeyField(PublicKeyField):
     &#34;&#34;&#34;
 
     @staticmethod
-    def decode(data: bytes) -&gt; Tuple[DSAPublicKey, bytes]:
+    def decode(data: bytes) -&gt; Tuple[DsaPublicKey, bytes]:
         &#34;&#34;&#34;
         Decode the certificate field from a byte string
         starting with the encoded public key
@@ -830,20 +830,20 @@ class DSAPubkeyField(PublicKeyField):
             data (bytes): The byte string starting with the encoded key
 
         Returns:
-            Tuple[RSAPublicKey, bytes]: The PublicKey field and remainder of the data
+            Tuple[RsaPublicKey, bytes]: The PublicKey field and remainder of the data
         &#34;&#34;&#34;
         p, data = MpIntegerField.decode(data)
         q, data = MpIntegerField.decode(data)
         g, data = MpIntegerField.decode(data)
         y, data = MpIntegerField.decode(data)
 
-        return DSAPublicKey.from_numbers(p=p, q=q, g=g, y=y), data
+        return DsaPublicKey.from_numbers(p=p, q=q, g=g, y=y), data
 
     def validate(self) -&gt; Union[bool, Exception]:
         &#34;&#34;&#34;
         Validates that the field data is a valid DSA Public Key
         &#34;&#34;&#34;
-        if not isinstance(self.value, DSAPublicKey):
+        if not isinstance(self.value, DsaPublicKey):
             return _EX.InvalidFieldDataException(
                 &#34;This public key class is not valid for use in a certificate&#34;
             )
@@ -857,7 +857,7 @@ class ECDSAPubkeyField(PublicKeyField):
     &#34;&#34;&#34;
 
     @staticmethod
-    def decode(data: bytes) -&gt; Tuple[ECDSAPublicKey, bytes]:
+    def decode(data: bytes) -&gt; Tuple[EcdsaPublicKey, bytes]:
         &#34;&#34;&#34;
         Decode the certificate field from a byte string
         starting with the encoded public key
@@ -874,7 +874,7 @@ class ECDSAPubkeyField(PublicKeyField):
         key_type = &#34;ecdsa-sha2-&#34; + curve
 
         return (
-            ECDSAPublicKey.from_string(
+            EcdsaPublicKey.from_string(
                 key_type
                 + &#34; &#34;
                 + b64encode(
@@ -890,7 +890,7 @@ class ECDSAPubkeyField(PublicKeyField):
         &#34;&#34;&#34;
         Validates that the field data is a valid ECDSA Public Key
         &#34;&#34;&#34;
-        if not isinstance(self.value, ECDSAPublicKey):
+        if not isinstance(self.value, EcdsaPublicKey):
             return _EX.InvalidFieldDataException(
                 &#34;This public key class is not valid for use in a certificate&#34;
             )
@@ -904,7 +904,7 @@ class ED25519PubkeyField(PublicKeyField):
     &#34;&#34;&#34;
 
     @staticmethod
-    def decode(data: bytes) -&gt; Tuple[ED25519PublicKey, bytes]:
+    def decode(data: bytes) -&gt; Tuple[Ed25519PublicKey, bytes]:
         &#34;&#34;&#34;
         Decode the certificate field from a byte string
         starting with the encoded public key
@@ -913,17 +913,17 @@ class ED25519PubkeyField(PublicKeyField):
             data (bytes): The byte string starting with the encoded key
 
         Returns:
-            Tuple[ED25519PublicKey, bytes]: The PublicKey field and remainder of the data
+            Tuple[Ed25519PublicKey, bytes]: The PublicKey field and remainder of the data
         &#34;&#34;&#34;
         pubkey, data = BytestringField.decode(data)
 
-        return ED25519PublicKey.from_raw_bytes(pubkey), data
+        return Ed25519PublicKey.from_raw_bytes(pubkey), data
 
     def validate(self) -&gt; Union[bool, Exception]:
         &#34;&#34;&#34;
         Validates that the field data is a valid ED25519 Public Key
         &#34;&#34;&#34;
-        if not isinstance(self.value, ED25519PublicKey):
+        if not isinstance(self.value, Ed25519PublicKey):
             return _EX.InvalidFieldDataException(
                 &#34;This public key class is not valid for use in a certificate&#34;
             )
@@ -1304,7 +1304,7 @@ class RSASignatureField(SignatureField):
 
     def __init__(
         self,
-        private_key: RSAPrivateKey = None,
+        private_key: RsaPrivateKey = None,
         hash_alg: RsaAlgs = RsaAlgs.SHA512,
         signature: bytes = None,
     ):
@@ -1401,7 +1401,7 @@ class DSASignatureField(SignatureField):
     &#34;&#34;&#34;
 
     def __init__(
-        self, private_key: DSAPrivateKey = None, signature: bytes = None
+        self, private_key: DsaPrivateKey = None, signature: bytes = None
     ) -&gt; None:
         super().__init__(private_key, signature)
 
@@ -1483,7 +1483,7 @@ class ECDSASignatureField(SignatureField):
 
     def __init__(
         self,
-        private_key: ECDSAPrivateKey = None,
+        private_key: EcdsaPrivateKey = None,
         signature: bytes = None,
         curve_name: str = None,
     ) -&gt; None:
@@ -1584,7 +1584,7 @@ class ED25519SignatureField(SignatureField):
     &#34;&#34;&#34;
 
     def __init__(
-        self, private_key: ED25519PrivateKey = None, signature: bytes = None
+        self, private_key: Ed25519PrivateKey = None, signature: bytes = None
     ) -&gt; None:
         super().__init__(private_key, signature)
 
@@ -2668,7 +2668,7 @@ if using a hardware token</p></div>
     &#34;&#34;&#34;
 
     @staticmethod
-    def decode(data: bytes) -&gt; Tuple[DSAPublicKey, bytes]:
+    def decode(data: bytes) -&gt; Tuple[DsaPublicKey, bytes]:
         &#34;&#34;&#34;
         Decode the certificate field from a byte string
         starting with the encoded public key
@@ -2677,20 +2677,20 @@ if using a hardware token</p></div>
             data (bytes): The byte string starting with the encoded key
 
         Returns:
-            Tuple[RSAPublicKey, bytes]: The PublicKey field and remainder of the data
+            Tuple[RsaPublicKey, bytes]: The PublicKey field and remainder of the data
         &#34;&#34;&#34;
         p, data = MpIntegerField.decode(data)
         q, data = MpIntegerField.decode(data)
         g, data = MpIntegerField.decode(data)
         y, data = MpIntegerField.decode(data)
 
-        return DSAPublicKey.from_numbers(p=p, q=q, g=g, y=y), data
+        return DsaPublicKey.from_numbers(p=p, q=q, g=g, y=y), data
 
     def validate(self) -&gt; Union[bool, Exception]:
         &#34;&#34;&#34;
         Validates that the field data is a valid DSA Public Key
         &#34;&#34;&#34;
-        if not isinstance(self.value, DSAPublicKey):
+        if not isinstance(self.value, DsaPublicKey):
             return _EX.InvalidFieldDataException(
                 &#34;This public key class is not valid for use in a certificate&#34;
             )
@@ -2705,7 +2705,7 @@ if using a hardware token</p></div>
 <h3>Static methods</h3>
 <dl>
 <dt id="sshkey_tools.fields.DSAPubkeyField.decode"><code class="name flex">
-<span>def <span class="ident">decode</span></span>(<span>data: bytes) ‑> Tuple[<a title="sshkey_tools.keys.DSAPublicKey" href="keys.html#sshkey_tools.keys.DSAPublicKey">DSAPublicKey</a>, bytes]</span>
+<span>def <span class="ident">decode</span></span>(<span>data: bytes) ‑> Tuple[<a title="sshkey_tools.keys.DsaPublicKey" href="keys.html#sshkey_tools.keys.DsaPublicKey">DsaPublicKey</a>, bytes]</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Decode the certificate field from a byte string
@@ -2717,7 +2717,7 @@ starting with the encoded public key</p>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code>Tuple[RSAPublicKey, bytes]</code></dt>
+<dt><code>Tuple[RsaPublicKey, bytes]</code></dt>
 <dd>The PublicKey field and remainder of the data</dd>
 </dl></div>
 <details class="source">
@@ -2725,7 +2725,7 @@ starting with the encoded public key</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@staticmethod
-def decode(data: bytes) -&gt; Tuple[DSAPublicKey, bytes]:
+def decode(data: bytes) -&gt; Tuple[DsaPublicKey, bytes]:
     &#34;&#34;&#34;
     Decode the certificate field from a byte string
     starting with the encoded public key
@@ -2734,14 +2734,14 @@ def decode(data: bytes) -&gt; Tuple[DSAPublicKey, bytes]:
         data (bytes): The byte string starting with the encoded key
 
     Returns:
-        Tuple[RSAPublicKey, bytes]: The PublicKey field and remainder of the data
+        Tuple[RsaPublicKey, bytes]: The PublicKey field and remainder of the data
     &#34;&#34;&#34;
     p, data = MpIntegerField.decode(data)
     q, data = MpIntegerField.decode(data)
     g, data = MpIntegerField.decode(data)
     y, data = MpIntegerField.decode(data)
 
-    return DSAPublicKey.from_numbers(p=p, q=q, g=g, y=y), data</code></pre>
+    return DsaPublicKey.from_numbers(p=p, q=q, g=g, y=y), data</code></pre>
 </details>
 </dd>
 </dl>
@@ -2760,7 +2760,7 @@ def decode(data: bytes) -&gt; Tuple[DSAPublicKey, bytes]:
     &#34;&#34;&#34;
     Validates that the field data is a valid DSA Public Key
     &#34;&#34;&#34;
-    if not isinstance(self.value, DSAPublicKey):
+    if not isinstance(self.value, DsaPublicKey):
         return _EX.InvalidFieldDataException(
             &#34;This public key class is not valid for use in a certificate&#34;
         )
@@ -2782,7 +2782,7 @@ def decode(data: bytes) -&gt; Tuple[DSAPublicKey, bytes]:
 </dd>
 <dt id="sshkey_tools.fields.DSASignatureField"><code class="flex name class">
 <span>class <span class="ident">DSASignatureField</span></span>
-<span>(</span><span>private_key: <a title="sshkey_tools.keys.DSAPrivateKey" href="keys.html#sshkey_tools.keys.DSAPrivateKey">DSAPrivateKey</a> = None, signature: bytes = None)</span>
+<span>(</span><span>private_key: <a title="sshkey_tools.keys.DsaPrivateKey" href="keys.html#sshkey_tools.keys.DsaPrivateKey">DsaPrivateKey</a> = None, signature: bytes = None)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Creates and contains the DSA signature from an DSA Private Key</p></div>
@@ -2796,7 +2796,7 @@ def decode(data: bytes) -&gt; Tuple[DSAPublicKey, bytes]:
     &#34;&#34;&#34;
 
     def __init__(
-        self, private_key: DSAPrivateKey = None, signature: bytes = None
+        self, private_key: DsaPrivateKey = None, signature: bytes = None
     ) -&gt; None:
         super().__init__(private_key, signature)
 
@@ -3212,7 +3212,7 @@ def encode(value: Union[datetime, int]) -&gt; bytes:
     &#34;&#34;&#34;
 
     @staticmethod
-    def decode(data: bytes) -&gt; Tuple[ECDSAPublicKey, bytes]:
+    def decode(data: bytes) -&gt; Tuple[EcdsaPublicKey, bytes]:
         &#34;&#34;&#34;
         Decode the certificate field from a byte string
         starting with the encoded public key
@@ -3229,7 +3229,7 @@ def encode(value: Union[datetime, int]) -&gt; bytes:
         key_type = &#34;ecdsa-sha2-&#34; + curve
 
         return (
-            ECDSAPublicKey.from_string(
+            EcdsaPublicKey.from_string(
                 key_type
                 + &#34; &#34;
                 + b64encode(
@@ -3245,7 +3245,7 @@ def encode(value: Union[datetime, int]) -&gt; bytes:
         &#34;&#34;&#34;
         Validates that the field data is a valid ECDSA Public Key
         &#34;&#34;&#34;
-        if not isinstance(self.value, ECDSAPublicKey):
+        if not isinstance(self.value, EcdsaPublicKey):
             return _EX.InvalidFieldDataException(
                 &#34;This public key class is not valid for use in a certificate&#34;
             )
@@ -3260,7 +3260,7 @@ def encode(value: Union[datetime, int]) -&gt; bytes:
 <h3>Static methods</h3>
 <dl>
 <dt id="sshkey_tools.fields.ECDSAPubkeyField.decode"><code class="name flex">
-<span>def <span class="ident">decode</span></span>(<span>data: bytes) ‑> Tuple[<a title="sshkey_tools.keys.ECDSAPublicKey" href="keys.html#sshkey_tools.keys.ECDSAPublicKey">ECDSAPublicKey</a>, bytes]</span>
+<span>def <span class="ident">decode</span></span>(<span>data: bytes) ‑> Tuple[<a title="sshkey_tools.keys.EcdsaPublicKey" href="keys.html#sshkey_tools.keys.EcdsaPublicKey">EcdsaPublicKey</a>, bytes]</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Decode the certificate field from a byte string
@@ -3280,7 +3280,7 @@ starting with the encoded public key</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@staticmethod
-def decode(data: bytes) -&gt; Tuple[ECDSAPublicKey, bytes]:
+def decode(data: bytes) -&gt; Tuple[EcdsaPublicKey, bytes]:
     &#34;&#34;&#34;
     Decode the certificate field from a byte string
     starting with the encoded public key
@@ -3297,7 +3297,7 @@ def decode(data: bytes) -&gt; Tuple[ECDSAPublicKey, bytes]:
     key_type = &#34;ecdsa-sha2-&#34; + curve
 
     return (
-        ECDSAPublicKey.from_string(
+        EcdsaPublicKey.from_string(
             key_type
             + &#34; &#34;
             + b64encode(
@@ -3326,7 +3326,7 @@ def decode(data: bytes) -&gt; Tuple[ECDSAPublicKey, bytes]:
     &#34;&#34;&#34;
     Validates that the field data is a valid ECDSA Public Key
     &#34;&#34;&#34;
-    if not isinstance(self.value, ECDSAPublicKey):
+    if not isinstance(self.value, EcdsaPublicKey):
         return _EX.InvalidFieldDataException(
             &#34;This public key class is not valid for use in a certificate&#34;
         )
@@ -3348,7 +3348,7 @@ def decode(data: bytes) -&gt; Tuple[ECDSAPublicKey, bytes]:
 </dd>
 <dt id="sshkey_tools.fields.ECDSASignatureField"><code class="flex name class">
 <span>class <span class="ident">ECDSASignatureField</span></span>
-<span>(</span><span>private_key: <a title="sshkey_tools.keys.ECDSAPrivateKey" href="keys.html#sshkey_tools.keys.ECDSAPrivateKey">ECDSAPrivateKey</a> = None, signature: bytes = None, curve_name: str = None)</span>
+<span>(</span><span>private_key: <a title="sshkey_tools.keys.EcdsaPrivateKey" href="keys.html#sshkey_tools.keys.EcdsaPrivateKey">EcdsaPrivateKey</a> = None, signature: bytes = None, curve_name: str = None)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Creates and contains the ECDSA signature from an ECDSA Private Key</p></div>
@@ -3363,7 +3363,7 @@ def decode(data: bytes) -&gt; Tuple[ECDSAPublicKey, bytes]:
 
     def __init__(
         self,
-        private_key: ECDSAPrivateKey = None,
+        private_key: EcdsaPrivateKey = None,
         signature: bytes = None,
         curve_name: str = None,
     ) -&gt; None:
@@ -3652,7 +3652,7 @@ def from_decode(cls, data: bytes) -&gt; Tuple[&#34;ECDSASignatureField&#34;, byt
     &#34;&#34;&#34;
 
     @staticmethod
-    def decode(data: bytes) -&gt; Tuple[ED25519PublicKey, bytes]:
+    def decode(data: bytes) -&gt; Tuple[Ed25519PublicKey, bytes]:
         &#34;&#34;&#34;
         Decode the certificate field from a byte string
         starting with the encoded public key
@@ -3661,17 +3661,17 @@ def from_decode(cls, data: bytes) -&gt; Tuple[&#34;ECDSASignatureField&#34;, byt
             data (bytes): The byte string starting with the encoded key
 
         Returns:
-            Tuple[ED25519PublicKey, bytes]: The PublicKey field and remainder of the data
+            Tuple[Ed25519PublicKey, bytes]: The PublicKey field and remainder of the data
         &#34;&#34;&#34;
         pubkey, data = BytestringField.decode(data)
 
-        return ED25519PublicKey.from_raw_bytes(pubkey), data
+        return Ed25519PublicKey.from_raw_bytes(pubkey), data
 
     def validate(self) -&gt; Union[bool, Exception]:
         &#34;&#34;&#34;
         Validates that the field data is a valid ED25519 Public Key
         &#34;&#34;&#34;
-        if not isinstance(self.value, ED25519PublicKey):
+        if not isinstance(self.value, Ed25519PublicKey):
             return _EX.InvalidFieldDataException(
                 &#34;This public key class is not valid for use in a certificate&#34;
             )
@@ -3686,7 +3686,7 @@ def from_decode(cls, data: bytes) -&gt; Tuple[&#34;ECDSASignatureField&#34;, byt
 <h3>Static methods</h3>
 <dl>
 <dt id="sshkey_tools.fields.ED25519PubkeyField.decode"><code class="name flex">
-<span>def <span class="ident">decode</span></span>(<span>data: bytes) ‑> Tuple[<a title="sshkey_tools.keys.ED25519PublicKey" href="keys.html#sshkey_tools.keys.ED25519PublicKey">ED25519PublicKey</a>, bytes]</span>
+<span>def <span class="ident">decode</span></span>(<span>data: bytes) ‑> Tuple[<a title="sshkey_tools.keys.Ed25519PublicKey" href="keys.html#sshkey_tools.keys.Ed25519PublicKey">Ed25519PublicKey</a>, bytes]</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Decode the certificate field from a byte string
@@ -3698,7 +3698,7 @@ starting with the encoded public key</p>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code>Tuple[ED25519PublicKey, bytes]</code></dt>
+<dt><code>Tuple[Ed25519PublicKey, bytes]</code></dt>
 <dd>The PublicKey field and remainder of the data</dd>
 </dl></div>
 <details class="source">
@@ -3706,7 +3706,7 @@ starting with the encoded public key</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@staticmethod
-def decode(data: bytes) -&gt; Tuple[ED25519PublicKey, bytes]:
+def decode(data: bytes) -&gt; Tuple[Ed25519PublicKey, bytes]:
     &#34;&#34;&#34;
     Decode the certificate field from a byte string
     starting with the encoded public key
@@ -3715,11 +3715,11 @@ def decode(data: bytes) -&gt; Tuple[ED25519PublicKey, bytes]:
         data (bytes): The byte string starting with the encoded key
 
     Returns:
-        Tuple[ED25519PublicKey, bytes]: The PublicKey field and remainder of the data
+        Tuple[Ed25519PublicKey, bytes]: The PublicKey field and remainder of the data
     &#34;&#34;&#34;
     pubkey, data = BytestringField.decode(data)
 
-    return ED25519PublicKey.from_raw_bytes(pubkey), data</code></pre>
+    return Ed25519PublicKey.from_raw_bytes(pubkey), data</code></pre>
 </details>
 </dd>
 </dl>
@@ -3738,7 +3738,7 @@ def decode(data: bytes) -&gt; Tuple[ED25519PublicKey, bytes]:
     &#34;&#34;&#34;
     Validates that the field data is a valid ED25519 Public Key
     &#34;&#34;&#34;
-    if not isinstance(self.value, ED25519PublicKey):
+    if not isinstance(self.value, Ed25519PublicKey):
         return _EX.InvalidFieldDataException(
             &#34;This public key class is not valid for use in a certificate&#34;
         )
@@ -3760,7 +3760,7 @@ def decode(data: bytes) -&gt; Tuple[ED25519PublicKey, bytes]:
 </dd>
 <dt id="sshkey_tools.fields.ED25519SignatureField"><code class="flex name class">
 <span>class <span class="ident">ED25519SignatureField</span></span>
-<span>(</span><span>private_key: <a title="sshkey_tools.keys.ED25519PrivateKey" href="keys.html#sshkey_tools.keys.ED25519PrivateKey">ED25519PrivateKey</a> = None, signature: bytes = None)</span>
+<span>(</span><span>private_key: <a title="sshkey_tools.keys.Ed25519PrivateKey" href="keys.html#sshkey_tools.keys.Ed25519PrivateKey">Ed25519PrivateKey</a> = None, signature: bytes = None)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Creates and contains the ED25519 signature from an ED25519 Private Key</p></div>
@@ -3774,7 +3774,7 @@ def decode(data: bytes) -&gt; Tuple[ED25519PublicKey, bytes]:
     &#34;&#34;&#34;
 
     def __init__(
-        self, private_key: ED25519PrivateKey = None, signature: bytes = None
+        self, private_key: Ed25519PrivateKey = None, signature: bytes = None
     ) -&gt; None:
         super().__init__(private_key, signature)
 
@@ -5389,7 +5389,7 @@ the certificate is created.</p></div>
         Encode the certificate field to a byte string
 
         Args:
-            value (RSAPublicKey): The public key to encode
+            value (RsaPublicKey): The public key to encode
 
         Returns:
             bytes: A byte string with the encoded public key
@@ -5443,7 +5443,7 @@ the certificate is created.</p></div>
 <div class="desc"><p>Encode the certificate field to a byte string</p>
 <h2 id="args">Args</h2>
 <dl>
-<dt><strong><code>value</code></strong> :&ensp;<code>RSAPublicKey</code></dt>
+<dt><strong><code>value</code></strong> :&ensp;<code>RsaPublicKey</code></dt>
 <dd>The public key to encode</dd>
 </dl>
 <h2 id="returns">Returns</h2>
@@ -5461,7 +5461,7 @@ def encode(value: PublicKey) -&gt; bytes:
     Encode the certificate field to a byte string
 
     Args:
-        value (RSAPublicKey): The public key to encode
+        value (RsaPublicKey): The public key to encode
 
     Returns:
         bytes: A byte string with the encoded public key
@@ -5552,7 +5552,7 @@ def from_object(public_key: PublicKey):
     &#34;&#34;&#34;
 
     @staticmethod
-    def decode(data: bytes) -&gt; Tuple[RSAPublicKey, bytes]:
+    def decode(data: bytes) -&gt; Tuple[RsaPublicKey, bytes]:
         &#34;&#34;&#34;
         Decode the certificate field from a byte string
         starting with the encoded public key
@@ -5561,18 +5561,18 @@ def from_object(public_key: PublicKey):
             data (bytes): The byte string starting with the encoded key
 
         Returns:
-            Tuple[RSAPublicKey, bytes]: The PublicKey field and remainder of the data
+            Tuple[RsaPublicKey, bytes]: The PublicKey field and remainder of the data
         &#34;&#34;&#34;
         e, data = MpIntegerField.decode(data)
         n, data = MpIntegerField.decode(data)
 
-        return RSAPublicKey.from_numbers(e=e, n=n), data
+        return RsaPublicKey.from_numbers(e=e, n=n), data
 
     def validate(self) -&gt; Union[bool, Exception]:
         &#34;&#34;&#34;
         Validates that the field data is a valid RSA Public Key
         &#34;&#34;&#34;
-        if not isinstance(self.value, RSAPublicKey):
+        if not isinstance(self.value, RsaPublicKey):
             return _EX.InvalidFieldDataException(
                 &#34;This public key class is not valid for use in a certificate&#34;
             )
@@ -5587,7 +5587,7 @@ def from_object(public_key: PublicKey):
 <h3>Static methods</h3>
 <dl>
 <dt id="sshkey_tools.fields.RSAPubkeyField.decode"><code class="name flex">
-<span>def <span class="ident">decode</span></span>(<span>data: bytes) ‑> Tuple[<a title="sshkey_tools.keys.RSAPublicKey" href="keys.html#sshkey_tools.keys.RSAPublicKey">RSAPublicKey</a>, bytes]</span>
+<span>def <span class="ident">decode</span></span>(<span>data: bytes) ‑> Tuple[<a title="sshkey_tools.keys.RsaPublicKey" href="keys.html#sshkey_tools.keys.RsaPublicKey">RsaPublicKey</a>, bytes]</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Decode the certificate field from a byte string
@@ -5599,7 +5599,7 @@ starting with the encoded public key</p>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code>Tuple[RSAPublicKey, bytes]</code></dt>
+<dt><code>Tuple[RsaPublicKey, bytes]</code></dt>
 <dd>The PublicKey field and remainder of the data</dd>
 </dl></div>
 <details class="source">
@@ -5607,7 +5607,7 @@ starting with the encoded public key</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@staticmethod
-def decode(data: bytes) -&gt; Tuple[RSAPublicKey, bytes]:
+def decode(data: bytes) -&gt; Tuple[RsaPublicKey, bytes]:
     &#34;&#34;&#34;
     Decode the certificate field from a byte string
     starting with the encoded public key
@@ -5616,12 +5616,12 @@ def decode(data: bytes) -&gt; Tuple[RSAPublicKey, bytes]:
         data (bytes): The byte string starting with the encoded key
 
     Returns:
-        Tuple[RSAPublicKey, bytes]: The PublicKey field and remainder of the data
+        Tuple[RsaPublicKey, bytes]: The PublicKey field and remainder of the data
     &#34;&#34;&#34;
     e, data = MpIntegerField.decode(data)
     n, data = MpIntegerField.decode(data)
 
-    return RSAPublicKey.from_numbers(e=e, n=n), data</code></pre>
+    return RsaPublicKey.from_numbers(e=e, n=n), data</code></pre>
 </details>
 </dd>
 </dl>
@@ -5640,7 +5640,7 @@ def decode(data: bytes) -&gt; Tuple[RSAPublicKey, bytes]:
     &#34;&#34;&#34;
     Validates that the field data is a valid RSA Public Key
     &#34;&#34;&#34;
-    if not isinstance(self.value, RSAPublicKey):
+    if not isinstance(self.value, RsaPublicKey):
         return _EX.InvalidFieldDataException(
             &#34;This public key class is not valid for use in a certificate&#34;
         )
@@ -5662,7 +5662,7 @@ def decode(data: bytes) -&gt; Tuple[RSAPublicKey, bytes]:
 </dd>
 <dt id="sshkey_tools.fields.RSASignatureField"><code class="flex name class">
 <span>class <span class="ident">RSASignatureField</span></span>
-<span>(</span><span>private_key: <a title="sshkey_tools.keys.RSAPrivateKey" href="keys.html#sshkey_tools.keys.RSAPrivateKey">RSAPrivateKey</a> = None, hash_alg: <a title="sshkey_tools.keys.RsaAlgs" href="keys.html#sshkey_tools.keys.RsaAlgs">RsaAlgs</a> = RsaAlgs.SHA512, signature: bytes = None)</span>
+<span>(</span><span>private_key: <a title="sshkey_tools.keys.RsaPrivateKey" href="keys.html#sshkey_tools.keys.RsaPrivateKey">RsaPrivateKey</a> = None, hash_alg: <a title="sshkey_tools.keys.RsaAlgs" href="keys.html#sshkey_tools.keys.RsaAlgs">RsaAlgs</a> = RsaAlgs.SHA512, signature: bytes = None)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Creates and contains the RSA signature from an RSA Private Key</p></div>
@@ -5677,7 +5677,7 @@ def decode(data: bytes) -&gt; Tuple[RSAPublicKey, bytes]:
 
     def __init__(
         self,
-        private_key: RSAPrivateKey = None,
+        private_key: RsaPrivateKey = None,
         hash_alg: RsaAlgs = RsaAlgs.SHA512,
         signature: bytes = None,
     ):

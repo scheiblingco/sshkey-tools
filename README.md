@@ -23,34 +23,34 @@ pip3 install ./
 ### Generate keys
 ```python
 from sshkey_tools.keys import (
-    RSAPrivateKey,
-    DSAPrivateKey,
-    ECDSAPrivateKey,
-    ED25519PrivateKey,
+    RsaPrivateKey,
+    DsaPrivateKey,
+    EcdsaPrivateKey,
+    Ed25519PrivateKey,
     EcdsaCurves
 )
 
 # RSA
 # By default, RSA is generated with a 4096-bit keysize
-rsa_private = RSAPrivateKey.generate()
+rsa_private = RsaPrivateKey.generate()
 
 # You can also specify the key size
-rsa_private = RSAPrivateKey.generate(bits)
+rsa_private = RsaPrivateKey.generate(bits)
 
 # DSA
 # Since OpenSSH only supports 1024-bit keys, this is the default
-dsa_private = DSAPrivateKey.generate()
+dsa_private = DsaPrivateKey.generate()
 
 # ECDSA
 # The default curve is P521
-ecdsa_private = ECDSAPrivateKey.generate()
+ecdsa_private = EcdsaPrivateKey.generate()
 
 # You can also manually specify a curve
-ecdsa_private = ECDSAPrivateKey.generate(EcdsaCurves.P256)
+ecdsa_private = EcdsaPrivateKey.generate(EcdsaCurves.P256)
 
 # ED25519
 # The ED25519 keys are always a fixed size
-ed25519_private = ED25519PrivateKey.generate()
+ed25519_private = Ed25519PrivateKey.generate()
 
 # Public keys
 # The public key for any given private key is in the public_key parameter
@@ -58,29 +58,29 @@ rsa_pub = rsa_private.public_key
 ```
 
 ### Load keys
-You can load keys either directly with the specific key classes (RSAPrivateKey, DSAPrivateKey, etc.) or the general PrivateKey class
+You can load keys either directly with the specific key classes (RsaPrivateKey, DsaPrivateKey, etc.) or the general PrivateKey class
 ```python
 from sshkey_tools.keys import (
     PrivateKey,
     PublicKey,
-    RSAPrivateKey,
-    RSAPublicKey
+    RsaPrivateKey,
+    RsaPublicKey
 )
 
 # Load a private key with a specific class
-rsa_private = RSAPrivateKey.from_file('path/to/rsa_key')
+rsa_private = RsaPrivateKey.from_file('path/to/rsa_key')
 
 # Load a private key with the general class
 rsa_private = PrivateKey.from_file('path/to/rsa_key')
 print(type(rsa_private))
-"<class 'sshkey_tools.keys.RSAPrivateKey'>"
+"<class 'sshkey_tools.keys.RsaPrivateKey'>"
 
 # Public keys can be loaded in the same way
-rsa_pub = RSAPublicKey.from_file('path/to/rsa_key.pub')
+rsa_pub = RsaPublicKey.from_file('path/to/rsa_key.pub')
 rsa_pub = PublicKey.from_file('path/to/rsa_key.pub')
 
 print(type(rsa_private))
-"<class 'sshkey_tools.keys.RSAPrivateKey'>"
+"<class 'sshkey_tools.keys.RsaPrivateKey'>"
 
 # Public key objects are automatically created for any given private key
 # negating the need to load them separately
@@ -98,12 +98,12 @@ with open('path/to/rsa_key', 'rb') as file:
     rsa_private = PrivateKey.from_bytes(file.read())
 
 # RSA, DSA and ECDSA keys can be loaded from the public/private numbers and/or parameters
-rsa_public = RSAPublicKey.from_numbers(
+rsa_public = RsaPublicKey.from_numbers(
     e=65537,
     n=12.........811
 )
 
-rsa_private = RSAPrivateKey.from_numbers(
+rsa_private = RsaPrivateKey.from_numbers(
     e=65537,
     n=12......811,
     d=17......122
@@ -132,7 +132,7 @@ from cryptography.hazmat.primitives import (
     hashes as crypto_hashes
 )
 from cryptography.hazmat.primitives.asymmetric import padding as crypto_padding
-from sshkey_tools.keys import PublicKey, RSAPrivateKey, RsaAlgs
+from sshkey_tools.keys import PublicKey, RsaPrivateKey, RsaAlgs
 from sshkey_tools.cert import SSHCertificate
 from sshkey_tools.exceptions import SignatureNotPossibleException
 
@@ -240,7 +240,7 @@ ca_pubkey.verify(
     RsaAlgs.SHA256.value[1]
 )
 
-# pyca/cryptography RSAPrivateKey
+# pyca/cryptography RsaPrivateKey
 with open('path/to/ca_pubkey', 'rb') as file:
     crypto_ca_pubkey = crypto_serialization.load_ssh_public_key(file.read())
 
@@ -264,13 +264,13 @@ or the base64-decoded byte data of the certificate
 
 ```python
 from sshkey_tools.keys import PublicKey, PrivateKey
-from sshkey_tools.cert import SSHCertificate, RSACertificate
+from sshkey_tools.cert import SSHCertificate, RsaCertificate
 
 # Load an existing certificate
 certificate = SSHCertificate.from_file('path/to/user_key-cert.pub')
 
 # or
-certificate = RSACertificate.from_file('path/to/user_key-cert.pub')
+certificate = RsaCertificate.from_file('path/to/user_key-cert.pub')
 
 # Verify the certificate with a CA public key
 ca_pubkey = PublicKey.from_file('path/to/ca_key.pub')
