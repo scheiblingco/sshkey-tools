@@ -344,6 +344,9 @@ class Integer32Field(CertificateField):
         """
         Validates the contents of the field
         """
+        if isinstance(self.__validate_type__(self.value), Exception):
+            return _EX.InvalidFieldDataException(f"{self.get_name()} Could not validate value, invalid type")
+        
         if self.value < MAX_INT32:
             return True
         
@@ -388,6 +391,9 @@ class Integer64Field(CertificateField):
         """
         Validates the contents of the field
         """
+        if isinstance(self.__validate_type__(self.value), Exception):
+            return _EX.InvalidFieldDataException(f"{self.get_name()} Could not validate value, invalid type")
+        
         if self.value < MAX_INT64:
             return True
         
@@ -438,6 +444,9 @@ class DateTimeField(Integer64Field):
         """
         Validates the contents of the field
         """
+        if isinstance(self.__validate_type__(self.value), Exception):
+            return _EX.InvalidFieldDataException(f"{self.get_name()} Could not validate value, invalid type")
+
         check = self.value if isinstance(self.value, int) else self.value.timestamp()
         
         if check < MAX_INT64:
@@ -535,6 +544,9 @@ class ListField(CertificateField):
         """
         Validates the contents of the field
         """
+        if isinstance(self.__validate_type__(self.value), Exception):
+            return _EX.InvalidFieldDataException(f"{self.get_name()} Could not validate value, invalid type")
+        
         if hasattr(self.value, '__iter__') and not all((isinstance(val, (str, bytes)) for val in self.value)):
             return _EX.InvalidFieldDataException(
                 "Expected list or tuple containing strings or bytes"
@@ -616,6 +628,9 @@ class KeyValueField(CertificateField):
         """
         Validates the contents of the field
         """
+        if isinstance(self.__validate_type__(self.value), Exception):
+            return _EX.InvalidFieldDataException(f"{self.get_name()} Could not validate value, invalid type")
+        
         testvals = (
             self.value if not isinstance(self.value, dict) 
             else list(self.value.keys()) + list(self.value.values())
@@ -651,6 +666,9 @@ class PubkeyTypeField(StringField):
         """
         Validates the contents of the field
         """
+        if isinstance(self.__validate_type__(self.value), Exception):
+            return _EX.InvalidFieldDataException(f"{self.get_name()} Could not validate value, invalid type")
+        
         if ensure_string(self.value) not in self.ALLOWED_VALUES:
             return _EX.InvalidFieldDataException(
                 "Expected one of the following values: {}".format(
@@ -673,6 +691,9 @@ class NonceField(StringField):
         """
         Validates the contents of the field
         """
+        if isinstance(self.__validate_type__(self.value), Exception):
+            return _EX.InvalidFieldDataException(f"{self.get_name()} Could not validate value, invalid type")
+        
         if hasattr(self.value, '__count__') and len(self.value) < 32:
             return _EX.InvalidFieldDataException(
                 "Expected a nonce of at least 32 bytes"
@@ -890,6 +911,9 @@ class CertificateTypeField(Integer32Field):
         """
         Validates the contents of the field
         """
+        if isinstance(self.__validate_type__(self.value), Exception):
+            return _EX.InvalidFieldDataException(f"{self.get_name()} Could not validate value, invalid type")
+        
         if self.value not in self.ALLOWED_VALUES:
             return _EX.InvalidCertificateFieldException(
                 f"The certificate type is invalid (expected int(1,2) or CERT_TYPE.X)"
@@ -938,6 +962,9 @@ class ValidBeforeField(DateTimeField):
         done to ensure no already expired certificates are
         created
         """
+        if isinstance(self.__validate_type__(self.value), Exception):
+            return _EX.InvalidFieldDataException(f"{self.get_name()} Could not validate value, invalid type")
+        
         super().__validate_value__()
         check = self.value if isinstance(self.value, datetime) else datetime.fromtimestamp(self.value)
         
@@ -976,6 +1003,9 @@ class CriticalOptionsField(KeyValueField):
         """
         Validates the contents of the field
         """
+        if isinstance(self.__validate_type__(self.value), Exception):
+            return _EX.InvalidFieldDataException(f"{self.get_name()} Could not validate value, invalid type")
+        
         for elem in self.value if not isinstance(self.value, dict) else list(self.value.keys()):
             if elem not in self.ALLOWED_VALUES:
                 return _EX.InvalidCertificateFieldException(
@@ -1027,6 +1057,9 @@ class ExtensionsField(KeyValueField):
         """
         Validates the contents of the field
         """
+        if isinstance(self.__validate_type__(self.value), Exception):
+            return _EX.InvalidFieldDataException(f"{self.get_name()} Could not validate value, invalid type")
+        
         for item in self.value:
             if item not in self.ALLOWED_VALUES:
                 return _EX.InvalidDataException(
@@ -1049,6 +1082,9 @@ class ReservedField(StringField):
         """
         Validates the contents of the field
         """
+        if isinstance(self.__validate_type__(self.value), Exception):
+            return _EX.InvalidFieldDataException(f"{self.get_name()} Could not validate value, invalid type")
+        
         return True if self.value == "" else _EX.InvalidDataException(
             f"The reserved field is not empty"
         )
@@ -1547,55 +1583,3 @@ class Ed25519SignatureField(SignatureField):
         """
         self.value = self.private_key.sign(data)
         self.is_signed = True
-
-# ADD: Default class for each field
-# ADD: Typing class for each field
-
-# @dataclass
-# class Fieldset:
-#     def __setattr__(self, name, value):
-#         field = getattr(self, name, None)
-#         if callable(field) and not isinstance(field, CertificateField):
-#             if field.__name__ == "factory":
-#                 super().__setattr__(name, field())
-#                 self.__setattr__(name, value)
-#                 return
-
-#         if isinstance(field, type) and getattr(value, '__name__', '') != 'factory':
-#             super().__setattr__(name, field(value))
-#             return
-        
-#         if getattr(value, '__name__', '') != 'factory':
-#             field.value = value
-#             super().__setattr__(name, field)
- 
-#     def get(self, name: str):
-#         field = getattr(self, name, None)
-#         if field:
-#             if isinstance(field, type):
-#                 return field.DEFAULT
-#             return field.value
-#         raise _EX.InvalidCertificateFieldException(f"Unknown field {name}")
-
-# @dataclass
-# class CertificateHeader(Fieldset):
-#     public_key: PublicKeyField = PublicKeyField.factory
-#     pubkey_type: PubkeyTypeField = PubkeyTypeField.factory
-#     nonce: NonceField = NonceField.factory
-
-# @dataclass
-# class CertificateFooter(Fieldset):
-#     reserved: ReservedField = ReservedField.factory
-#     ca_pubkey: CAPublicKeyField = CAPublicKeyField.factory
-#     signature: SignatureField = SignatureField.factory
-
-# @dataclass
-# class CertificateBody(Fieldset):
-#     serial: SerialField = SerialField.factory
-#     cert_type: CertificateTypeField = CertificateTypeField.factory
-#     key_id: KeyIdField = KeyIdField.factory
-#     principals: PrincipalsField = PrincipalsField.factory
-#     valid_after: ValidAfterField = ValidAfterField.factory
-#     valid_before: ValidBeforeField = ValidBeforeField.factory
-#     critical_options: CriticalOptionsField = CriticalOptionsField.factory
-#     extensions: ExtensionsField = ExtensionsField.factory

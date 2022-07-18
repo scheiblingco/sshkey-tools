@@ -13,7 +13,7 @@ import faker
 
 import src.sshkey_tools.keys as _KEY
 import src.sshkey_tools.fields as _FIELD
-import sshkey_tools.certold as _CERT
+import src.sshkey_tools.cert as _CERT
 import src.sshkey_tools.exceptions as _EX
 
 CERTIFICATE_TYPES = ['rsa', 'dsa', 'ecdsa', 'ed25519']
@@ -705,37 +705,37 @@ class TestCertificates(unittest.TestCase):
         self.ed25519_user = _KEY.Ed25519PrivateKey.generate().public_key
         
         
-        self.cert_opts = {
-            'serial': 1234567890,
-            'cert_type': _FIELD.CERT_TYPE.USER,
-            'key_id': 'KeyIdentifier',
-            'principals': [
+        self.cert_fields = _CERT.CertificateFields(
+            serial=1234567890,
+            cert_type=_FIELD.CERT_TYPE.USER,
+            key_id='KeyIdentifier',
+            principals=[
                 'pr_a',
                 'pr_b',
                 'pr_c'
             ],
-            'valid_after': 1968491468,
-            'valid_before': 1968534668,
-            'critical_options': {
+            valid_after=1968491468,
+            valid_before=1968534668,
+            critical_options={
                 'force-command': 'sftp-internal',
                 'source-address': '1.2.3.4/8,5.6.7.8/16',
                 'verify-required': ''
             },
-            'extensions': [
+            extensions=[
                 'permit-agent-forwarding',
                 'permit-X11-forwarding'
             ]
-        }
+        )
         
     def tearDown(self):
         shutil.rmtree(f'tests/certificates')
         os.mkdir(f'tests/certificates')
         
     def test_cert_type_assignment(self):
-        rsa_cert = _CERT.SSHCertificate.from_public_class(self.rsa_user)
-        dsa_cert = _CERT.SSHCertificate.from_public_class(self.dsa_user)
-        ecdsa_cert = _CERT.SSHCertificate.from_public_class(self.ecdsa_user)
-        ed25519_cert = _CERT.SSHCertificate.from_public_class(self.ed25519_user)
+        rsa_cert = _CERT.SSHCertificate.create(self.rsa_user)
+        dsa_cert = _CERT.SSHCertificate.create(self.dsa_user)
+        ecdsa_cert = _CERT.SSHCertificate.create(self.ecdsa_user)
+        ed25519_cert = _CERT.SSHCertificate.create(self.ed25519_user)
         
         self.assertIsInstance(rsa_cert, _CERT.RsaCertificate)
         self.assertIsInstance(dsa_cert, _CERT.DsaCertificate)
@@ -747,10 +747,10 @@ class TestCertificates(unittest.TestCase):
         sub_pubkey = getattr(self, f'{sub_type}_user')
         ca_privkey = getattr(self, f'{ca_type}_ca')
         
-        certificate = _CERT.SSHCertificate.from_public_class(
-            public_key=sub_pubkey,
+        certificate = _CERT.SSHCertificate.create(
+            subject_pubkey=sub_pubkey,
             ca_privkey=ca_privkey,
-            **self.cert_opts
+            fields=self.cert_fields
         )
         
         self.assertTrue(certificate.can_sign())
@@ -761,6 +761,7 @@ class TestCertificates(unittest.TestCase):
             0,
             os.system(f'ssh-keygen -Lf tests/certificates/{sub_type}_{ca_type}-cert.pub')
         )
+        
         
         reloaded_cert = _CERT.SSHCertificate.from_file(f'tests/certificates/{sub_type}_{ca_type}-cert.pub')
         

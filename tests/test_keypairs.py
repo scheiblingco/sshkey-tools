@@ -195,12 +195,12 @@ class TestKeyGeneration(KeypairMethods):
 
             assert isinstance(key, RsaPrivateKey)
             assert isinstance(key, PrivateKey)
-            assert isinstance(key.key, _RSA.RsaPrivateKey)
+            assert isinstance(key.key, _RSA.RSAPrivateKey)
             assert isinstance(key.private_numbers, _RSA.RSAPrivateNumbers)
 
             assert isinstance(key.public_key, RsaPublicKey)
             assert isinstance(key.public_key, PublicKey)
-            assert isinstance(key.public_key.key, _RSA.RsaPublicKey)
+            assert isinstance(key.public_key.key, _RSA.RSAPublicKey)
             assert isinstance(key.public_key.public_numbers, _RSA.RSAPublicNumbers)
 
     def test_rsa_incorrect_keysize(self):
@@ -213,12 +213,12 @@ class TestKeyGeneration(KeypairMethods):
 
         assert isinstance(key, DsaPrivateKey)
         assert isinstance(key, PrivateKey)
-        assert isinstance(key.key, _DSA.DsaPrivateKey)
+        assert isinstance(key.key, _DSA.DSAPrivateKey)
         assert isinstance(key.private_numbers, _DSA.DSAPrivateNumbers)
 
         assert isinstance(key.public_key, DsaPublicKey)
         assert isinstance(key.public_key, PublicKey)
-        assert isinstance(key.public_key.key, _DSA.DsaPublicKey)
+        assert isinstance(key.public_key.key, _DSA.DSAPublicKey)
         assert isinstance(key.public_key.public_numbers, _DSA.DSAPublicNumbers)
         assert isinstance(key.public_key.parameters, _DSA.DSAParameterNumbers)
 
