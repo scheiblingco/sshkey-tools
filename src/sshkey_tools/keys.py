@@ -1,42 +1,35 @@
 """
 Classes for handling SSH public/private keys
 """
-from typing import Union
-from enum import Enum
 from base64 import b64decode
+from enum import Enum
 from struct import unpack
-from cryptography.hazmat.backends.openssl.rsa import _RSAPublicKey, _RSAPrivateKey
-from cryptography.hazmat.backends.openssl.dsa import _DSAPublicKey, _DSAPrivateKey
-from cryptography.hazmat.backends.openssl.ed25519 import (
-    _Ed25519PublicKey,
-    _Ed25519PrivateKey,
-)
-from cryptography.hazmat.backends.openssl.ec import (
-    _EllipticCurvePublicKey,
-    _EllipticCurvePrivateKey,
-)
-from cryptography.hazmat.primitives import (
-    serialization as _SERIALIZATION,
-    hashes as _HASHES,
-)
-from cryptography.hazmat.primitives.asymmetric import (
-    rsa as _RSA,
-    dsa as _DSA,
-    ec as _ECDSA,
-    ed25519 as _ED25519,
-    padding as _PADDING,
-)
+from typing import Union
 
 from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.backends.openssl.dsa import _DSAPrivateKey, _DSAPublicKey
+from cryptography.hazmat.backends.openssl.ec import (
+    _EllipticCurvePrivateKey,
+    _EllipticCurvePublicKey,
+)
+from cryptography.hazmat.backends.openssl.ed25519 import (
+    _Ed25519PrivateKey,
+    _Ed25519PublicKey,
+)
+from cryptography.hazmat.backends.openssl.rsa import _RSAPrivateKey, _RSAPublicKey
+from cryptography.hazmat.primitives import hashes as _HASHES
+from cryptography.hazmat.primitives import serialization as _SERIALIZATION
+from cryptography.hazmat.primitives.asymmetric import dsa as _DSA
+from cryptography.hazmat.primitives.asymmetric import ec as _ECDSA
+from cryptography.hazmat.primitives.asymmetric import ed25519 as _ED25519
+from cryptography.hazmat.primitives.asymmetric import padding as _PADDING
+from cryptography.hazmat.primitives.asymmetric import rsa as _RSA
 
 from . import exceptions as _EX
-from .utils import (
-    md5_fingerprint as _FP_MD5,
-    sha256_fingerprint as _FP_SHA256,
-    sha512_fingerprint as _FP_SHA512,
-    ensure_string,
-    ensure_bytestring
-)
+from .utils import ensure_bytestring, ensure_string
+from .utils import md5_fingerprint as _FP_MD5
+from .utils import sha256_fingerprint as _FP_SHA256
+from .utils import sha512_fingerprint as _FP_SHA512
 
 PUBKEY_MAP = {
     _RSAPublicKey: "RsaPublicKey",
@@ -49,6 +42,7 @@ PRIVKEY_MAP = {
     _RSAPrivateKey: "RsaPrivateKey",
     _DSAPrivateKey: "DsaPrivateKey",
     _EllipticCurvePrivateKey: "EcdsaPrivateKey",
+    # trunk-ignore(gitleaks/generic-api-key)
     _Ed25519PrivateKey: "Ed25519PrivateKey",
 }
 
@@ -178,7 +172,7 @@ class PublicKey:
 
         Returns:
             PublicKey: Any of the PublicKey child classes
-        """       
+        """
         split = ensure_bytestring(data).split(b" ")
         comment = None
         if len(split) > 2:
@@ -204,6 +198,17 @@ class PublicKey:
             data = file.read()
 
         return cls.from_string(data)
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> "PublicKey":
+        for key_class in PUBKEY_MAP.values():
+            try:
+                key = globals()[key_class].from_raw_bytes(data)
+                return key
+            except Exception:
+                pass
+
+        raise _EX.InvalidKeyException("Invalid public key")
 
     def get_fingerprint(
         self, hash_method: FingerprintHashes = FingerprintHashes.SHA256
@@ -246,7 +251,10 @@ class PublicKey:
             encoding(str, optional): The encoding of the file. Defaults to 'utf-8'.
         """
         return " ".join(
-            [ ensure_string(self.serialize()), ensure_string(getattr(self, 'comment', '')) ]
+            [
+                ensure_string(self.serialize()),
+                ensure_string(getattr(self, "comment", "")),
+            ]
         )
 
     def to_file(self, path: str, encoding: str = "utf-8") -> None:
@@ -365,7 +373,7 @@ class PrivateKey:
             bytes: The private key in PEM format
         """
         password = ensure_bytestring(password)
-        
+
         encryption = _SERIALIZATION.NoEncryption()
         if password is not None:
             encryption = self.export_opts["encryption"](password)

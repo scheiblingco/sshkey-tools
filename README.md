@@ -1,14 +1,19 @@
 # sshkey-tools
+
 Python and CLI tools for managing OpenSSH keypairs and certificates
 
 # Installation
+
 ## With pip
+
 ```bash
 pip3 install sshkey-tools
 # or
 pip3 install -e git+https://github.com/scheiblingco/sshkey-tools.git
 ```
+
 ## From source
+
 ```bash
 git clone https://github.com/scheiblingco/sshkey-tools
 cd sshkey-tools
@@ -16,11 +21,15 @@ pip3 install ./
 ```
 
 # Documentation
+
 [scheiblingco.github.io/sshkey-tools/](https://scheiblingco.github.io/sshkey-tools/)
 
 # Basic usage
+
 ## SSH Keypairs
+
 ### Generate keys
+
 ```python
 from sshkey_tools.keys import (
     RsaPrivateKey,
@@ -58,7 +67,9 @@ rsa_pub = rsa_private.public_key
 ```
 
 ### Load keys
+
 You can load keys either directly with the specific key classes (RsaPrivateKey, DsaPrivateKey, etc.) or the general PrivateKey class
+
 ```python
 from sshkey_tools.keys import (
     PrivateKey,
@@ -111,20 +122,24 @@ rsa_private = RsaPrivateKey.from_numbers(
 ```
 
 ## SSH Certificates
+
 ### Attributes
-|Attribute|Type|Key|Example Value|Description|
-|---|---|---|---|---|
-|Certificate Type|Integer (1/2)|cert_type|1|The type of certificate, 1 for User and 2 for Host. Can also be defined as sshkey_tools.fields.CERT_TYPE.USER or sshkey_tools.fields.CERT_TYPE.HOST|
-|Serial|Integer|serial|11223344|The serial number for the certificate, a 64-bit integer|
-|Key ID|String|key_id|someuser@somehost|The key identifier, can be set to any string, for example username, email or other unique identifier|
-|Principals|List|principals|['zone-webservers', 'server-01']|The principals for which the certificate is valid, this needs to correspond to the allowed principals on the OpenSSH Server-side. Only valid for User certificates|
-|Valid After|Integer|valid_after|datetime.now()|The datetime object or unix timestamp for when the certificate validity starts|
-|Valid Before|Integer|valid_before|datetime.now() + timedelta(hours=12)|The datetime object or unix timestamp for when the certificate validity ends|
-|Critical Options|Dict|critical_options|{'source-address': '1.2.3.4/8'}|Options set on the certificate that the OpenSSH server cannot choose to ignore (critical). Only valid on user certificates. Valid options are force-command (for limiting the user to a certain shell, e.g. sftp-internal), source-address (to limit the source IPs the user can connect from) and verify-required (to require the user to touch a hardware key before usage)|
-|Extensions|Dict/Set/List/Tuple|extensions|{'permit-X11-forwarding', 'permit-port-forwarding'}|Extensions that the certificate holder is allowed to use. Valid options are no-touch-required, permit-X11-forwarding, permit-agent-forwarding, permit-port-forwarding, permit-pty, permit-user-rc|
+
+| Attribute        | Type                | Key              | Example Value                                       | Description                                                                                                                                                                                                                                                                                                                                                                   |
+| ---------------- | ------------------- | ---------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Certificate Type | Integer (1/2)       | cert_type        | 1                                                   | The type of certificate, 1 for User and 2 for Host. Can also be defined as sshkey_tools.fields.CERT_TYPE.USER or sshkey_tools.fields.CERT_TYPE.HOST                                                                                                                                                                                                                           |
+| Serial           | Integer             | serial           | 11223344                                            | The serial number for the certificate, a 64-bit integer                                                                                                                                                                                                                                                                                                                       |
+| Key ID           | String              | key_id           | someuser@somehost                                   | The key identifier, can be set to any string, for example username, email or other unique identifier                                                                                                                                                                                                                                                                          |
+| Principals       | List                | principals       | ['zone-webservers', 'server-01']                    | The principals for which the certificate is valid, this needs to correspond to the allowed principals on the OpenSSH Server-side. Only valid for User certificates                                                                                                                                                                                                            |
+| Valid After      | Integer             | valid_after      | datetime.now()                                      | The datetime object or unix timestamp for when the certificate validity starts                                                                                                                                                                                                                                                                                                |
+| Valid Before     | Integer             | valid_before     | datetime.now() + timedelta(hours=12)                | The datetime object or unix timestamp for when the certificate validity ends                                                                                                                                                                                                                                                                                                  |
+| Critical Options | Dict                | critical_options | {'source-address': '1.2.3.4/8'}                     | Options set on the certificate that the OpenSSH server cannot choose to ignore (critical). Only valid on user certificates. Valid options are force-command (for limiting the user to a certain shell, e.g. sftp-internal), source-address (to limit the source IPs the user can connect from) and verify-required (to require the user to touch a hardware key before usage) |
+| Extensions       | Dict/Set/List/Tuple | extensions       | {'permit-X11-forwarding', 'permit-port-forwarding'} | Extensions that the certificate holder is allowed to use. Valid options are no-touch-required, permit-X11-forwarding, permit-agent-forwarding, permit-port-forwarding, permit-pty, permit-user-rc                                                                                                                                                                             |
 
 ### Certificate creation
+
 The basis for a certificate is the public key for the subject (User/Host), and bases the format of the certificate on that.
+
 ```python
 from datetime import datetime, timedelta
 from cryptography.hazmat.primitives import (
@@ -156,7 +171,7 @@ cert_opts = {
         'permit-pty',
         'permit-user-rc',
         'permit-port-forwarding'
-    ]    
+    ]
 
 }
 
@@ -207,13 +222,13 @@ except SignatureNotPossibleException:
 # Sign the certificate
 certificate.sign()
 
-# For certificates signed by an RSA key, you can choose the hashing algorithm 
+# For certificates signed by an RSA key, you can choose the hashing algorithm
 # to be used for creating the hash of the certificate data before signing
 certificate.sign(
     hash_alg=RsaAlgs.SHA512
 )
 
-# If you want to verify the signature after creation, 
+# If you want to verify the signature after creation,
 # you can do so with the verify()-method
 #
 # Please note that a public key should always be provided
@@ -259,6 +274,7 @@ cert_bytes = certificate.to_bytes()
 ```
 
 ### Load an existing certificate
+
 Certificates can be loaded from file, a string/bytestring with file contents
 or the base64-decoded byte data of the certificate
 

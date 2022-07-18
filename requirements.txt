@@ -2,3 +2,4 @@ click
 cryptography
 bcrypt
 enum34
+PrettyTable
