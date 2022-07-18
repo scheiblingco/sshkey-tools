@@ -1584,6 +1584,7 @@ class ED25519SignatureField(SignatureField):
     &#34;&#34;&#34;
 
     def __init__(
+        <!-- trunk-ignore(gitleaks/generic-api-key) -->
         self, private_key: Ed25519PrivateKey = None, signature: bytes = None
     ) -&gt; None:
         super().__init__(private_key, signature)
@@ -3774,6 +3775,7 @@ def decode(data: bytes) -&gt; Tuple[Ed25519PublicKey, bytes]:
     &#34;&#34;&#34;
 
     def __init__(
+        <!-- trunk-ignore(gitleaks/generic-api-key) -->
         self, private_key: Ed25519PrivateKey = None, signature: bytes = None
     ) -&gt; None:
         super().__init__(private_key, signature)

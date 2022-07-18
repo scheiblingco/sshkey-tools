@@ -1,20 +1,21 @@
 """
 Utilities for handling keys and certificates
 """
-import sys
-from typing import Union, List, Dict
-from secrets import randbits
-from random import randint
-from uuid import uuid4
-from base64 import b64encode
 import hashlib as hl
+import sys
+from base64 import b64encode
+from random import randint
+from secrets import randbits
+from typing import Dict, List, Union
+from uuid import uuid4
 
 NoneType = type(None)
 
+
 def ensure_string(
-    obj: Union[str, bytes, list, tuple, set, dict, NoneType], 
-    encoding: str = 'utf-8',
-    required: bool = False
+    obj: Union[str, bytes, list, tuple, set, dict, NoneType],
+    encoding: str = "utf-8",
+    required: bool = False,
 ) -> Union[str, List[str], Dict[str, str], NoneType]:
     """Ensure the provided value is or contains a string/strings
 
@@ -32,14 +33,20 @@ def ensure_string(
     elif isinstance(obj, (list, tuple, set)):
         return [ensure_string(o, encoding) for o in obj]
     elif isinstance(obj, dict):
-        return {ensure_string(k, encoding): ensure_string(v, encoding) for k, v in obj.items()}
+        return {
+            ensure_string(k, encoding): ensure_string(v, encoding)
+            for k, v in obj.items()
+        }
     else:
-        raise TypeError(f"Expected one of (str, bytes, list, tuple, dict, set), got {type(obj).__name__}.")
+        raise TypeError(
+            f"Expected one of (str, bytes, list, tuple, dict, set), got {type(obj).__name__}."
+        )
+
 
 def ensure_bytestring(
-    obj: Union[str, bytes, list, tuple, set, dict, NoneType], 
-    encoding: str = 'utf-8',
-    required: bool = None
+    obj: Union[str, bytes, list, tuple, set, dict, NoneType],
+    encoding: str = "utf-8",
+    required: bool = None,
 ) -> Union[str, List[str], Dict[str, str], NoneType]:
     """Ensure the provided value is or contains a bytestring/bytestrings
 
@@ -57,11 +64,17 @@ def ensure_bytestring(
     elif isinstance(obj, (list, tuple, set)):
         return [ensure_bytestring(o, encoding) for o in obj]
     elif isinstance(obj, dict):
-        return {ensure_bytestring(k, encoding): ensure_bytestring(v, encoding) for k, v in obj.items()}
+        return {
+            ensure_bytestring(k, encoding): ensure_bytestring(v, encoding)
+            for k, v in obj.items()
+        }
     else:
-        raise TypeError(f"Expected one of (str, bytes, list, tuple, dict, set), got {type(obj).__name__}.")
+        raise TypeError(
+            f"Expected one of (str, bytes, list, tuple, dict, set), got {type(obj).__name__}."
+        )
 
-def concat_to_string(*strs, encoding: str = 'utf-8') -> str:
+
+def concat_to_string(*strs, encoding: str = "utf-8") -> str:
     """Concatenates a list of strings or bytestrings to a single string.
 
     Args:
@@ -71,9 +84,10 @@ def concat_to_string(*strs, encoding: str = 'utf-8') -> str:
     Returns:
         str: Concatenated string
     """
-    return ''.join(st if st is not None else "" for st in ensure_string(strs, encoding))
-    
-def concat_to_bytestring(*strs, encoding: str = 'utf-8') -> bytes:
+    return "".join(st if st is not None else "" for st in ensure_string(strs, encoding))
+
+
+def concat_to_bytestring(*strs, encoding: str = "utf-8") -> bytes:
     """Concatenates a list of strings or bytestrings to a single bytestring.
 
     Args:
@@ -83,7 +97,11 @@ def concat_to_bytestring(*strs, encoding: str = 'utf-8') -> bytes:
     Returns:
         bytes: Concatenated bytestring
     """
-    return b"".join(st if st is not None else b"" for st in ensure_bytestring(strs, encoding=encoding))
+    return b"".join(
+        st if st is not None else b""
+        for st in ensure_bytestring(strs, encoding=encoding)
+    )
+
 
 def random_keyid() -> str:
     """Generates a random Key ID
@@ -93,13 +111,15 @@ def random_keyid() -> str:
     """
     return str(uuid4())
 
+
 def random_serial() -> str:
-    """ Generates a random serial number 
-    
+    """Generates a random serial number
+
     Returns:
         int: Random serial
     """
-    return randint(0, 2**64-1)
+    return randint(0, 2**64 - 1)
+
 
 def long_to_bytes(
     source_int: int, force_length: int = None, byteorder: str = "big"
