@@ -5,8 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
 <meta name="generator" content="pdoc 0.10.0" />
 <title>sshkey_tools API documentation</title>
-<meta name="description" content="sshkey-tools
-Python and CLI tools for managing OpenSSH keypairs and certificates …" />
+<meta name="description" content="sshkey-tools …" />
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
 <link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
@@ -24,7 +23,77 @@ Python and CLI tools for managing OpenSSH keypairs and certificates …" />
 </header>
 <section id="section-intro">
 <h1 id="sshkey-tools">sshkey-tools</h1>
-<p>Python and CLI tools for managing OpenSSH keypairs and certificates</p>
+<p>Python package for managing OpenSSH keypairs and certificates (<a href="https://github.com/openssh/openssh-portable/blob/master/PROTOCOL.certkeys">protocol.CERTKEYS</a>). Supported functionality includes:</p>
+<div class="toc">
+<ul>
+<li><a href="#sshkey-tools">sshkey-tools</a></li>
+<li><a href="#features">Features</a><ul>
+<li><a href="#ssh-keys">SSH Keys</a></li>
+<li><a href="#openssh-certificates">OpenSSH Certificates</a></li>
+</ul>
+</li>
+<li><a href="#roadmap">Roadmap</a></li>
+<li><a href="#installation">Installation</a><ul>
+<li><a href="#with-pip">With pip</a></li>
+<li><a href="#from-source">From source</a></li>
+</ul>
+</li>
+<li><a href="#documentation">Documentation</a><ul>
+<li><a href="#ssh-keypairs-generating-loading-exporting">SSH Keypairs (generating, loading, exporting)</a></li>
+<li><a href="#ssh-key-signatures">SSH Key Signatures</a></li>
+<li><a href="#openssh-certificates_1">OpenSSH Certificates</a><ul>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#structure">Structure</a></li>
+<li><a href="#certificate-header">Certificate Header</a></li>
+<li><a href="#certificate-fields">Certificate Fields</a><ul>
+<li><a href="#critical-options">Critical Options</a></li>
+<li><a href="#extensions">Extensions</a></li>
+</ul>
+</li>
+<li><a href="#certificate-body">Certificate Body</a></li>
+</ul>
+</li>
+<li><a href="#creating-signing-and-verifying-certificates">Creating, signing and verifying certificates</a></li>
+<li><a href="#loading-re-creating-and-verifying-existing-certificates">Loading, re-creating and verifying existing certificates</a></li>
+<li><a href="#changelog">Changelog</a><ul>
+<li><a href="#09">0.9</a></li>
+<li><a href="#082">0.8.2</a></li>
+<li><a href="#081">0.8.1</a></li>
+<li><a href="#08">0.8</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+<h1 id="features">Features</h1>
+<h3 id="ssh-keys">SSH Keys</h3>
+<ul>
+<li>Supports RSA, DSA, ECDSA and ED25519 keys</li>
+<li>Import existing keys from file, string, byte data or <a href="https://github.com/pyca/cryptography">pyca/cryptography</a> class</li>
+<li>Generate new keys</li>
+<li>Get public key from private keys</li>
+<li>Sign bytestrings with private keys</li>
+<li>Export to file, string or bytes</li>
+<li>Generate fingerprint</li>
+</ul>
+<h3 id="openssh-certificates">OpenSSH Certificates</h3>
+<ul>
+<li>Supports RSA, DSA, ECDSA and ED25519 certificates</li>
+<li>Import existing certificates from file, string or bytes</li>
+<li>Verify certificate signature against internal or separate public key</li>
+<li>Create new certificates from CA private key and subject public key</li>
+<li>Create new certificates using old certificate as template</li>
+<li>Sign certificates</li>
+<li>Export certificates to file, string or bytes</li>
+</ul>
+<h1 id="roadmap">Roadmap</h1>
+<ul>
+<li>[x] Rewrite certificate field functionality for simpler usage</li>
+<li>[ ] Re-add functionality for changing RSA hash method</li>
+<li>[ ] Add CLI functionality</li>
+<li>[ ] Convert to/from putty format (keys only)</li>
+</ul>
 <h1 id="installation">Installation</h1>
 <h2 id="with-pip">With pip</h2>
 <pre><code class="language-bash">pip3 install sshkey-tools
@@ -37,266 +106,446 @@ cd sshkey-tools
 pip3 install ./
 </code></pre>
 <h1 id="documentation">Documentation</h1>
-<p><a href="https://scheiblingco.github.io/sshkey-tools/">scheiblingco.github.io/sshkey-tools/</a></p>
-<h1 id="basic-usage">Basic usage</h1>
-<h2 id="ssh-keypairs">SSH Keypairs</h2>
-<h3 id="generate-keys">Generate keys</h3>
-<pre><code class="language-python">from sshkey_tools.keys import (
+<p>You can find the full documentation at <a href="https://scheiblingco.github.io/sshkey-tools/">scheiblingco.github.io/sshkey-tools/</a></p>
+<h2 id="ssh-keypairs-generating-loading-exporting">SSH Keypairs (generating, loading, exporting)</h2>
+<pre><code class="language-python"># Import the certificate classes
+from sshkey_tools.keys import (
     RsaPrivateKey,
     DsaPrivateKey,
     EcdsaPrivateKey,
     Ed25519PrivateKey,
     EcdsaCurves
 )
+#
+## Generating keys
+#
 
-# RSA
-# By default, RSA is generated with a 4096-bit keysize
-rsa_private = RsaPrivateKey.generate()
+# For all keys except ED25519, the key size/curve can be manually specified
+# Generate RSA (default is 4096 bits)
+rsa_priv = RsaPrivateKey.generate()
+rsa_priv = RsaPrivateKey.generate(2048)
 
-# You can also specify the key size
-rsa_private = RsaPrivateKey.generate(bits)
+# Generate DSA keys (since SSH only supports 1024-bit keys, this is the default)
+dsa_priv = DsaPrivateKey.generate()
 
-# DSA
-# Since OpenSSH only supports 1024-bit keys, this is the default
-dsa_private = DsaPrivateKey.generate()
+# Generate ECDSA keys (The default curve is P521)
+ecdsa_priv = EcdsaPrivateKey.generate()
+ecdsa_priv = EcdsaPrivateKey.generate(EcdsaCurves.P256)
 
-# ECDSA
-# The default curve is P521
-ecdsa_private = EcdsaPrivateKey.generate()
+# Generate ED25519 keys (fixed key size)
+ed25519_priv = Ed25519PrivateKey.generate()
 
-# You can also manually specify a curve
-ecdsa_private = EcdsaPrivateKey.generate(EcdsaCurves.P256)
+#
+## Loading keys
+#
 
-# ED25519
-# The ED25519 keys are always a fixed size
-ed25519_private = Ed25519PrivateKey.generate()
+# Keys can be loaded either via the specific class:
+rsa_priv = RsaPrivateKey.from_file(&quot;/path/to/key&quot;, &quot;OptionalSecurePassword&quot;)
 
-# Public keys
-# The public key for any given private key is in the public_key parameter
-rsa_pub = rsa_private.public_key
+# or via the general class, in case the type is not known in advance
+rsa_priv = PrivateKey.from_file(&quot;/path/to/key&quot;, &quot;OptionalSecurePassword&quot;)
+
+# The import functions are .from_file(), .from_string() and .from_class() and are valid for both PublicKey and PrivateKey-classes
+rsa_priv = PrivateKey.from_string(&quot;-----BEGIN OPENSSH PRIVATE KEY...........END -----&quot;, &quot;OptionalSecurePassword&quot;)
+rsa_priv = PrivateKey.from_class(pyca_cryptography_class)
+
+# The different keys can also be loaded from their numbers, e.g. RSA Pubkey:
+rsa_priv = PublicKey.from_numbers(65537, 123123123....1)
+
+#
+## Key functionality
+#
+
+# The public key for any loaded or generated private key is available in the .public_key attribute
+ed25519_pub = ed25519_priv.public_key
+
+# The private keys can be exported using to_bytes, to_string or to_file
+rsa_priv.to_bytes(&quot;OptionalSecurePassword&quot;)
+rsa_priv.to_string(&quot;OptionalSecurePassword&quot;, &quot;utf-8&quot;)
+rsa_priv.to_file(&quot;/path/to/file&quot;, &quot;OptionalSecurePassword&quot;, &quot;utf-8&quot;)
+
+# The public keys also have .to_string() and .to_file(), but .to_bytes() is divided into .serialize() and .raw_bytes()
+# The comment can be set before export by changing the public_key.comment-attribute
+rsa_priv.public_key.comment = &quot;Comment@Comment&quot;
+
+# This will return the serialized public key as found in an OpenSSH keyfile
+rsa_priv.public_key.serialize()
+b&quot;ssh-rsa AAAA......... Comment@Comment&quot;
+
+# This will return the raw bytes of the key (base64-decoded middle portion)
+rsa_priv.public_key.raw_bytes()
+b&quot;\0xc\0a\........&quot;
 </code></pre>
-<h3 id="load-keys">Load keys</h3>
-<p>You can load keys either directly with the specific key classes (RsaPrivateKey, DsaPrivateKey, etc.) or the general PrivateKey class</p>
-<pre><code class="language-python">from sshkey_tools.keys import (
-    PrivateKey,
-    PublicKey,
-    RsaPrivateKey,
-    RsaPublicKey
-)
+<h2 id="ssh-key-signatures">SSH Key Signatures</h2>
+<p>The loaded private key objects can be used to sign bytestrings, and the public keys can be used to verify signatures on those</p>
+<pre><code class="language-python">from sshkey_tools.keys import RsaPrivateKey, RsaPublicKey
 
-# Load a private key with a specific class
-rsa_private = RsaPrivateKey.from_file('path/to/rsa_key')
+signable_data = b'This is a message that will be signed'
 
-# Load a private key with the general class
-rsa_private = PrivateKey.from_file('path/to/rsa_key')
-print(type(rsa_private))
-&quot;&lt;class 'sshkey_tools.keys.RsaPrivateKey'&gt;&quot;
+privkey = RsaPrivateKey.generate()
+pubkey = RsaPrivateKey.public_key
 
-# Public keys can be loaded in the same way
-rsa_pub = RsaPublicKey.from_file('path/to/rsa_key.pub')
-rsa_pub = PublicKey.from_file('path/to/rsa_key.pub')
+# Sign the data
+signature = privkey.sign(signable_data)
 
-print(type(rsa_private))
-&quot;&lt;class 'sshkey_tools.keys.RsaPrivateKey'&gt;&quot;
-
-# Public key objects are automatically created for any given private key
-# negating the need to load them separately
-rsa_pub = rsa_private.public_key
-
-# Load a key from a pyca/cryptography class privkey_pyca/pubkey_pyca
-rsa_private = PrivateKey.from_class(privkey_pyca)
-rsa_public = PublicKey.from_class(pubkey_pyca)
-
-# You can also load private and public keys from strings or bytes (file contents)
-with open('path/to/rsa_key', 'r', 'utf-8') as file:
-    rsa_private = PrivateKey.from_string(file.read())
-
-with open('path/to/rsa_key', 'rb') as file:
-    rsa_private = PrivateKey.from_bytes(file.read())
-
-# RSA, DSA and ECDSA keys can be loaded from the public/private numbers and/or parameters
-rsa_public = RsaPublicKey.from_numbers(
-    e=65537,
-    n=12.........811
-)
-
-rsa_private = RsaPrivateKey.from_numbers(
-    e=65537,
-    n=12......811,
-    d=17......122
-)
+# Verify the signature (Throws exception if invalid)
+pubkey.verify(signable_data, signature)
 </code></pre>
-<h2 id="ssh-certificates">SSH Certificates</h2>
-<h3 id="attributes">Attributes</h3>
-<p>|Attribute|Type|Key|Example Value|Description|
-|&mdash;|&mdash;|&mdash;|
-|Certificate Type|Integer (1/2)|cert_type|1|The type of certificate, 1 for User and 2 for Host. Can also be defined as sshkey_tools.fields.CERT_TYPE.USER or sshkey_tools.fields.CERT_TYPE.HOST|
-|Serial|Integer|serial|11223344|The serial number for the certificate, a 64-bit integer|
-|Key ID|String|key_id|someuser@somehost|The key identifier, can be set to any string, for example username, email or other unique identifier|
-|Principals|List|principals|['zone-webservers', 'server-01']|The principals for which the certificate is valid, this needs to correspond to the allowed principals on the OpenSSH Server-side. Only valid for User certificates|
-|Valid After|Integer|valid_after|datetime.now()|The datetime object or unix timestamp for when the certificate validity starts|
-|Valid Before|Integer|valid_before|datetime.now() + timedelta(hours=12)|The datetime object or unix timestamp for when the certificate validity ends|
-|Critical Options|Dict|critical_options|{'source-address': '1.2.3.4/8'}|Options set on the certificate that the OpenSSH server cannot choose to ignore (critical). Only valid on user certificates. Valid options are force-command (for limiting the user to a certain shell, e.g. sftp-internal), source-address (to limit the source IPs the user can connect from) and verify-required (to require the user to touch a hardware key before usage)|
-|Extensions|Dict/Set/List/Tuple|extensions|{'permit-X11-forwarding', 'permit-port-forwarding'}|Extensions that the certificate holder is allowed to use. Valid options are no-touch-required, permit-X11-forwarding, permit-agent-forwarding, permit-port-forwarding, permit-pty, permit-user-rc|</p>
-<h3 id="certificate-creation">Certificate creation</h3>
-<p>The basis for a certificate is the public key for the subject (User/Host), and bases the format of the certificate on that.</p>
-<pre><code class="language-python">from datetime import datetime, timedelta
-from cryptography.hazmat.primitives import (
-    serialization as crypto_serialization,
-    hashes as crypto_hashes
-)
-from cryptography.hazmat.primitives.asymmetric import padding as crypto_padding
-from sshkey_tools.keys import PublicKey, RsaPrivateKey, RsaAlgs
-from sshkey_tools.cert import SSHCertificate
-from sshkey_tools.exceptions import SignatureNotPossibleException
+<h2 id="openssh-certificates_1">OpenSSH Certificates</h2>
+<h3 id="introduction">Introduction</h3>
+<p>Certificates are a way to handle access management/PAM for OpenSSH with the ability to dynamically grant access during a specific time, to specific servers and/or with specific attributes. There are a couple of upsides to using certificates instead of public/private keys, mainly: </p>
+<ul>
+<li>Additional Security: Certificate authentication for OpenSSH is built as an extension of public key authentication, enabling additional features on top of key-based access control.</li>
+<li>Short-term access: The user has to request a certificate for their keypair, which together with the private key grants access to the server. Without the certificate the user can't connect to the server - giving you control over how, when and from where the user can connect.</li>
+<li>Hostkey Verification: Certificiates can be issued for the OpenSSH Server, adding the CA public key to the clients enables you to establish servers as trusted without the hostkey warning.</li>
+<li>RBAC: Control which servers or users (principals) a keypair has access to, and specify the required principals for access to certain functionality on the server side.</li>
+<li>Logging: Key ID and Serial fields for tracking of issued certificates</li>
+<li>CRL: Revoke certificates prematurely if they are compromised</li>
+</ul>
+<h3 id="structure">Structure</h3>
+<p>The original OpenSSH certificate format is a block of parameters, encoded and packed to a bytestring. In this package, the fields have been divided into three parts. For a more detailed information about the format, see <a href="https://github.com/openssh/openssh-portable/blob/master/PROTOCOL.certkeys">PROTOCOL.certkeys</a>.</p>
+<h3 id="certificate-header">Certificate Header</h3>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Type(Length)</th>
+<th>Key</th>
+<th>Example Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Public Key/Certificate type</td>
+<td>string(fixed)</td>
+<td>pubkey_type</td>
+<td>ssh-rsa-sha2-512-cert-v01@openssh.com</td>
+<td>The private key (and certificate) type, derived from the public key for which the certificate is created (Automatically set upon creation)</td>
+</tr>
+<tr>
+<td>Subject public key</td>
+<td>bytestring(variable)</td>
+<td>public_key</td>
+<td>\x00\x00\x00..........</td>
+<td>The public key for which the certificate is created (Automatically set upon creation)</td>
+</tr>
+<tr>
+<td>Nonce</td>
+<td>string</td>
+<td>nonce(variable, typically 16 or 32 bytes)</td>
+<td>abcdefghijklmnopqrstuvwxyz</td>
+<td>A random string included to make attacks that depend on inducing collisions in the signature hash infeasible. (Default is automatically set, can be changed with Certificate.header.nonce = "abcdefg&hellip;"</td>
+</tr>
+</tbody>
+</table>
+<h3 id="certificate-fields">Certificate Fields</h3>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Type(Length)</th>
+<th>Key</th>
+<th>Example Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Serial</td>
+<td>Integer(64-bit)</td>
+<td>serial</td>
+<td>1234567890</td>
+<td>An optional certificate serial number set by the CA to provide an abbreviated way to refer to certificates from that CA. If a CA does not wish to number its certificates, it must set this field to zero.</td>
+</tr>
+<tr>
+<td>Certificate type</td>
+<td>Integer(1 or 2)</td>
+<td>cert_type</td>
+<td>1</td>
+<td>The type of the certificate, 1 for user certificates, 2 for host certificates</td>
+</tr>
+<tr>
+<td>Key ID</td>
+<td>string(variable)</td>
+<td>key_id</td>
+<td>someuser@somehost</td>
+<td>Free-form text field that is filled in by the CA at the time of signing; the intention is that the contents of this field are used to identify the identity principal in log messages.</td>
+</tr>
+<tr>
+<td>Valid Principals</td>
+<td>List(string(variable))</td>
+<td>principals</td>
+<td>['some-user', 'some-group', production-webservers']</td>
+<td>These principals list the names for which this certificate is valid hostnames for SSH_CERT_TYPE_HOST certificates and usernames for
+SH_CERT_TYPE_USER certificates. As a special case, a zero-length "valid principals" field means the certificate is valid for any principal of the specified type.</td>
+</tr>
+<tr>
+<td>Valid After</td>
+<td>Timestamp</td>
+<td>valid_after</td>
+<td>datetime.now()</td>
+<td>Timestamp for the start of the validity period for the certificate</td>
+</tr>
+<tr>
+<td>Valid Before</td>
+<td>Timestamp</td>
+<td>valid_before</td>
+<td>datetime.now()+timedelta(hours=8) or 1658322031</td>
+<td>Timestamp for the end of the validity period for the certificate. Needs to be larger than valid_after</td>
+</tr>
+<tr>
+<td>Critical Options</td>
+<td>Dict(string, string)</td>
+<td>critical_options</td>
+<td>[]</td>
+<td>Zero or more of the available critical options (see below)</td>
+</tr>
+<tr>
+<td>Extensions</td>
+<td>Dict(string, string)/List/Tuple/Set</td>
+<td>extensions</td>
+<td>[]</td>
+<td>Zero or more of the available extensions (see below)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="critical-options">Critical Options</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Format</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>force-command</td>
+<td>string</td>
+<td>Specifies a command that is executed (replacing any the user specified on the ssh command-line) whenever this key is used for authentication.</td>
+</tr>
+<tr>
+<td>source-address</td>
+<td>string</td>
+<td>Comma-separated list of source addresses from which this certificate is accepted for authentication. Addresses are specified in CIDR format (nn.nn.nn.nn/nn or hhhh::hhhh/nn). If this option is not present, then certificates may be presented from any source address.</td>
+</tr>
+<tr>
+<td>verify-required</td>
+<td>empty</td>
+<td>Flag indicating that signatures made with this certificate must assert FIDO user verification (e.g. PIN or biometric). This option only makes sense for the U2F/FIDO security key types that support this feature in their signature formats.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="extensions">Extensions</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Format</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>no-touch-required</td>
+<td>empty</td>
+<td>Flag indicating that signatures made with this certificate need not assert FIDO user presence. This option only makes sense for the U2F/FIDO security key types that support this feature in their signature formats.</td>
+</tr>
+<tr>
+<td>permit-X11-forwarding</td>
+<td>empty</td>
+<td>Flag indicating that X11 forwarding should be permitted. X11 forwarding will be refused if this option is absent.</td>
+</tr>
+<tr>
+<td>permit-agent-forwarding</td>
+<td>empty</td>
+<td>Flag indicating that agent forwarding should be allowed. Agent forwarding must not be permitted unless this option is present.</td>
+</tr>
+<tr>
+<td>permit-port-forwarding</td>
+<td>empty</td>
+<td>Flag indicating that port-forwarding should be allowed. If this option is not present, then no port forwarding will be allowed.</td>
+</tr>
+<tr>
+<td>permit-pty</td>
+<td>empty</td>
+<td>Flag indicating that PTY allocation should be permitted. In the absence of this option PTY allocation will be disabled.</td>
+</tr>
+<tr>
+<td>permit-user-rc</td>
+<td>empty</td>
+<td>Flag indicating that execution of ~/.ssh/rc should be permitted. Execution of this script will not be permitted if this option is not present.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="certificate-body">Certificate Body</h3>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Type(Length)</th>
+<th>Key</th>
+<th>Example Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Reserved</td>
+<td>string(0)</td>
+<td>reserved</td>
+<td>""</td>
+<td>Reserved for future use, must be empty (automatically set upon signing)</td>
+</tr>
+<tr>
+<td>CA Public Key</td>
+<td>bytestring(variable)</td>
+<td>ca_pubkey</td>
+<td>\x00\x00\x00..........</td>
+<td>The public key of the CA that issued this certificate (automatically set upon signing)</td>
+</tr>
+<tr>
+<td>Signature</td>
+<td>bytestring(variable)</td>
+<td>signature</td>
+<td>\x00\x00\x00..........</td>
+<td>The signature of the certificate, created by the CA (automatically set upon signing)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="creating-signing-and-verifying-certificates">Creating, signing and verifying certificates</h2>
+<pre><code class="language-python"># Every certificate needs two parts, the subject (user or host) public key and the CA Private key
+from sshkey_tools.cert import SSHCertificate, CertificateFields, Ed25519Certificate
+from sshkey_tools.keys import Ed25519PrivateKey
+from datetime import datetime, timedelta
 
-user_pubkey = PublicKey.from_file('path/to/user_key.pub')
-ca_privkey = PrivateKey.from_file('path/to/ca_key')
+subject_pubkey = Ed25519PrivateKey.generate().public_key
+ca_privkey = Ed25519PrivateKey.generate()
 
-# You can create a certificate with a dict of pre-set options
-cert_opts = {
-    'cert_type': 1,
-    'serial': 12345,
-    'key_id': &quot;my.user@mycompany.com&quot;,
-    'principals': [
-        'webservers-dev',
-        'webservers-prod',
-        'servername01'
-    ],
-    'valid_after': datetime.now(),
-    'valid_before': datetime.now() + timedelta(hours=12),
-    'critical_options': {},
-    'extensions': [
-        'permit-pty',
-        'permit-user-rc',
-        'permit-port-forwarding'
-    ]    
+# There are multiple ways to create a certificate, either by creating the certificate body field object first and then creating the certificate, or creating the certificate and setting the fields one by one
 
-}
-
-# Create a signable certificate from a PublicKey class
-certificate = SSHCertificate.from_public_class(
-    user_pubkey,
-    ca_privkey,
-    **cert_opts
-)
-
-# You can also create the certificate in steps
-certificate = SSHCertificate.from_public_class(
-    user_pubkey
-)
-
-# Set the CA private key used to sign the certificate
-certificate.set_ca(ca_privkey)
-
-# Set or update the options one-by-one
-for key, value in cert_opts.items():
-    certificate.set_opt(key, value)
-
-# Via a dict
-certificate.set_opts(**cert_opts)
-
-# Or via parameters
-certificate.set_opts(
+# Create certificate body fields
+cert_fields = CertificateFields(
+    serial=1234567890,
     cert_type=1,
-    serial=12345,
-    key_id='my.user@mycompany.com',
-    principals=['zone-webservers'],
+    key_id=&quot;someuser@somehost&quot;,
+    principals=[&quot;some-user&quot;, &quot;some-group&quot;, &quot;production-webservers&quot;],
     valid_after=datetime.now(),
-    valid_before=datetime.now() + timedelta(hours=12),
-    critical_options={},
-    extensions={}
+    valid_before=datetime.now() + timedelta(hours=8),
+    critical_options=[],
+    extensions=[
+        &quot;permit-pty&quot;,
+        &quot;permit-X11-forwarding&quot;,
+        &quot;permit-agent-forwarding&quot;,
+    ],
 )
+
+# Create certificate from existing fields
+certificate = SSHCertificate(
+    subject_pubkey=subject_pubkey,
+    ca_privkey=ca_privkey,
+    fields=cert_fields,
+)
+
+# Start with a blank certificate by calling the general class
+certificate = SSHCertificate.create(
+    subject_pubkey=subject_pubkey,
+    ca_privkey=ca_privkey
+)
+
+# You can also call the specialized classes directly, for the general class the .create-function needs to be used
+certificate = Ed25519Certificate(
+    subject_pubkey=subject_pubkey,
+    ca_privkey=ca_privkey
+)
+
+# Manually set the fields
+certificate.fields.serial = 1234567890
+certificate.fields.cert_type = 1
+certificate.fields.key_id = &quot;someuser@somehost&quot;
+certificate.fields.principals = [&quot;some-user&quot;, &quot;some-group&quot;, &quot;production-webservers&quot;]
+certificate.fields.valid_after = datetime.now()
+certificate.fields.valid_before = datetime.now() + timedelta(hours=8)
+certificate.fields.critical_options = []
+certificate.fields.extensions = [
+    &quot;allow-pty&quot;,
+    &quot;permit-X11-forwarding&quot;,
+    &quot;permit-agent-forwarding&quot;,
+]
 
 # Check if the certificate is ready to be signed
-# Will return True or an exception
 certificate.can_sign()
-
-# Catch exceptions
-try:
-    certificate.can_sign()
-except SignatureNotPossibleException:
-    ...
 
 # Sign the certificate
 certificate.sign()
 
-# For certificates signed by an RSA key, you can choose the hashing algorithm 
-# to be used for creating the hash of the certificate data before signing
-certificate.sign(
-    hash_alg=RsaAlgs.SHA512
-)
-
-# If you want to verify the signature after creation, 
-# you can do so with the verify()-method
-#
-# Please note that a public key should always be provided
-# to this function if the certificate was not just created,
-# since an attacker very well could have replaced CA public key
-# and signature with their own
-#
-# The method will return None if successful, and InvalidSignatureException
-# if the signature does not match the data
+# Verify the certificate against the included public key (insecure, but useful for testing)
 certificate.verify()
+
+# Verify the certificate against a public key that is not included in the certificate
 certificate.verify(ca_privkey.public_key)
 
+# Raise an exception if the certificate is invalid
+certificate.verify(ca_privkey.public_key, True)
 
-# If you prefer to verify manually, you can use the CA public key object
-# from sshkey_tools or the key object from pyca/cryptography
+# Export the certificate to file/string
+certificate.to_file('filename-cert.pub')
+cert_str = certificate.to_string()
 
-# PublicKey
-ca_pubkey = PublicKey.from_file('path/to/ca_pubkey')
-
-
-ca_pubkey.verify(
-    certificate.get_signable_data(),
-    certificate.signature.value,
-    RsaAlgs.SHA256.value[1]
-)
-
-# pyca/cryptography RsaPrivateKey
-with open('path/to/ca_pubkey', 'rb') as file:
-    crypto_ca_pubkey = crypto_serialization.load_ssh_public_key(file.read())
-
-crypto_ca_pubkey.verify(
-    certificate.get_signable_data(),
-    certificate.signature.value,
-    crypto_padding.PKCS1v15(),
-    crypto_hashes.SHA256()
-)
-
-# You now have an OpenSSH Certificate
-# Export it to file, string or bytes
-certificate.to_file('path/to/user_key-cert.pub')
-cert_string = certificate.to_string()
-cert_bytes = certificate.to_bytes()
 </code></pre>
-<h3 id="load-an-existing-certificate">Load an existing certificate</h3>
-<p>Certificates can be loaded from file, a string/bytestring with file contents
-or the base64-decoded byte data of the certificate</p>
-<pre><code class="language-python">from sshkey_tools.keys import PublicKey, PrivateKey
-from sshkey_tools.cert import SSHCertificate, RsaCertificate
+<h2 id="loading-re-creating-and-verifying-existing-certificates">Loading, re-creating and verifying existing certificates</h2>
+<pre><code class="language-python">from sshkey_tools.cert import SSHCertificate, CertificateFields, Ed25519Certificate
+from sshkey_tools.keys import PublicKey, PrivateKey
+from datetime import datetime, timedelta
 
-# Load an existing certificate
-certificate = SSHCertificate.from_file('path/to/user_key-cert.pub')
+# Load a certificate from file or string
+# This will return the correct certificate type based on the contents of the certificate
+certificate = SSHCertificate.from_file('filename-cert.pub')
+certificate = SSHCertificate.from_string(cert_str)
 
-# or
-certificate = RsaCertificate.from_file('path/to/user_key-cert.pub')
+type(certificate) # sshkey_tools.cert.Ed25519Certificate
 
-# Verify the certificate with a CA public key
-ca_pubkey = PublicKey.from_file('path/to/ca_key.pub')
-certificate.verify(ca_pubkey)
+# Verify the certificate signature against the included public key (insecure, but useful for testing)
+certificate.verify()
 
-# Create a new certificate with duplicate values from existing certificate
-# You can use existing or previously issued certificates as templates
-# for creating new ones
-certificate = SSHCertificate.from_file('path/to/user_key-cert.pub')
-ca_privkey = PrivateKey.from_file('path/to/ca_privkey')
+# Verify the certificate signature against a public key
+pubkey = PublicKey.from_file('filename-pubkey.pub')
+certificate.verify(pubkey)
 
-certificate.set_ca(ca_privkey)
+# Raise an exception if the certificate is invalid
+certificate.verify(pubkey, True)
+
+# Use the loaded certificate as a template to create a new one
+new_ca = PrivateKey.from_file('filename-ca')
+certificate.replace_ca(new_ca)
 certificate.sign()
-certificate.to_file('path/to/user_key-cert2.pub')
+
 </code></pre>
+<h2 id="changelog">Changelog</h2>
+<h3 id="09">0.9</h3>
+<ul>
+<li>Adjustments to certificate field handling for easier usage/syntax autocompletion</li>
+<li>Updated testing</li>
+<li>Removed method for changing RSA hash method (now default SHA512)</li>
+</ul>
+<h3 id="082">0.8.2</h3>
+<ul>
+<li>Fixed bug where an RSA certificate would send the RSA alg to the sign() function of another key type</li>
+</ul>
+<h3 id="081">0.8.1</h3>
+<ul>
+<li>Changed versioning for out-of-github installation/packaging</li>
+<li>Moved documentation to HTML (PDOC3)</li>
+<li>Added verification of certificate signature</li>
+<li>Added option to choose RSA hashing algorithm for signing</li>
+<li>Removed test files</li>
+<li>Added documentation deployment CD for GH pages</li>
+</ul>
+<h3 id="08">0.8</h3>
+<ul>
+<li>Initial public release</li>
+</ul>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -349,22 +598,39 @@ certificate.to_file('path/to/user_key-cert2.pub')
 <div class="toc">
 <ul>
 <li><a href="#sshkey-tools">sshkey-tools</a></li>
+<li><a href="#features">Features</a><ul>
+<li><a href="#ssh-keys">SSH Keys</a></li>
+<li><a href="#openssh-certificates">OpenSSH Certificates</a></li>
+</ul>
+</li>
+<li><a href="#roadmap">Roadmap</a></li>
 <li><a href="#installation">Installation</a><ul>
 <li><a href="#with-pip">With pip</a></li>
 <li><a href="#from-source">From source</a></li>
 </ul>
 </li>
-<li><a href="#documentation">Documentation</a></li>
-<li><a href="#basic-usage">Basic usage</a><ul>
-<li><a href="#ssh-keypairs">SSH Keypairs</a><ul>
-<li><a href="#generate-keys">Generate keys</a></li>
-<li><a href="#load-keys">Load keys</a></li>
+<li><a href="#documentation">Documentation</a><ul>
+<li><a href="#ssh-keypairs-generating-loading-exporting">SSH Keypairs (generating, loading, exporting)</a></li>
+<li><a href="#ssh-key-signatures">SSH Key Signatures</a></li>
+<li><a href="#openssh-certificates_1">OpenSSH Certificates</a><ul>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#structure">Structure</a></li>
+<li><a href="#certificate-header">Certificate Header</a></li>
+<li><a href="#certificate-fields">Certificate Fields</a><ul>
+<li><a href="#critical-options">Critical Options</a></li>
+<li><a href="#extensions">Extensions</a></li>
 </ul>
 </li>
-<li><a href="#ssh-certificates">SSH Certificates</a><ul>
-<li><a href="#attributes">Attributes</a></li>
-<li><a href="#certificate-creation">Certificate creation</a></li>
-<li><a href="#load-an-existing-certificate">Load an existing certificate</a></li>
+<li><a href="#certificate-body">Certificate Body</a></li>
+</ul>
+</li>
+<li><a href="#creating-signing-and-verifying-certificates">Creating, signing and verifying certificates</a></li>
+<li><a href="#loading-re-creating-and-verifying-existing-certificates">Loading, re-creating and verifying existing certificates</a></li>
+<li><a href="#changelog">Changelog</a><ul>
+<li><a href="#09">0.9</a></li>
+<li><a href="#082">0.8.2</a></li>
+<li><a href="#081">0.8.1</a></li>
+<li><a href="#08">0.8</a></li>
 </ul>
 </li>
 </ul>

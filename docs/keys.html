@@ -30,52 +30,48 @@
 <pre><code class="python">&#34;&#34;&#34;
 Classes for handling SSH public/private keys
 &#34;&#34;&#34;
-from typing import Union
-from enum import Enum
 from base64 import b64decode
+from enum import Enum
 from struct import unpack
-from cryptography.hazmat.backends.openssl.rsa import _RsaPublicKey, _RsaPrivateKey
-from cryptography.hazmat.backends.openssl.dsa import _DsaPublicKey, _DsaPrivateKey
-from cryptography.hazmat.backends.openssl.ed25519 import (
-    _Ed25519PublicKey,
-    _Ed25519PrivateKey,
-)
-from cryptography.hazmat.backends.openssl.ec import (
-    _EllipticCurvePublicKey,
-    _EllipticCurvePrivateKey,
-)
-from cryptography.hazmat.primitives import (
-    serialization as _SERIALIZATION,
-    hashes as _HASHES,
-)
-from cryptography.hazmat.primitives.asymmetric import (
-    rsa as _RSA,
-    dsa as _DSA,
-    ec as _ECDSA,
-    ed25519 as _ED25519,
-    padding as _PADDING,
-)
+from typing import Union
 
 from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.backends.openssl.dsa import _DSAPrivateKey, _DSAPublicKey
+from cryptography.hazmat.backends.openssl.ec import (
+    _EllipticCurvePrivateKey,
+    _EllipticCurvePublicKey,
+)
+from cryptography.hazmat.backends.openssl.ed25519 import (
+    _Ed25519PrivateKey,
+    _Ed25519PublicKey,
+)
+from cryptography.hazmat.backends.openssl.rsa import _RSAPrivateKey, _RSAPublicKey
+from cryptography.hazmat.primitives import hashes as _HASHES
+from cryptography.hazmat.primitives import serialization as _SERIALIZATION
+from cryptography.hazmat.primitives.asymmetric import dsa as _DSA
+from cryptography.hazmat.primitives.asymmetric import ec as _ECDSA
+from cryptography.hazmat.primitives.asymmetric import ed25519 as _ED25519
+from cryptography.hazmat.primitives.asymmetric import padding as _PADDING
+from cryptography.hazmat.primitives.asymmetric import rsa as _RSA
 
 from . import exceptions as _EX
-from .utils import (
-    md5_fingerprint as _FP_MD5,
-    sha256_fingerprint as _FP_SHA256,
-    sha512_fingerprint as _FP_SHA512,
-)
+from .utils import ensure_bytestring, ensure_string
+from .utils import md5_fingerprint as _FP_MD5
+from .utils import sha256_fingerprint as _FP_SHA256
+from .utils import sha512_fingerprint as _FP_SHA512
 
 PUBKEY_MAP = {
-    _RsaPublicKey: &#34;RsaPublicKey&#34;,
-    _DsaPublicKey: &#34;DsaPublicKey&#34;,
+    _RSAPublicKey: &#34;RsaPublicKey&#34;,
+    _DSAPublicKey: &#34;DsaPublicKey&#34;,
     _EllipticCurvePublicKey: &#34;EcdsaPublicKey&#34;,
     _Ed25519PublicKey: &#34;Ed25519PublicKey&#34;,
 }
 
 PRIVKEY_MAP = {
-    _RsaPrivateKey: &#34;RsaPrivateKey&#34;,
-    _DsaPrivateKey: &#34;DsaPrivateKey&#34;,
+    _RSAPrivateKey: &#34;RsaPrivateKey&#34;,
+    _DSAPrivateKey: &#34;DsaPrivateKey&#34;,
     _EllipticCurvePrivateKey: &#34;EcdsaPrivateKey&#34;,
+    # trunk-ignore(gitleaks/generic-api-key)
     _Ed25519PrivateKey: &#34;Ed25519PrivateKey&#34;,
 }
 
@@ -86,15 +82,15 @@ ECDSA_HASHES = {
 }
 
 PubkeyClasses = Union[
-    _RSA.RsaPublicKey,
-    _DSA.DsaPublicKey,
+    _RSA.RSAPublicKey,
+    _DSA.DSAPublicKey,
     _ECDSA.EllipticCurvePublicKey,
     _ED25519.Ed25519PublicKey,
 ]
 
 PrivkeyClasses = Union[
-    _RSA.RsaPrivateKey,
-    _DSA.DsaPrivateKey,
+    _RSA.RSAPrivateKey,
+    _DSA.DSAPrivateKey,
     _ECDSA.EllipticCurvePrivateKey,
     _ED25519.Ed25519PrivateKey,
 ]
@@ -206,10 +202,7 @@ class PublicKey:
         Returns:
             PublicKey: Any of the PublicKey child classes
         &#34;&#34;&#34;
-        if isinstance(data, str):
-            data = data.encode(encoding)
-
-        split = data.split(b&#34; &#34;)
+        split = ensure_bytestring(data, encoding).split(b&#34; &#34;)
         comment = None
         if len(split) &gt; 2:
             comment = split[2]
@@ -234,6 +227,30 @@ class PublicKey:
             data = file.read()
 
         return cls.from_string(data)
+
+    @classmethod
+    # pylint: disable=broad-except
+    def from_bytes(cls, data: bytes) -&gt; &#34;PublicKey&#34;:
+        &#34;&#34;&#34;
+        Loads a public key from byte data
+
+        Args:
+            data (bytes): The bytestring containing the public key
+
+        Raises:
+            _EX.InvalidKeyException: Invalid data input
+
+        Returns:
+            PublicKey: PublicKey subclass depending on the key type
+        &#34;&#34;&#34;
+        for key_class in PUBKEY_MAP.values():
+            try:
+                key = globals()[key_class].from_raw_bytes(data)
+                return key
+            except Exception:
+                pass
+
+        raise _EX.InvalidKeyException(&#34;Invalid public key&#34;)
 
     def get_fingerprint(
         self, hash_method: FingerprintHashes = FingerprintHashes.SHA256
@@ -275,12 +292,12 @@ class PublicKey:
             str: The public key in OpenSSH format
             encoding(str, optional): The encoding of the file. Defaults to &#39;utf-8&#39;.
         &#34;&#34;&#34;
-        public_bytes = self.serialize()
-
-        if self.comment is not None:
-            public_bytes += b&#34; &#34; + self.comment
-
-        return public_bytes.decode(encoding)
+        return &#34; &#34;.join(
+            [
+                ensure_string(self.serialize(), encoding),
+                ensure_string(getattr(self, &#34;comment&#34;, &#34;&#34;), encoding),
+            ]
+        )
 
     def to_file(self, path: str, encoding: str = &#34;utf-8&#34;) -&gt; None:
         &#34;&#34;&#34;
@@ -347,12 +364,7 @@ class PrivateKey:
         Returns:
             PrivateKey: Any of the PrivateKey child classes
         &#34;&#34;&#34;
-        if isinstance(key_data, str):
-            key_data = key_data.encode(encoding)
-
-        if isinstance(password, str):
-            password = password.encode(encoding)
-
+        key_data, password = ensure_bytestring((key_data, password), encoding=encoding)
         private_key = _SERIALIZATION.load_ssh_private_key(key_data, password=password)
 
         return cls.from_class(private_key)
@@ -402,8 +414,7 @@ class PrivateKey:
         Returns:
             bytes: The private key in PEM format
         &#34;&#34;&#34;
-        if isinstance(password, str):
-            password = password.encode(&#34;utf-8&#34;)
+        password = ensure_bytestring(password)
 
         encryption = _SERIALIZATION.NoEncryption()
         if password is not None:
@@ -427,7 +438,7 @@ class PrivateKey:
             bytes: The private key in PEM format
         &#34;&#34;&#34;
 
-        return self.to_bytes(password).decode(encoding)
+        return ensure_string(self.to_bytes(password), encoding)
 
     def to_file(
         self, path: str, password: Union[str, bytes] = None, encoding: str = &#34;utf-8&#34;
@@ -453,7 +464,7 @@ class RsaPublicKey(PublicKey):
 
     def __init__(
         self,
-        key: _RSA.RsaPublicKey,
+        key: _RSA.RSAPublicKey,
         comment: Union[str, bytes] = None,
         key_type: Union[str, bytes] = None,
         serialized: bytes = None,
@@ -493,7 +504,7 @@ class RsaPublicKey(PublicKey):
             hash_method (HashMethods): The hash method to use
 
         Raises:
-            Raises an sshkey_tools.exceptions.InvalidSignatureException if the signature is invalid
+            Raises a sshkey_tools.exceptions.InvalidSignatureException if the signature is invalid
         &#34;&#34;&#34;
         try:
             return self.key.verify(
@@ -510,7 +521,7 @@ class RsaPrivateKey(PrivateKey):
     Class for holding RSA private keys
     &#34;&#34;&#34;
 
-    def __init__(self, key: _RSA.RsaPrivateKey):
+    def __init__(self, key: _RSA.RSAPrivateKey):
         super().__init__(
             key=key,
             public_key=RsaPublicKey(key.public_key()),
@@ -615,7 +626,7 @@ class DsaPublicKey(PublicKey):
 
     def __init__(
         self,
-        key: _DSA.DsaPublicKey,
+        key: _DSA.DSAPublicKey,
         comment: Union[str, bytes] = None,
         key_type: Union[str, bytes] = None,
         serialized: bytes = None,
@@ -674,7 +685,7 @@ class DsaPrivateKey(PrivateKey):
     Class for holding DSA private keys
     &#34;&#34;&#34;
 
-    def __init__(self, key: _DSA.DsaPrivateKey):
+    def __init__(self, key: _DSA.DSAPrivateKey):
         super().__init__(
             key=key,
             public_key=DsaPublicKey(key.public_key()),
@@ -1001,7 +1012,7 @@ class Ed25519PrivateKey(PrivateKey):
 <dl>
 <dt id="sshkey_tools.keys.DsaPrivateKey"><code class="flex name class">
 <span>class <span class="ident">DsaPrivateKey</span></span>
-<span>(</span><span>key: cryptography.hazmat.primitives.asymmetric.dsa.DsaPrivateKey)</span>
+<span>(</span><span>key: cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Class for holding DSA private keys</p></div>
@@ -1014,7 +1025,7 @@ class Ed25519PrivateKey(PrivateKey):
     Class for holding DSA private keys
     &#34;&#34;&#34;
 
-    def __init__(self, key: _DSA.DsaPrivateKey):
+    def __init__(self, key: _DSA.DSAPrivateKey):
         super().__init__(
             key=key,
             public_key=DsaPublicKey(key.public_key()),
@@ -1208,7 +1219,7 @@ def generate(cls) -&gt; &#34;DsaPrivateKey&#34;:
 </dd>
 <dt id="sshkey_tools.keys.DsaPublicKey"><code class="flex name class">
 <span>class <span class="ident">DsaPublicKey</span></span>
-<span>(</span><span>key: cryptography.hazmat.primitives.asymmetric.dsa.DsaPublicKey, comment: Union[str, bytes] = None, key_type: Union[str, bytes] = None, serialized: bytes = None)</span>
+<span>(</span><span>key: cryptography.hazmat.primitives.asymmetric.dsa.DSAPublicKey, comment: Union[str, bytes] = None, key_type: Union[str, bytes] = None, serialized: bytes = None)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Class for holding DSA public keys</p></div>
@@ -1223,7 +1234,7 @@ def generate(cls) -&gt; &#34;DsaPrivateKey&#34;:
 
     def __init__(
         self,
-        key: _DSA.DsaPublicKey,
+        key: _DSA.DSAPublicKey,
         comment: Union[str, bytes] = None,
         key_type: Union[str, bytes] = None,
         serialized: bytes = None,
@@ -1374,6 +1385,7 @@ def from_numbers(cls, p: int, q: int, g: int, y: int) -&gt; &#34;DsaPublicKey&#3
 <ul class="hlist">
 <li><code><b><a title="sshkey_tools.keys.PublicKey" href="#sshkey_tools.keys.PublicKey">PublicKey</a></b></code>:
 <ul class="hlist">
+<li><code><a title="sshkey_tools.keys.PublicKey.from_bytes" href="#sshkey_tools.keys.PublicKey.from_bytes">from_bytes</a></code></li>
 <li><code><a title="sshkey_tools.keys.PublicKey.from_class" href="#sshkey_tools.keys.PublicKey.from_class">from_class</a></code></li>
 <li><code><a title="sshkey_tools.keys.PublicKey.from_file" href="#sshkey_tools.keys.PublicKey.from_file">from_file</a></code></li>
 <li><code><a title="sshkey_tools.keys.PublicKey.from_string" href="#sshkey_tools.keys.PublicKey.from_string">from_string</a></code></li>
@@ -1385,6 +1397,54 @@ def from_numbers(cls, p: int, q: int, g: int, y: int) -&gt; &#34;DsaPublicKey&#3
 </ul>
 </li>
 </ul>
+</dd>
+<dt id="sshkey_tools.keys.EcdsaCurves"><code class="flex name class">
+<span>class <span class="ident">EcdsaCurves</span></span>
+<span>(</span><span>value, names=None, *, module=None, qualname=None, type=None, start=1)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>ECDSA Curves</p>
+<h2 id="values">Values</h2>
+<p>P256
+P384
+P521</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class EcdsaCurves(Enum):
+    &#34;&#34;&#34;
+    ECDSA Curves
+
+    Values:
+        P256
+        P384
+        P521
+    &#34;&#34;&#34;
+
+    P256 = _ECDSA.SECP256R1
+    P384 = _ECDSA.SECP384R1
+    P521 = _ECDSA.SECP521R1</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="sshkey_tools.keys.EcdsaCurves.P256"><code class="name">var <span class="ident">P256</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="sshkey_tools.keys.EcdsaCurves.P384"><code class="name">var <span class="ident">P384</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="sshkey_tools.keys.EcdsaCurves.P521"><code class="name">var <span class="ident">P521</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
 </dd>
 <dt id="sshkey_tools.keys.EcdsaPrivateKey"><code class="flex name class">
 <span>class <span class="ident">EcdsaPrivateKey</span></span>
@@ -1810,6 +1870,7 @@ def from_numbers(
 <ul class="hlist">
 <li><code><b><a title="sshkey_tools.keys.PublicKey" href="#sshkey_tools.keys.PublicKey">PublicKey</a></b></code>:
 <ul class="hlist">
+<li><code><a title="sshkey_tools.keys.PublicKey.from_bytes" href="#sshkey_tools.keys.PublicKey.from_bytes">from_bytes</a></code></li>
 <li><code><a title="sshkey_tools.keys.PublicKey.from_class" href="#sshkey_tools.keys.PublicKey.from_class">from_class</a></code></li>
 <li><code><a title="sshkey_tools.keys.PublicKey.from_file" href="#sshkey_tools.keys.PublicKey.from_file">from_file</a></code></li>
 <li><code><a title="sshkey_tools.keys.PublicKey.from_string" href="#sshkey_tools.keys.PublicKey.from_string">from_string</a></code></li>
@@ -2188,6 +2249,7 @@ def from_raw_bytes(cls, raw_bytes: bytes) -&gt; &#34;Ed25519PublicKey&#34;:
 <ul class="hlist">
 <li><code><b><a title="sshkey_tools.keys.PublicKey" href="#sshkey_tools.keys.PublicKey">PublicKey</a></b></code>:
 <ul class="hlist">
+<li><code><a title="sshkey_tools.keys.PublicKey.from_bytes" href="#sshkey_tools.keys.PublicKey.from_bytes">from_bytes</a></code></li>
 <li><code><a title="sshkey_tools.keys.PublicKey.from_class" href="#sshkey_tools.keys.PublicKey.from_class">from_class</a></code></li>
 <li><code><a title="sshkey_tools.keys.PublicKey.from_file" href="#sshkey_tools.keys.PublicKey.from_file">from_file</a></code></li>
 <li><code><a title="sshkey_tools.keys.PublicKey.from_string" href="#sshkey_tools.keys.PublicKey.from_string">from_string</a></code></li>
@@ -2199,54 +2261,6 @@ def from_raw_bytes(cls, raw_bytes: bytes) -&gt; &#34;Ed25519PublicKey&#34;:
 </ul>
 </li>
 </ul>
-</dd>
-<dt id="sshkey_tools.keys.EcdsaCurves"><code class="flex name class">
-<span>class <span class="ident">EcdsaCurves</span></span>
-<span>(</span><span>value, names=None, *, module=None, qualname=None, type=None, start=1)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>ECDSA Curves</p>
-<h2 id="values">Values</h2>
-<p>P256
-P384
-P521</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class EcdsaCurves(Enum):
-    &#34;&#34;&#34;
-    ECDSA Curves
-
-    Values:
-        P256
-        P384
-        P521
-    &#34;&#34;&#34;
-
-    P256 = _ECDSA.SECP256R1
-    P384 = _ECDSA.SECP384R1
-    P521 = _ECDSA.SECP521R1</code></pre>
-</details>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="sshkey_tools.keys.EcdsaCurves.P256"><code class="name">var <span class="ident">P256</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="sshkey_tools.keys.EcdsaCurves.P384"><code class="name">var <span class="ident">P384</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="sshkey_tools.keys.EcdsaCurves.P521"><code class="name">var <span class="ident">P521</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
 </dd>
 <dt id="sshkey_tools.keys.FingerprintHashes"><code class="flex name class">
 <span>class <span class="ident">FingerprintHashes</span></span>
@@ -2399,7 +2413,7 @@ SHA512</p></div>
 </dd>
 <dt id="sshkey_tools.keys.PrivateKey"><code class="flex name class">
 <span>class <span class="ident">PrivateKey</span></span>
-<span>(</span><span>key: Union[cryptography.hazmat.primitives.asymmetric.rsa.RsaPrivateKey, cryptography.hazmat.primitives.asymmetric.dsa.DsaPrivateKey, cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey, cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey], public_key: <a title="sshkey_tools.keys.PublicKey" href="#sshkey_tools.keys.PublicKey">PublicKey</a>, **kwargs)</span>
+<span>(</span><span>key: Union[cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey, cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey, cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey, cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey], public_key: <a title="sshkey_tools.keys.PublicKey" href="#sshkey_tools.keys.PublicKey">PublicKey</a>, **kwargs)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Class for handling SSH Private keys</p></div>
@@ -2460,12 +2474,7 @@ SHA512</p></div>
         Returns:
             PrivateKey: Any of the PrivateKey child classes
         &#34;&#34;&#34;
-        if isinstance(key_data, str):
-            key_data = key_data.encode(encoding)
-
-        if isinstance(password, str):
-            password = password.encode(encoding)
-
+        key_data, password = ensure_bytestring((key_data, password), encoding=encoding)
         private_key = _SERIALIZATION.load_ssh_private_key(key_data, password=password)
 
         return cls.from_class(private_key)
@@ -2515,8 +2524,7 @@ SHA512</p></div>
         Returns:
             bytes: The private key in PEM format
         &#34;&#34;&#34;
-        if isinstance(password, str):
-            password = password.encode(&#34;utf-8&#34;)
+        password = ensure_bytestring(password)
 
         encryption = _SERIALIZATION.NoEncryption()
         if password is not None:
@@ -2540,7 +2548,7 @@ SHA512</p></div>
             bytes: The private key in PEM format
         &#34;&#34;&#34;
 
-        return self.to_bytes(password).decode(encoding)
+        return ensure_string(self.to_bytes(password), encoding)
 
     def to_file(
         self, path: str, password: Union[str, bytes] = None, encoding: str = &#34;utf-8&#34;
@@ -2568,7 +2576,7 @@ SHA512</p></div>
 <h3>Static methods</h3>
 <dl>
 <dt id="sshkey_tools.keys.PrivateKey.from_class"><code class="name flex">
-<span>def <span class="ident">from_class</span></span>(<span>key_class: Union[cryptography.hazmat.primitives.asymmetric.rsa.RsaPrivateKey, cryptography.hazmat.primitives.asymmetric.dsa.DsaPrivateKey, cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey, cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey]) ‑> <a title="sshkey_tools.keys.PrivateKey" href="#sshkey_tools.keys.PrivateKey">PrivateKey</a></span>
+<span>def <span class="ident">from_class</span></span>(<span>key_class: Union[cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey, cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey, cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey, cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey]) ‑> <a title="sshkey_tools.keys.PrivateKey" href="#sshkey_tools.keys.PrivateKey">PrivateKey</a></span>
 </code></dt>
 <dd>
 <div class="desc"><p>Import an SSH Private key from a cryptography key class</p>
@@ -2694,12 +2702,7 @@ def from_string(
     Returns:
         PrivateKey: Any of the PrivateKey child classes
     &#34;&#34;&#34;
-    if isinstance(key_data, str):
-        key_data = key_data.encode(encoding)
-
-    if isinstance(password, str):
-        password = password.encode(encoding)
-
+    key_data, password = ensure_bytestring((key_data, password), encoding=encoding)
     private_key = _SERIALIZATION.load_ssh_private_key(key_data, password=password)
 
     return cls.from_class(private_key)</code></pre>
@@ -2773,8 +2776,7 @@ Defaults to None.</dd>
     Returns:
         bytes: The private key in PEM format
     &#34;&#34;&#34;
-    if isinstance(password, str):
-        password = password.encode(&#34;utf-8&#34;)
+    password = ensure_bytestring(password)
 
     encryption = _SERIALIZATION.NoEncryption()
     if password is not None:
@@ -2858,14 +2860,14 @@ Defaults to None.</dd>
         bytes: The private key in PEM format
     &#34;&#34;&#34;
 
-    return self.to_bytes(password).decode(encoding)</code></pre>
+    return ensure_string(self.to_bytes(password), encoding)</code></pre>
 </details>
 </dd>
 </dl>
 </dd>
 <dt id="sshkey_tools.keys.PublicKey"><code class="flex name class">
 <span>class <span class="ident">PublicKey</span></span>
-<span>(</span><span>key: Union[cryptography.hazmat.primitives.asymmetric.rsa.RsaPrivateKey, cryptography.hazmat.primitives.asymmetric.dsa.DsaPrivateKey, cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey, cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey] = None, comment: Union[str, bytes] = None, **kwargs)</span>
+<span>(</span><span>key: Union[cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey, cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey, cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey, cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey] = None, comment: Union[str, bytes] = None, **kwargs)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Class for handling SSH public keys</p></div>
@@ -2935,10 +2937,7 @@ Defaults to None.</dd>
         Returns:
             PublicKey: Any of the PublicKey child classes
         &#34;&#34;&#34;
-        if isinstance(data, str):
-            data = data.encode(encoding)
-
-        split = data.split(b&#34; &#34;)
+        split = ensure_bytestring(data, encoding).split(b&#34; &#34;)
         comment = None
         if len(split) &gt; 2:
             comment = split[2]
@@ -2963,6 +2962,30 @@ Defaults to None.</dd>
             data = file.read()
 
         return cls.from_string(data)
+
+    @classmethod
+    # pylint: disable=broad-except
+    def from_bytes(cls, data: bytes) -&gt; &#34;PublicKey&#34;:
+        &#34;&#34;&#34;
+        Loads a public key from byte data
+
+        Args:
+            data (bytes): The bytestring containing the public key
+
+        Raises:
+            _EX.InvalidKeyException: Invalid data input
+
+        Returns:
+            PublicKey: PublicKey subclass depending on the key type
+        &#34;&#34;&#34;
+        for key_class in PUBKEY_MAP.values():
+            try:
+                key = globals()[key_class].from_raw_bytes(data)
+                return key
+            except Exception:
+                pass
+
+        raise _EX.InvalidKeyException(&#34;Invalid public key&#34;)
 
     def get_fingerprint(
         self, hash_method: FingerprintHashes = FingerprintHashes.SHA256
@@ -3004,12 +3027,12 @@ Defaults to None.</dd>
             str: The public key in OpenSSH format
             encoding(str, optional): The encoding of the file. Defaults to &#39;utf-8&#39;.
         &#34;&#34;&#34;
-        public_bytes = self.serialize()
-
-        if self.comment is not None:
-            public_bytes += b&#34; &#34; + self.comment
-
-        return public_bytes.decode(encoding)
+        return &#34; &#34;.join(
+            [
+                ensure_string(self.serialize(), encoding),
+                ensure_string(getattr(self, &#34;comment&#34;, &#34;&#34;), encoding),
+            ]
+        )
 
     def to_file(self, path: str, encoding: str = &#34;utf-8&#34;) -&gt; None:
         &#34;&#34;&#34;
@@ -3031,8 +3054,57 @@ Defaults to None.</dd>
 </ul>
 <h3>Static methods</h3>
 <dl>
+<dt id="sshkey_tools.keys.PublicKey.from_bytes"><code class="name flex">
+<span>def <span class="ident">from_bytes</span></span>(<span>data: bytes) ‑> <a title="sshkey_tools.keys.PublicKey" href="#sshkey_tools.keys.PublicKey">PublicKey</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Loads a public key from byte data</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>data</code></strong> :&ensp;<code>bytes</code></dt>
+<dd>The bytestring containing the public key</dd>
+</dl>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>_EX.InvalidKeyException</code></dt>
+<dd>Invalid data input</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="sshkey_tools.keys.PublicKey" href="#sshkey_tools.keys.PublicKey">PublicKey</a></code></dt>
+<dd>PublicKey subclass depending on the key type</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+# pylint: disable=broad-except
+def from_bytes(cls, data: bytes) -&gt; &#34;PublicKey&#34;:
+    &#34;&#34;&#34;
+    Loads a public key from byte data
+
+    Args:
+        data (bytes): The bytestring containing the public key
+
+    Raises:
+        _EX.InvalidKeyException: Invalid data input
+
+    Returns:
+        PublicKey: PublicKey subclass depending on the key type
+    &#34;&#34;&#34;
+    for key_class in PUBKEY_MAP.values():
+        try:
+            key = globals()[key_class].from_raw_bytes(data)
+            return key
+        except Exception:
+            pass
+
+    raise _EX.InvalidKeyException(&#34;Invalid public key&#34;)</code></pre>
+</details>
+</dd>
 <dt id="sshkey_tools.keys.PublicKey.from_class"><code class="name flex">
-<span>def <span class="ident">from_class</span></span>(<span>key_class: Union[cryptography.hazmat.primitives.asymmetric.rsa.RsaPublicKey, cryptography.hazmat.primitives.asymmetric.dsa.DsaPublicKey, cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey, cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PublicKey], comment: Union[str, bytes] = None, key_type: Union[str, bytes] = None) ‑> <a title="sshkey_tools.keys.PublicKey" href="#sshkey_tools.keys.PublicKey">PublicKey</a></span>
+<span>def <span class="ident">from_class</span></span>(<span>key_class: Union[cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey, cryptography.hazmat.primitives.asymmetric.dsa.DSAPublicKey, cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey, cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PublicKey], comment: Union[str, bytes] = None, key_type: Union[str, bytes] = None) ‑> <a title="sshkey_tools.keys.PublicKey" href="#sshkey_tools.keys.PublicKey">PublicKey</a></span>
 </code></dt>
 <dd>
 <div class="desc"><p>Creates a new SSH Public key from a cryptography class</p>
@@ -3159,10 +3231,7 @@ def from_string(
     Returns:
         PublicKey: Any of the PublicKey child classes
     &#34;&#34;&#34;
-    if isinstance(data, str):
-        data = data.encode(encoding)
-
-    split = data.split(b&#34; &#34;)
+    split = ensure_bytestring(data, encoding).split(b&#34; &#34;)
     comment = None
     if len(split) &gt; 2:
         comment = split[2]
@@ -3308,19 +3377,67 @@ def from_string(
         str: The public key in OpenSSH format
         encoding(str, optional): The encoding of the file. Defaults to &#39;utf-8&#39;.
     &#34;&#34;&#34;
-    public_bytes = self.serialize()
-
-    if self.comment is not None:
-        public_bytes += b&#34; &#34; + self.comment
-
-    return public_bytes.decode(encoding)</code></pre>
+    return &#34; &#34;.join(
+        [
+            ensure_string(self.serialize(), encoding),
+            ensure_string(getattr(self, &#34;comment&#34;, &#34;&#34;), encoding),
+        ]
+    )</code></pre>
 </details>
+</dd>
+</dl>
+</dd>
+<dt id="sshkey_tools.keys.RsaAlgs"><code class="flex name class">
+<span>class <span class="ident">RsaAlgs</span></span>
+<span>(</span><span>value, names=None, *, module=None, qualname=None, type=None, start=1)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>RSA Algorithms</p>
+<h2 id="values">Values</h2>
+<p>SHA1
+SHA256
+SHA512</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class RsaAlgs(Enum):
+    &#34;&#34;&#34;
+    RSA Algorithms
+
+    Values:
+        SHA1
+        SHA256
+        SHA512
+    &#34;&#34;&#34;
+
+    SHA1 = (&#34;ssh-rsa&#34;, _HASHES.SHA1)
+    SHA256 = (&#34;rsa-sha2-256&#34;, _HASHES.SHA256)
+    SHA512 = (&#34;rsa-sha2-512&#34;, _HASHES.SHA512)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="sshkey_tools.keys.RsaAlgs.SHA1"><code class="name">var <span class="ident">SHA1</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="sshkey_tools.keys.RsaAlgs.SHA256"><code class="name">var <span class="ident">SHA256</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="sshkey_tools.keys.RsaAlgs.SHA512"><code class="name">var <span class="ident">SHA512</span></code></dt>
+<dd>
+<div class="desc"></div>
 </dd>
 </dl>
 </dd>
 <dt id="sshkey_tools.keys.RsaPrivateKey"><code class="flex name class">
 <span>class <span class="ident">RsaPrivateKey</span></span>
-<span>(</span><span>key: cryptography.hazmat.primitives.asymmetric.rsa.RsaPrivateKey)</span>
+<span>(</span><span>key: cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Class for holding RSA private keys</p></div>
@@ -3333,7 +3450,7 @@ def from_string(
     Class for holding RSA private keys
     &#34;&#34;&#34;
 
-    def __init__(self, key: _RSA.RsaPrivateKey):
+    def __init__(self, key: _RSA.RSAPrivateKey):
         super().__init__(
             key=key,
             public_key=RsaPublicKey(key.public_key()),
@@ -3634,7 +3751,7 @@ Defaults to SHA512.</dd>
 </dd>
 <dt id="sshkey_tools.keys.RsaPublicKey"><code class="flex name class">
 <span>class <span class="ident">RsaPublicKey</span></span>
-<span>(</span><span>key: cryptography.hazmat.primitives.asymmetric.rsa.RsaPublicKey, comment: Union[str, bytes] = None, key_type: Union[str, bytes] = None, serialized: bytes = None)</span>
+<span>(</span><span>key: cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey, comment: Union[str, bytes] = None, key_type: Union[str, bytes] = None, serialized: bytes = None)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Class for holding RSA public keys</p></div>
@@ -3649,7 +3766,7 @@ Defaults to SHA512.</dd>
 
     def __init__(
         self,
-        key: _RSA.RsaPublicKey,
+        key: _RSA.RSAPublicKey,
         comment: Union[str, bytes] = None,
         key_type: Union[str, bytes] = None,
         serialized: bytes = None,
@@ -3689,7 +3806,7 @@ Defaults to SHA512.</dd>
             hash_method (HashMethods): The hash method to use
 
         Raises:
-            Raises an sshkey_tools.exceptions.InvalidSignatureException if the signature is invalid
+            Raises a sshkey_tools.exceptions.InvalidSignatureException if the signature is invalid
         &#34;&#34;&#34;
         try:
             return self.key.verify(
@@ -3761,7 +3878,7 @@ def from_numbers(cls, e: int, n: int) -&gt; &#34;RsaPublicKey&#34;:
 <dd>The hash method to use</dd>
 </dl>
 <h2 id="raises">Raises</h2>
-<p>Raises an sshkey_tools.exceptions.InvalidSignatureException if the signature is invalid</p></div>
+<p>Raises a sshkey_tools.exceptions.InvalidSignatureException if the signature is invalid</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -3778,7 +3895,7 @@ def from_numbers(cls, e: int, n: int) -&gt; &#34;RsaPublicKey&#34;:
         hash_method (HashMethods): The hash method to use
 
     Raises:
-        Raises an sshkey_tools.exceptions.InvalidSignatureException if the signature is invalid
+        Raises a sshkey_tools.exceptions.InvalidSignatureException if the signature is invalid
     &#34;&#34;&#34;
     try:
         return self.key.verify(
@@ -3795,6 +3912,7 @@ def from_numbers(cls, e: int, n: int) -&gt; &#34;RsaPublicKey&#34;:
 <ul class="hlist">
 <li><code><b><a title="sshkey_tools.keys.PublicKey" href="#sshkey_tools.keys.PublicKey">PublicKey</a></b></code>:
 <ul class="hlist">
+<li><code><a title="sshkey_tools.keys.PublicKey.from_bytes" href="#sshkey_tools.keys.PublicKey.from_bytes">from_bytes</a></code></li>
 <li><code><a title="sshkey_tools.keys.PublicKey.from_class" href="#sshkey_tools.keys.PublicKey.from_class">from_class</a></code></li>
 <li><code><a title="sshkey_tools.keys.PublicKey.from_file" href="#sshkey_tools.keys.PublicKey.from_file">from_file</a></code></li>
 <li><code><a title="sshkey_tools.keys.PublicKey.from_string" href="#sshkey_tools.keys.PublicKey.from_string">from_string</a></code></li>
@@ -3806,54 +3924,6 @@ def from_numbers(cls, e: int, n: int) -&gt; &#34;RsaPublicKey&#34;:
 </ul>
 </li>
 </ul>
-</dd>
-<dt id="sshkey_tools.keys.RsaAlgs"><code class="flex name class">
-<span>class <span class="ident">RsaAlgs</span></span>
-<span>(</span><span>value, names=None, *, module=None, qualname=None, type=None, start=1)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>RSA Algorithms</p>
-<h2 id="values">Values</h2>
-<p>SHA1
-SHA256
-SHA512</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class RsaAlgs(Enum):
-    &#34;&#34;&#34;
-    RSA Algorithms
-
-    Values:
-        SHA1
-        SHA256
-        SHA512
-    &#34;&#34;&#34;
-
-    SHA1 = (&#34;ssh-rsa&#34;, _HASHES.SHA1)
-    SHA256 = (&#34;rsa-sha2-256&#34;, _HASHES.SHA256)
-    SHA512 = (&#34;rsa-sha2-512&#34;, _HASHES.SHA512)</code></pre>
-</details>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="sshkey_tools.keys.RsaAlgs.SHA1"><code class="name">var <span class="ident">SHA1</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="sshkey_tools.keys.RsaAlgs.SHA256"><code class="name">var <span class="ident">SHA256</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="sshkey_tools.keys.RsaAlgs.SHA512"><code class="name">var <span class="ident">SHA512</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
 </dd>
 </dl>
 </section>
@@ -3884,6 +3954,14 @@ SHA512</p></div>
 <ul class="">
 <li><code><a title="sshkey_tools.keys.DsaPublicKey.from_numbers" href="#sshkey_tools.keys.DsaPublicKey.from_numbers">from_numbers</a></code></li>
 <li><code><a title="sshkey_tools.keys.DsaPublicKey.verify" href="#sshkey_tools.keys.DsaPublicKey.verify">verify</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="sshkey_tools.keys.EcdsaCurves" href="#sshkey_tools.keys.EcdsaCurves">EcdsaCurves</a></code></h4>
+<ul class="">
+<li><code><a title="sshkey_tools.keys.EcdsaCurves.P256" href="#sshkey_tools.keys.EcdsaCurves.P256">P256</a></code></li>
+<li><code><a title="sshkey_tools.keys.EcdsaCurves.P384" href="#sshkey_tools.keys.EcdsaCurves.P384">P384</a></code></li>
+<li><code><a title="sshkey_tools.keys.EcdsaCurves.P521" href="#sshkey_tools.keys.EcdsaCurves.P521">P521</a></code></li>
 </ul>
 </li>
 <li>
@@ -3918,14 +3996,6 @@ SHA512</p></div>
 </ul>
 </li>
 <li>
-<h4><code><a title="sshkey_tools.keys.EcdsaCurves" href="#sshkey_tools.keys.EcdsaCurves">EcdsaCurves</a></code></h4>
-<ul class="">
-<li><code><a title="sshkey_tools.keys.EcdsaCurves.P256" href="#sshkey_tools.keys.EcdsaCurves.P256">P256</a></code></li>
-<li><code><a title="sshkey_tools.keys.EcdsaCurves.P384" href="#sshkey_tools.keys.EcdsaCurves.P384">P384</a></code></li>
-<li><code><a title="sshkey_tools.keys.EcdsaCurves.P521" href="#sshkey_tools.keys.EcdsaCurves.P521">P521</a></code></li>
-</ul>
-</li>
-<li>
 <h4><code><a title="sshkey_tools.keys.FingerprintHashes" href="#sshkey_tools.keys.FingerprintHashes">FingerprintHashes</a></code></h4>
 <ul class="">
 <li><code><a title="sshkey_tools.keys.FingerprintHashes.MD5" href="#sshkey_tools.keys.FingerprintHashes.MD5">MD5</a></code></li>
@@ -3948,6 +4018,7 @@ SHA512</p></div>
 <li>
 <h4><code><a title="sshkey_tools.keys.PublicKey" href="#sshkey_tools.keys.PublicKey">PublicKey</a></code></h4>
 <ul class="two-column">
+<li><code><a title="sshkey_tools.keys.PublicKey.from_bytes" href="#sshkey_tools.keys.PublicKey.from_bytes">from_bytes</a></code></li>
 <li><code><a title="sshkey_tools.keys.PublicKey.from_class" href="#sshkey_tools.keys.PublicKey.from_class">from_class</a></code></li>
 <li><code><a title="sshkey_tools.keys.PublicKey.from_file" href="#sshkey_tools.keys.PublicKey.from_file">from_file</a></code></li>
 <li><code><a title="sshkey_tools.keys.PublicKey.from_string" href="#sshkey_tools.keys.PublicKey.from_string">from_string</a></code></li>
@@ -3956,6 +4027,14 @@ SHA512</p></div>
 <li><code><a title="sshkey_tools.keys.PublicKey.serialize" href="#sshkey_tools.keys.PublicKey.serialize">serialize</a></code></li>
 <li><code><a title="sshkey_tools.keys.PublicKey.to_file" href="#sshkey_tools.keys.PublicKey.to_file">to_file</a></code></li>
 <li><code><a title="sshkey_tools.keys.PublicKey.to_string" href="#sshkey_tools.keys.PublicKey.to_string">to_string</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="sshkey_tools.keys.RsaAlgs" href="#sshkey_tools.keys.RsaAlgs">RsaAlgs</a></code></h4>
+<ul class="">
+<li><code><a title="sshkey_tools.keys.RsaAlgs.SHA1" href="#sshkey_tools.keys.RsaAlgs.SHA1">SHA1</a></code></li>
+<li><code><a title="sshkey_tools.keys.RsaAlgs.SHA256" href="#sshkey_tools.keys.RsaAlgs.SHA256">SHA256</a></code></li>
+<li><code><a title="sshkey_tools.keys.RsaAlgs.SHA512" href="#sshkey_tools.keys.RsaAlgs.SHA512">SHA512</a></code></li>
 </ul>
 </li>
 <li>
@@ -3971,14 +4050,6 @@ SHA512</p></div>
 <ul class="">
 <li><code><a title="sshkey_tools.keys.RsaPublicKey.from_numbers" href="#sshkey_tools.keys.RsaPublicKey.from_numbers">from_numbers</a></code></li>
 <li><code><a title="sshkey_tools.keys.RsaPublicKey.verify" href="#sshkey_tools.keys.RsaPublicKey.verify">verify</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="sshkey_tools.keys.RsaAlgs" href="#sshkey_tools.keys.RsaAlgs">RsaAlgs</a></code></h4>
-<ul class="">
-<li><code><a title="sshkey_tools.keys.RsaAlgs.SHA1" href="#sshkey_tools.keys.RsaAlgs.SHA1">SHA1</a></code></li>
-<li><code><a title="sshkey_tools.keys.RsaAlgs.SHA256" href="#sshkey_tools.keys.RsaAlgs.SHA256">SHA256</a></code></li>
-<li><code><a title="sshkey_tools.keys.RsaAlgs.SHA512" href="#sshkey_tools.keys.RsaAlgs.SHA512">SHA512</a></code></li>
 </ul>
 </li>
 </ul>
