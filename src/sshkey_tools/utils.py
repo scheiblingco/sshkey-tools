@@ -24,23 +24,24 @@ def ensure_string(
         encoding (str, optional): The encoding of the provided strings. Defaults to 'utf-8'.
 
     Returns:
-        Union[str, List[str], Dict[str, str]]: Returns a string, list of strings or dictionary with strings
+        Union[str, List[str], Dict[str, str]]: Returns a string, list of strings or
+                                               dictionary with strings
     """
     if (obj is None and not required) or isinstance(obj, str):
         return obj
-    elif isinstance(obj, bytes):
+    if isinstance(obj, bytes):
         return obj.decode(encoding)
-    elif isinstance(obj, (list, tuple, set)):
+    if isinstance(obj, (list, tuple, set)):
         return [ensure_string(o, encoding) for o in obj]
-    elif isinstance(obj, dict):
+    if isinstance(obj, dict):
         return {
             ensure_string(k, encoding): ensure_string(v, encoding)
             for k, v in obj.items()
         }
-    else:
-        raise TypeError(
-            f"Expected one of (str, bytes, list, tuple, dict, set), got {type(obj).__name__}."
-        )
+
+    raise TypeError(
+        f"Expected one of (str, bytes, list, tuple, dict, set), got {type(obj).__name__}."
+    )
 
 
 def ensure_bytestring(
@@ -55,23 +56,23 @@ def ensure_bytestring(
         encoding (str, optional): The encoding of the provided bytestrings. Defaults to 'utf-8'.
 
     Returns:
-        Union[str, List[str], Dict[str, str]]: Returns a bytestring, list of bytestrings or dictionary with bytestrings
+        Union[str, List[str], Dict[str, str]]: Returns a bytestring, list of bytestrings or
+                                               dictionary with bytestrings
     """
     if (obj is None and not required) or isinstance(obj, bytes):
         return obj
-    elif isinstance(obj, str):
+    if isinstance(obj, str):
         return obj.encode(encoding)
-    elif isinstance(obj, (list, tuple, set)):
+    if isinstance(obj, (list, tuple, set)):
         return [ensure_bytestring(o, encoding) for o in obj]
-    elif isinstance(obj, dict):
+    if isinstance(obj, dict):
         return {
             ensure_bytestring(k, encoding): ensure_bytestring(v, encoding)
             for k, v in obj.items()
         }
-    else:
-        raise TypeError(
-            f"Expected one of (str, bytes, list, tuple, dict, set), got {type(obj).__name__}."
-        )
+    raise TypeError(
+        f"Expected one of (str, bytes, list, tuple, dict, set), got {type(obj).__name__}."
+    )
 
 
 def concat_to_string(*strs, encoding: str = "utf-8") -> str:

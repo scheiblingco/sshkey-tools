@@ -173,7 +173,7 @@ class PublicKey:
         Returns:
             PublicKey: Any of the PublicKey child classes
         """
-        split = ensure_bytestring(data).split(b" ")
+        split = ensure_bytestring(data, encoding).split(b" ")
         comment = None
         if len(split) > 2:
             comment = split[2]
@@ -200,7 +200,20 @@ class PublicKey:
         return cls.from_string(data)
 
     @classmethod
+    # pylint: disable=broad-except
     def from_bytes(cls, data: bytes) -> "PublicKey":
+        """
+        Loads a public key from byte data
+
+        Args:
+            data (bytes): The bytestring containing the public key
+
+        Raises:
+            _EX.InvalidKeyException: Invalid data input
+
+        Returns:
+            PublicKey: PublicKey subclass depending on the key type
+        """
         for key_class in PUBKEY_MAP.values():
             try:
                 key = globals()[key_class].from_raw_bytes(data)
@@ -252,8 +265,8 @@ class PublicKey:
         """
         return " ".join(
             [
-                ensure_string(self.serialize()),
-                ensure_string(getattr(self, "comment", "")),
+                ensure_string(self.serialize(), encoding),
+                ensure_string(getattr(self, "comment", ""), encoding),
             ]
         )
 
@@ -462,7 +475,7 @@ class RsaPublicKey(PublicKey):
             hash_method (HashMethods): The hash method to use
 
         Raises:
-            Raises an sshkey_tools.exceptions.InvalidSignatureException if the signature is invalid
+            Raises a sshkey_tools.exceptions.InvalidSignatureException if the signature is invalid
         """
         try:
             return self.key.verify(

@@ -120,9 +120,9 @@ class Fieldset:
         for key in self.getattrs():
             if not getattr(self, key).validate():
                 list(
-                        ex.append(f"{type(x)}: {str(x)}")
-                        for x in getattr(self, key).exception
-                        if isinstance(x, Exception)
+                    ex.append(f"{type(x)}: {str(x)}")
+                    for x in getattr(self, key).exception
+                    if isinstance(x, Exception)
                 )
 
         return True if len(ex) == 0 else ex
@@ -138,7 +138,7 @@ class Fieldset:
         cl_instance = cls()
         for item in cls.DECODE_ORDER:
             decoded, data = getattr(cl_instance, item).from_decode(data)
-            setattr(item, decoded)
+            setattr(cl_instance, item, decoded)
 
         return cl_instance, data
 
@@ -146,6 +146,7 @@ class Fieldset:
 @dataclass
 class CertificateHeader(Fieldset):
     """Header fields for the certificate"""
+
     public_key: _FIELD.PublicKeyField = _FIELD.PublicKeyField.factory
     pubkey_type: _FIELD.PubkeyTypeField = _FIELD.PubkeyTypeField.factory
     nonce: _FIELD.NonceField = _FIELD.NonceField.factory
@@ -161,7 +162,7 @@ class CertificateHeader(Fieldset):
     def decode(cls, data: bytes) -> Tuple["CertificateHeader", bytes]:
         cl_instance, data = super().decode(data)
 
-        target_class = CERT_TYPES[cl_instance.get('pubkey_type')]
+        target_class = CERT_TYPES[cl_instance.get("pubkey_type")]
 
         public_key, data = getattr(_FIELD, target_class[1]).from_decode(data)
         cl_instance.public_key = public_key
@@ -173,6 +174,7 @@ class CertificateHeader(Fieldset):
 # pylint: disable=too-many-instance-attributes
 class CertificateFields(Fieldset):
     """Information fields for the certificate"""
+
     serial: _FIELD.SerialField = _FIELD.SerialField.factory
     cert_type: _FIELD.CertificateTypeField = _FIELD.CertificateTypeField.factory
     key_id: _FIELD.KeyIdField = _FIELD.KeyIdField.factory
@@ -209,6 +211,7 @@ class CertificateFields(Fieldset):
 @dataclass
 class CertificateFooter(Fieldset):
     """Footer fields and signature for the certificate"""
+
     reserved: _FIELD.ReservedField = _FIELD.ReservedField.factory
     ca_pubkey: _FIELD.CAPublicKeyField = _FIELD.CAPublicKeyField.factory
     signature: _FIELD.SignatureField = _FIELD.SignatureField.factory
@@ -292,12 +295,34 @@ class SSHCertificate:
         subject_pubkey: PublicKey = None,
         ca_privkey: PrivateKey = None,
         fields: CertificateFields = CertificateFields,
-    ):
+        header: CertificateHeader = CertificateHeader,
+        footer: CertificateFooter = CertificateFooter,
+    ) -> "SSHCertificate":
+        """
+        Creates a new certificate from the given parameters.
+
+        Args:
+            subject_pubkey (PublicKey, optional): The subject public key. Defaults to None.
+            ca_privkey (PrivateKey, optional): The CA private key. Defaults to None.
+            fields (CertificateFields, optional): The CertificateFields object containing the
+                body fields. Defaults to blank CertificateFields.
+            header (CertificateHeader, optional): The certificate header.
+                Defaults to new CertificateHeader.
+            footer (CertificateFooter, optional): The certificate footer.
+                Defaults to new CertificateFooter.
+
+        Returns:
+            SSHCertificate: A SSHCertificate subclass depending on the type of subject_pubkey
+        """
         cert_class = subject_pubkey.__class__.__name__.replace(
             "PublicKey", "Certificate"
         )
         return globals()[cert_class](
-            subject_pubkey=subject_pubkey, ca_privkey=ca_privkey, fields=fields
+            subject_pubkey=subject_pubkey,
+            ca_privkey=ca_privkey,
+            fields=fields,
+            header=header,
+            footer=footer,
         )
 
     @classmethod
@@ -362,9 +387,22 @@ class SSHCertificate:
         Returns:
             SSHCertificate: SSHCertificate child class
         """
-        return cls.from_string(open(path, "r", encoding=encoding).read())
+        with open(path, "r", encoding=encoding) as file:
+            return cls.from_string(file.read())
 
     def get(self, field: str):
+        """
+        Fetch a field from any of the sections of the certificate.
+
+        Args:
+            field (str): The field name to fetch
+
+        Raises:
+            _EX.InvalidCertificateFieldException: Invalid field name provided
+
+        Returns:
+            mixed: The certificate field contents
+        """
         if field in (
             self.header.getattrs() + self.fields.getattrs() + self.footer.getattrs()
         ):
@@ -376,7 +414,20 @@ class SSHCertificate:
 
         raise _EX.InvalidCertificateFieldException(f"Unknown field {field}")
 
-    def set(self, field: str, value):
+    def set(self, field: str, value) -> None:
+        """
+        Set a field in any of the sections of the certificate.
+
+        Args:
+            field (str): The field name to set
+            value (mixed): The value to set the field to
+
+        Raises:
+            _EX.InvalidCertificateFieldException: Invalid field name provided
+
+        Returns:
+            mixed: The certificate field contents
+        """
         if self.fields.get(field, False):
             setattr(self.fields, field, value)
             return
@@ -391,7 +442,28 @@ class SSHCertificate:
 
         raise _EX.InvalidCertificateFieldException(f"Unknown field {field}")
 
+    def replace_ca(self, ca_privkey: PrivateKey):
+        """
+        Replace the certificate authority private key with a new one.
+
+        Args:
+            ca_privkey (PrivateKey): The new CA private key
+        """
+        self.footer.ca_pubkey = ca_privkey.public_key
+        self.footer.replace_field(
+            "signature", _FIELD.SignatureField.from_object(ca_privkey)
+        )
+
     def can_sign(self) -> bool:
+        """
+        Check if the certificate can be signed in its current state.
+
+        Raises:
+            _EX.SignatureNotPossibleException: Exception if the certificate cannot be signed
+
+        Returns:
+            bool: True if the certificate can be signed
+        """
         valid_header = self.header.validate()
         valid_fields = self.fields.validate()
         check_keys = (
@@ -404,16 +476,12 @@ class SSHCertificate:
         )
 
         if (valid_header, valid_fields, check_keys) != (True, True, True):
+            exceptions = []
+            exceptions += valid_header if not isinstance(valid_header, bool) else []
+            exceptions += valid_fields if not isinstance(valid_fields, bool) else []
+            exceptions += check_keys if not isinstance(check_keys, bool) else []
             raise _EX.SignatureNotPossibleException(
-                "\n".join(
-                    valid_header
-                    if isinstance(valid_header, Exception)
-                    else [] + valid_fields
-                    if isinstance(valid_fields, Exception)
-                    else [] + check_keys
-                    if isinstance(check_keys, Exception)
-                    else []
-                )
+                "\n".join([str(e) for e in exceptions])
             )
 
         return True
@@ -440,6 +508,32 @@ class SSHCertificate:
 
             return True
         raise _EX.NotSignedException("There was an error while signing the certificate")
+
+    def verify(
+        self, public_key: PublicKey = None, raise_on_error: bool = False
+    ) -> bool:
+        """Verify the signature on the certificate to make sure the data is not corrupted,
+           and that the signature comes from the given public key or the key included in the
+           certificate (insecure, useful for testing only)
+
+        Args:
+            public_key (PublicKey, optional): The public key to use for verification
+            raise_on_error (bool, default False): Raise an exception if the certificate is invalid
+
+        Raises:
+            _EX.InvalidSignatureException: The signature is invalid
+        """
+        if not public_key:
+            public_key = self.get("ca_pubkey")
+
+        try:
+            public_key.verify(self.get_signable(), self.footer.get("signature"))
+        except _EX.InvalidSignatureException as exception:
+            if raise_on_error:
+                raise exception
+            return False
+
+        return True
 
     def to_string(self, comment: str = "", encoding: str = "utf-8"):
         """Export the certificate to a string
@@ -473,16 +567,19 @@ class SSHCertificate:
 
 class RsaCertificate(SSHCertificate):
     """The RSA Certificate class"""
+
     DEFAULT_KEY_TYPE = "rsa-sha2-512-cert-v01@openssh.com"
 
 
 class DsaCertificate(SSHCertificate):
     """The DSA Certificate class"""
+
     DEFAULT_KEY_TYPE = "ssh-dss-cert-v01@openssh.com"
 
 
 class EcdsaCertificate(SSHCertificate):
     """The ECDSA certificate class"""
+
     DEFAULT_KEY_TYPE = "ecdsa-sha2-nistp[curve_size]-cert-v01@openssh.com"
 
     def __post_init__(self):
@@ -494,4 +591,5 @@ class EcdsaCertificate(SSHCertificate):
 
 class Ed25519Certificate(SSHCertificate):
     """The ED25519 certificate class"""
+
     DEFAULT_KEY_TYPE = "ssh-ed25519-cert-v01@openssh.com"

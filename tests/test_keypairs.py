@@ -594,11 +594,8 @@ class TestFingerprint(KeypairMethods):
             f"tests/{self.folder}/rsa_key_sshkeygen", "password"
         )
 
-        sshkey_fingerprint = (
-            os.popen(f"ssh-keygen -lf tests/{self.folder}/rsa_key_sshkeygen")
-            .read()
-            .split(" ")[1]
-        )
+        with os.popen(f"ssh-keygen -lf tests/{self.folder}/rsa_key_sshkeygen") as cmd:
+            sshkey_fingerprint = cmd.read().split(" ")[1]
 
         self.assertEqual(key.get_fingerprint(), sshkey_fingerprint)
 
@@ -607,11 +604,8 @@ class TestFingerprint(KeypairMethods):
             f"tests/{self.folder}/dsa_key_sshkeygen",
         )
 
-        sshkey_fingerprint = (
-            os.popen(f"ssh-keygen -lf tests/{self.folder}/dsa_key_sshkeygen")
-            .read()
-            .split(" ")[1]
-        )
+        with os.popen(f"ssh-keygen -lf tests/{self.folder}/dsa_key_sshkeygen") as cmd:
+            sshkey_fingerprint = cmd.read().split(" ")[1]
 
         self.assertEqual(key.get_fingerprint(), sshkey_fingerprint)
 
@@ -619,12 +613,8 @@ class TestFingerprint(KeypairMethods):
         key = EcdsaPrivateKey.from_file(
             f"tests/{self.folder}/ecdsa_key_sshkeygen",
         )
-
-        sshkey_fingerprint = (
-            os.popen(f"ssh-keygen -lf tests/{self.folder}/ecdsa_key_sshkeygen")
-            .read()
-            .split(" ")[1]
-        )
+        with os.popen(f"ssh-keygen -lf tests/{self.folder}/ecdsa_key_sshkeygen") as cmd:
+            sshkey_fingerprint = cmd.read().split(" ")[1]
 
         self.assertEqual(key.get_fingerprint(), sshkey_fingerprint)
 
@@ -632,12 +622,10 @@ class TestFingerprint(KeypairMethods):
         key = Ed25519PrivateKey.from_file(
             f"tests/{self.folder}/ed25519_key_sshkeygen",
         )
-
-        sshkey_fingerprint = (
-            os.popen(f"ssh-keygen -lf tests/{self.folder}/ed25519_key_sshkeygen")
-            .read()
-            .split(" ")[1]
-        )
+        with os.popen(
+            f"ssh-keygen -lf tests/{self.folder}/ed25519_key_sshkeygen"
+        ) as cmd:
+            sshkey_fingerprint = cmd.read().split(" ")[1]
 
         self.assertEqual(key.get_fingerprint(), sshkey_fingerprint)
 

@@ -108,6 +108,12 @@ class CertificateField:
 
     @classmethod
     def get_name(cls) -> str:
+        """
+        Fetch the name of the field (identifier format)
+
+        Returns:
+            str: The name/id of the field
+        """
         return "_".join(re.findall("[A-Z][^A-Z]*", cls.__name__)[:-1]).lower()
 
     @classmethod
@@ -117,7 +123,8 @@ class CertificateField:
         """
         if not isinstance(value, cls.DATA_TYPE):
             ex = _EX.InvalidDataException(
-                f"Invalid data type for {cls.get_name()} (expected {cls.DATA_TYPE}, got {type(value)})"
+                f"Invalid data type for {cls.get_name()}"
+                + f"(expected {cls.DATA_TYPE}, got {type(value)})"
             )
 
             if do_raise:
@@ -144,7 +151,7 @@ class CertificateField:
         """
         return True
 
-    # pylint: disable=no-self-use
+    # pylint: disable=not-callable
     def validate(self) -> bool:
         """
         Validates all field contents and types
@@ -184,6 +191,7 @@ class CertificateField:
         return cls(value), data
 
     @classmethod
+    # pylint: disable=not-callable
     def factory(cls, blank: bool = False) -> "CertificateField":
         """
         Factory to create field with default value if set, otherwise empty
@@ -544,7 +552,7 @@ class ListField(CertificateField):
         cls.__validate_type__(value, True)
 
         try:
-            if sum([not isinstance(item, (str, bytes)) for item in value]) > 0:
+            if sum(not isinstance(item, (str, bytes)) for item in value) > 0:
                 raise TypeError
         except TypeError:
             raise _EX.InvalidFieldDataException(
@@ -717,9 +725,8 @@ class PubkeyTypeField(StringField):
 
         if ensure_string(self.value) not in self.ALLOWED_VALUES:
             return _EX.InvalidFieldDataException(
-                "Expected one of the following values: {}".format(
-                    NEWLINE.join(self.ALLOWED_VALUES)
-                )
+                "Expected one of the following values: " +
+                NEWLINE.join(self.ALLOWED_VALUES)
             )
 
         return True
@@ -1045,7 +1052,8 @@ class ValidBeforeField(DateTimeField):
 
         if check < datetime.now():
             return _EX.InvalidCertificateFieldException(
-                "The certificate validity period is invalid (expected a future datetime object or timestamp)"
+                "The certificate validity period is invalid"
+                + " (expected a future datetime object or timestamp)"
             )
 
         return True
@@ -1414,6 +1422,7 @@ class RsaSignatureField(SignatureField):
             data,
         )
 
+    # pylint: disable=unused-argument
     def sign(self, data: bytes, hash_alg: RsaAlgs = RsaAlgs.SHA512, **kwargs) -> None:
         """
         Signs the provided data with the provided private key
@@ -1501,6 +1510,7 @@ class DsaSignatureField(SignatureField):
 
         return cls(private_key=None, signature=signature), data
 
+    # pylint: disable=unused-argument
     def sign(self, data: bytes, **kwargs) -> None:
         """
         Signs the provided data with the provided private key
@@ -1599,6 +1609,7 @@ class EcdsaSignatureField(SignatureField):
             data,
         )
 
+    # pylint: disable=unused-argument
     def sign(self, data: bytes, **kwargs) -> None:
         """
         Signs the provided data with the provided private key
@@ -1678,6 +1689,7 @@ class Ed25519SignatureField(SignatureField):
 
         return cls(private_key=None, signature=signature), data
 
+    # pylint: disable=unused-argument
     def sign(self, data: bytes, **kwargs) -> None:
         """
         Signs the provided data with the provided private key
