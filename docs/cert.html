@@ -43,63 +43,228 @@ _EX.SSHCertificateException: General error in certificate
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">&#34;&#34;&#34;Contains classes for OpenSSH Certificates, generation, parsing and signing
-    Raises:
-        _EX.SSHCertificateException: General error in certificate
-        _EX.InvalidCertificateFormatException: An error with the format of the certificate
-        _EX.InvalidCertificateFieldException: An invalid field has been added to the certificate
-        _EX.NoPrivateKeyException: The certificate contains no private key
-        _EX.NotSignedException: The certificate is not signed and cannot be exported
-
+<pre><code class="python"># pylint: disable=super-with-arguments
 &#34;&#34;&#34;
-from base64 import b64encode, b64decode
-from typing import Union
-from .keys import (
-    PublicKey,
-    PrivateKey,
-    RsaPublicKey,
-    DsaPublicKey,
-    EcdsaPublicKey,
-    Ed25519PublicKey,
-)
-from . import fields as _FIELD
-from . import exceptions as _EX
-from .keys import RsaAlgs
-from .utils import join_dicts
+Contains classes for OpenSSH Certificates, generation, parsing and signing
+Raises:
+    _EX.SSHCertificateException: General error in certificate
+    _EX.InvalidCertificateFormatException: An error with the format of the certificate
+    _EX.InvalidCertificateFieldException: An invalid field has been added to the certificate
+    _EX.NoPrivateKeyException: The certificate contains no private key
+    _EX.NotSignedException: The certificate is not signed and cannot be exported
+&#34;&#34;&#34;
+from base64 import b64decode, b64encode
+from dataclasses import dataclass
+from typing import Tuple, Union
 
-CERTIFICATE_FIELDS = {
-    &#34;serial&#34;: _FIELD.SerialField,
-    &#34;cert_type&#34;: _FIELD.CertificateTypeField,
-    &#34;key_id&#34;: _FIELD.KeyIDField,
-    &#34;principals&#34;: _FIELD.PrincipalsField,
-    &#34;valid_after&#34;: _FIELD.ValidityStartField,
-    &#34;valid_before&#34;: _FIELD.ValidityEndField,
-    &#34;critical_options&#34;: _FIELD.CriticalOptionsField,
-    &#34;extensions&#34;: _FIELD.ExtensionsField,
-}
+from prettytable import PrettyTable
+
+from . import exceptions as _EX
+from . import fields as _FIELD
+from .keys import PrivateKey, PublicKey
+from .utils import concat_to_bytestring, concat_to_string, ensure_bytestring
 
 CERT_TYPES = {
-    &#34;ssh-rsa-cert-v01@openssh.com&#34;: (&#34;RsaCertificate&#34;, &#34;_FIELD.RSAPubkeyField&#34;),
-    &#34;rsa-sha2-256-cert-v01@openssh.com&#34;: (&#34;RsaCertificate&#34;, &#34;_FIELD.RSAPubkeyField&#34;),
-    &#34;rsa-sha2-512-cert-v01@openssh.com&#34;: (&#34;RsaCertificate&#34;, &#34;_FIELD.RSAPubkeyField&#34;),
-    &#34;ssh-dss-cert-v01@openssh.com&#34;: (&#34;DsaCertificate&#34;, &#34;_FIELD.DSAPubkeyField&#34;),
+    &#34;ssh-rsa-cert-v01@openssh.com&#34;: (&#34;RsaCertificate&#34;, &#34;RsaPubkeyField&#34;),
+    &#34;rsa-sha2-256-cert-v01@openssh.com&#34;: (&#34;RsaCertificate&#34;, &#34;RsaPubkeyField&#34;),
+    &#34;rsa-sha2-512-cert-v01@openssh.com&#34;: (&#34;RsaCertificate&#34;, &#34;RsaPubkeyField&#34;),
+    &#34;ssh-dss-cert-v01@openssh.com&#34;: (&#34;DsaCertificate&#34;, &#34;DsaPubkeyField&#34;),
     &#34;ecdsa-sha2-nistp256-cert-v01@openssh.com&#34;: (
         &#34;EcdsaCertificate&#34;,
-        &#34;_FIELD.ECDSAPubkeyField&#34;,
+        &#34;EcdsaPubkeyField&#34;,
     ),
     &#34;ecdsa-sha2-nistp384-cert-v01@openssh.com&#34;: (
         &#34;EcdsaCertificate&#34;,
-        &#34;_FIELD.ECDSAPubkeyField&#34;,
+        &#34;EcdsaPubkeyField&#34;,
     ),
     &#34;ecdsa-sha2-nistp521-cert-v01@openssh.com&#34;: (
         &#34;EcdsaCertificate&#34;,
-        &#34;_FIELD.ECDSAPubkeyField&#34;,
+        &#34;EcdsaPubkeyField&#34;,
     ),
     &#34;ssh-ed25519-cert-v01@openssh.com&#34;: (
         &#34;Ed25519Certificate&#34;,
-        &#34;_FIELD.ED25519PubkeyField&#34;,
+        &#34;Ed25519PubkeyField&#34;,
     ),
 }
+
+
+@dataclass
+class Fieldset:
+    &#34;&#34;&#34;Set of fields for SSHCertificate class&#34;&#34;&#34;
+
+    DECODE_ORDER = []
+
+    def __table__(self):
+        return [getattr(self, item).__table__() for item in self.getattrs()]
+
+    def __setattr__(self, name, value):
+        field = getattr(self, name, None)
+
+        if isinstance(value, _FIELD.CertificateField):
+            self.replace_field(name, value)
+            return
+
+        if callable(field) and not isinstance(field, _FIELD.CertificateField):
+            if field.__name__ == &#34;factory&#34;:
+                super().__setattr__(name, field())
+                self.__setattr__(name, value)
+                return
+
+        if isinstance(field, type) and getattr(value, &#34;__name__&#34;, &#34;&#34;) != &#34;factory&#34;:
+            super().__setattr__(name, field(value))
+            return
+
+        if getattr(value, &#34;__name__&#34;, &#34;&#34;) != &#34;factory&#34;:
+            field.value = value
+            super().__setattr__(name, field)
+
+    def replace_field(self, name: str, value: Union[_FIELD.CertificateField, type]):
+        &#34;&#34;&#34;Completely replace field instead of just setting value (original __setattr__ behaviour)
+
+        Args:
+            name (str): The field to replace
+            value (Union[_FIELD.CertificateField, type]): The CertificateField
+            subclass or instance to replace with
+        &#34;&#34;&#34;
+        super(Fieldset, self).__setattr__(name, value)
+
+    def get(self, name: str, default=None):
+        &#34;&#34;&#34;Get field contents
+
+        Args:
+            name (str): Field name
+            default (_type_, optional): The default value to return in case the
+            field is not set. Defaults to None.
+
+        Returns:
+            mixed: The contents of the field
+        &#34;&#34;&#34;
+        field = getattr(self, name, default)
+        if field:
+            if isinstance(field, type):
+                return field.DEFAULT
+            return field.value
+        return field
+
+    def getattrs(self) -&gt; tuple:
+        &#34;&#34;&#34;Get all class attributes
+
+        Returns:
+            tuple: All public class attributes
+        &#34;&#34;&#34;
+        # pylint: disable=consider-iterating-dictionary
+        return tuple(att for att in self.__dict__.keys() if not att.startswith(&#34;_&#34;))
+
+    def validate(self):
+        &#34;&#34;&#34;Validate all fields to ensure the data is correct
+
+        Returns:
+            bool: True if valid, else exception
+        &#34;&#34;&#34;
+        ex = []
+        for key in self.getattrs():
+            if not getattr(self, key).validate():
+                list(
+                    ex.append(f&#34;{type(x)}: {str(x)}&#34;)
+                    for x in getattr(self, key).exception
+                    if isinstance(x, Exception)
+                )
+
+        return True if len(ex) == 0 else ex
+
+    @classmethod
+    def decode(cls, data: bytes) -&gt; Tuple[&#34;Fieldset&#34;, bytes]:
+        &#34;&#34;&#34;Decode the certificate field data from a stream of bytes
+
+        Returns:
+            Tuple[Fieldset, bytes]: A tuple with the fieldset (Header, Fields or Footer)
+            and the remaining bytes.
+        &#34;&#34;&#34;
+        cl_instance = cls()
+        for item in cls.DECODE_ORDER:
+            decoded, data = getattr(cl_instance, item).from_decode(data)
+            setattr(cl_instance, item, decoded)
+
+        return cl_instance, data
+
+
+@dataclass
+class CertificateHeader(Fieldset):
+    &#34;&#34;&#34;Header fields for the certificate&#34;&#34;&#34;
+
+    public_key: _FIELD.PublicKeyField = _FIELD.PublicKeyField.factory
+    pubkey_type: _FIELD.PubkeyTypeField = _FIELD.PubkeyTypeField.factory
+    nonce: _FIELD.NonceField = _FIELD.NonceField.factory
+
+    DECODE_ORDER = [&#34;pubkey_type&#34;, &#34;nonce&#34;]
+
+    def __bytes__(self):
+        return concat_to_bytestring(
+            bytes(self.pubkey_type), bytes(self.nonce), bytes(self.public_key)
+        )
+
+    @classmethod
+    def decode(cls, data: bytes) -&gt; Tuple[&#34;CertificateHeader&#34;, bytes]:
+        cl_instance, data = super().decode(data)
+
+        target_class = CERT_TYPES[cl_instance.get(&#34;pubkey_type&#34;)]
+
+        public_key, data = getattr(_FIELD, target_class[1]).from_decode(data)
+        cl_instance.public_key = public_key
+
+        return cl_instance, data
+
+
+@dataclass
+# pylint: disable=too-many-instance-attributes
+class CertificateFields(Fieldset):
+    &#34;&#34;&#34;Information fields for the certificate&#34;&#34;&#34;
+
+    serial: _FIELD.SerialField = _FIELD.SerialField.factory
+    cert_type: _FIELD.CertificateTypeField = _FIELD.CertificateTypeField.factory
+    key_id: _FIELD.KeyIdField = _FIELD.KeyIdField.factory
+    principals: _FIELD.PrincipalsField = _FIELD.PrincipalsField.factory
+    valid_after: _FIELD.ValidAfterField = _FIELD.ValidAfterField.factory
+    valid_before: _FIELD.ValidBeforeField = _FIELD.ValidBeforeField.factory
+    critical_options: _FIELD.CriticalOptionsField = _FIELD.CriticalOptionsField.factory
+    extensions: _FIELD.ExtensionsField = _FIELD.ExtensionsField.factory
+
+    DECODE_ORDER = [
+        &#34;serial&#34;,
+        &#34;cert_type&#34;,
+        &#34;key_id&#34;,
+        &#34;principals&#34;,
+        &#34;valid_after&#34;,
+        &#34;valid_before&#34;,
+        &#34;critical_options&#34;,
+        &#34;extensions&#34;,
+    ]
+
+    def __bytes__(self):
+        return concat_to_bytestring(
+            bytes(self.serial),
+            bytes(self.cert_type),
+            bytes(self.key_id),
+            bytes(self.principals),
+            bytes(self.valid_after),
+            bytes(self.valid_before),
+            bytes(self.critical_options),
+            bytes(self.extensions),
+        )
+
+
+@dataclass
+class CertificateFooter(Fieldset):
+    &#34;&#34;&#34;Footer fields and signature for the certificate&#34;&#34;&#34;
+
+    reserved: _FIELD.ReservedField = _FIELD.ReservedField.factory
+    ca_pubkey: _FIELD.CAPublicKeyField = _FIELD.CAPublicKeyField.factory
+    signature: _FIELD.SignatureField = _FIELD.SignatureField.factory
+
+    DECODE_ORDER = [&#34;reserved&#34;, &#34;ca_pubkey&#34;, &#34;signature&#34;]
+
+    def __bytes__(self):
+        return concat_to_bytestring(bytes(self.reserved), bytes(self.ca_pubkey))
 
 
 class SSHCertificate:
@@ -109,182 +274,118 @@ class SSHCertificate:
     or the from_public_key classmethod
     &#34;&#34;&#34;
 
+    DEFAULT_KEY_TYPE = &#34;none@openssh.com&#34;
+    # pylint: disable=too-many-arguments
     def __init__(
         self,
         subject_pubkey: PublicKey = None,
         ca_privkey: PrivateKey = None,
-        decoded: dict = None,
-        **kwargs,
-    ) -&gt; None:
+        fields: CertificateFields = CertificateFields,
+        header: CertificateHeader = CertificateHeader,
+        footer: CertificateFooter = CertificateFooter,
+    ):
         if self.__class__.__name__ == &#34;SSHCertificate&#34;:
             raise _EX.InvalidClassCallException(
                 &#34;You cannot instantiate SSHCertificate directly. Use \n&#34;
-                + &#34;one of the child classes, or call via decode, \n&#34;
+                + &#34;one of the child classes, or call via decode, create \n&#34;
                 + &#34;or one of the from_-classmethods&#34;
             )
 
-        if decoded is not None:
-            self.signature = decoded.pop(&#34;signature&#34;)
-            self.signature_pubkey = decoded.pop(&#34;ca_pubkey&#34;)
+        self.fields = fields() if isinstance(fields, type) else fields
+        self.header = header() if isinstance(header, type) else header
+        self.footer = footer() if isinstance(footer, type) else footer
 
-            self.header = {
-                &#34;pubkey_type&#34;: decoded.pop(&#34;pubkey_type&#34;),
-                &#34;nonce&#34;: decoded.pop(&#34;nonce&#34;),
-                &#34;public_key&#34;: decoded.pop(&#34;public_key&#34;),
-            }
-
-            self.fields = decoded
-
-            return
-
-        if subject_pubkey is None:
-            raise _EX.SSHCertificateException(&#34;The subject public key is required&#34;)
-
-        self.header = {
-            &#34;pubkey_type&#34;: _FIELD.PubkeyTypeField,
-            &#34;nonce&#34;: _FIELD.NonceField(),
-            &#34;public_key&#34;: _FIELD.PublicKeyField.from_object(subject_pubkey),
-        }
-
-        if ca_privkey is not None:
-            self.signature = _FIELD.SignatureField.from_object(ca_privkey)
-            self.signature_pubkey = _FIELD.CAPublicKeyField.from_object(
-                ca_privkey.public_key
+        if isinstance(header, type) and subject_pubkey is not None:
+            self.header.pubkey_type = self.DEFAULT_KEY_TYPE
+            self.header.replace_field(
+                &#34;public_key&#34;, _FIELD.PublicKeyField.from_object(subject_pubkey)
             )
 
-        self.fields = dict(CERTIFICATE_FIELDS)
-        self.set_opts(**kwargs)
-
-    def __str__(self):
-        principals = (
-            &#34;\n&#34;
-            + &#34;\n&#34;.join(
-                &#34;&#34;.join([&#34; &#34;] * 32) + (x.decode(&#34;utf-8&#34;) if isinstance(x, bytes) else x)
-                for x in self.fields[&#34;principals&#34;].value
+        if isinstance(footer, type) and ca_privkey is not None:
+            self.footer.ca_pubkey = ca_privkey.public_key
+            self.footer.replace_field(
+                &#34;signature&#34;, _FIELD.SignatureField.from_object(ca_privkey)
             )
-            if len(self.fields[&#34;principals&#34;].value) &gt; 0
-            else &#34;none&#34;
-        )
 
-        critical = (
-            &#34;\n&#34;
-            + &#34;\n&#34;.join(
-                &#34;&#34;.join([&#34; &#34;] * 32) + (x.decode(&#34;utf-8&#34;) if isinstance(x, bytes) else x)
-                for x in self.fields[&#34;critical_options&#34;].value
+        self.__post_init__()
+
+    def __post_init__(self):
+        &#34;&#34;&#34;Extensible function for post-initialization for child classes&#34;&#34;&#34;
+
+    def __bytes__(self):
+        if not self.footer.signature.is_signed:
+            raise _EX.InvalidCertificateFormatException(
+                &#34;Failed exporting certificate: Certificate is not signed&#34;
             )
-            if len(self.fields[&#34;critical_options&#34;].value) &gt; 0
-            else &#34;none&#34;
+
+        return concat_to_bytestring(
+            bytes(self.header),
+            bytes(self.fields),
+            bytes(self.footer),
+            bytes(self.footer.signature),
         )
 
-        extensions = (
-            &#34;\n&#34;
-            + &#34;\n&#34;.join(
-                &#34;&#34;.join([&#34; &#34;] * 32) + (x.decode(&#34;utf-8&#34;) if isinstance(x, bytes) else x)
-                for x in self.fields[&#34;extensions&#34;].value
-            )
-            if len(self.fields[&#34;extensions&#34;].value) &gt; 0
-            else &#34;none&#34;
-        )
+    def __str__(self) -&gt; str:
+        table = PrettyTable([&#34;Field&#34;, &#34;Value&#34;])
 
-        signature_val = (
-            b64encode(self.signature.value).decode(&#34;utf-8&#34;)
-            if isinstance(self.signature.value, bytes)
-            else &#34;Not signed&#34;
-        )
+        for item in (self.header, self.fields, self.footer):
+            for row in item.__table__():
+                table.add_row(row)
 
-        return f&#34;&#34;&#34;
-        Certificate:
-            Pubkey Type:        {self.header[&#39;pubkey_type&#39;].value}
-            Public Key:         {str(self.header[&#39;public_key&#39;])}
-            CA Public Key:      {str(self.signature_pubkey)}
-            Nonce:              {self.header[&#39;nonce&#39;].value}
-            Certificate Type:   {&#39;User&#39; if self.fields[&#39;cert_type&#39;].value == 1 else &#39;Host&#39;}
-            Valid After:        {self.fields[&#39;valid_after&#39;].value.strftime(&#39;%Y-%m-%d %H:%M:%S&#39;)}
-            Valid Until:        {self.fields[&#39;valid_before&#39;].value.strftime(&#39;%Y-%m-%d %H:%M:%S&#39;)}
-            Principals:         {principals}
-            Critical options:   {critical}
-            Extensions:         {extensions}
-            Signature:          {signature_val}
-        &#34;&#34;&#34;
+        return str(table)
 
-    @staticmethod
-    def decode(
-        cert_bytes: bytes, pubkey_class: _FIELD.PublicKeyField = None
+    @classmethod
+    def create(
+        cls,
+        subject_pubkey: PublicKey = None,
+        ca_privkey: PrivateKey = None,
+        fields: CertificateFields = CertificateFields,
+        header: CertificateHeader = CertificateHeader,
+        footer: CertificateFooter = CertificateFooter,
     ) -&gt; &#34;SSHCertificate&#34;:
+        &#34;&#34;&#34;
+        Creates a new certificate from the given parameters.
+
+        Args:
+            subject_pubkey (PublicKey, optional): The subject public key. Defaults to None.
+            ca_privkey (PrivateKey, optional): The CA private key. Defaults to None.
+            fields (CertificateFields, optional): The CertificateFields object containing the
+                body fields. Defaults to blank CertificateFields.
+            header (CertificateHeader, optional): The certificate header.
+                Defaults to new CertificateHeader.
+            footer (CertificateFooter, optional): The certificate footer.
+                Defaults to new CertificateFooter.
+
+        Returns:
+            SSHCertificate: A SSHCertificate subclass depending on the type of subject_pubkey
+        &#34;&#34;&#34;
+        cert_class = subject_pubkey.__class__.__name__.replace(
+            &#34;PublicKey&#34;, &#34;Certificate&#34;
+        )
+        return globals()[cert_class](
+            subject_pubkey=subject_pubkey,
+            ca_privkey=ca_privkey,
+            fields=fields,
+            header=header,
+            footer=footer,
+        )
+
+    @classmethod
+    def decode(cls, data: bytes) -&gt; &#34;SSHCertificate&#34;:
         &#34;&#34;&#34;
         Decode an existing certificate and import it into a new object
 
         Args:
-            cert_bytes (bytes): The certificate bytes, base64 decoded middle part of the certificate
-            pubkey_field (_FIELD.PublicKeyField): Instance of the PublicKeyField class, only needs
-                to be set if it can&#39;t be detected automatically
-
-        Raises:
-            _EX.InvalidCertificateFormatException: Invalid or unknown certificate format
+            data (bytes): The certificate bytes, base64 decoded middle part of the certificate
 
         Returns:
             SSHCertificate: SSHCertificate child class
         &#34;&#34;&#34;
-        if pubkey_class is None:
-            cert_type = _FIELD.StringField.decode(cert_bytes)[0].encode(&#34;utf-8&#34;)
-            pubkey_class = CERT_TYPES.get(cert_type, False)
+        cert_header, data = CertificateHeader.decode(data)
+        cert_fields, data = CertificateFields.decode(data)
+        cert_footer, data = CertificateFooter.decode(data)
 
-        if pubkey_class is False:
-            raise _EX.InvalidCertificateFormatException(
-                &#34;Could not determine certificate type, please use one &#34;
-                + &#34;of the specific classes or specify the pubkey_class&#34;
-            )
-
-        decode_fields = join_dicts(
-            {
-                &#34;pubkey_type&#34;: _FIELD.PubkeyTypeField,
-                &#34;nonce&#34;: _FIELD.NonceField,
-                &#34;public_key&#34;: pubkey_class,
-            },
-            CERTIFICATE_FIELDS,
-            {
-                &#34;reserved&#34;: _FIELD.ReservedField,
-                &#34;ca_pubkey&#34;: _FIELD.CAPublicKeyField,
-                &#34;signature&#34;: _FIELD.SignatureField,
-            },
-        )
-
-        cert = {}
-
-        for item in decode_fields.keys():
-            cert[item], cert_bytes = decode_fields[item].from_decode(cert_bytes)
-
-        if cert_bytes != b&#34;&#34;:
-            raise _EX.InvalidCertificateFormatException(
-                &#34;The certificate has additional data after everything has been extracted&#34;
-            )
-
-        pubkey_type = cert[&#34;pubkey_type&#34;].value
-        if isinstance(pubkey_type, bytes):
-            pubkey_type = pubkey_type.decode(&#34;utf-8&#34;)
-
-        cert_type = CERT_TYPES[pubkey_type]
-        cert.pop(&#34;reserved&#34;)
-        return globals()[cert_type[0]](
-            subject_pubkey=cert[&#34;public_key&#34;].value, decoded=cert
-        )
-
-    @classmethod
-    def from_public_class(
-        cls, public_key: PublicKey, ca_privkey: PrivateKey = None, **kwargs
-    ) -&gt; &#34;SSHCertificate&#34;:
-        &#34;&#34;&#34;
-        Creates a new certificate from a supplied public key
-
-        Args:
-            public_key (PublicKey): The public key for which to create a certificate
-
-        Returns:
-            SSHCertificate: SSHCertificate child class
-        &#34;&#34;&#34;
-        return globals()[
-            public_key.__class__.__name__.replace(&#34;PublicKey&#34;, &#34;Certificate&#34;)
-        ](public_key, ca_privkey, **kwargs)
+        return cls(header=cert_header, fields=cert_fields, footer=cert_footer)
 
     @classmethod
     def from_bytes(cls, cert_bytes: bytes):
@@ -314,8 +415,7 @@ class SSHCertificate:
         Returns:
             SSHCertificate: SSHCertificate child class
         &#34;&#34;&#34;
-        if isinstance(cert_str, str):
-            cert_str = cert_str.encode(encoding)
+        cert_str = ensure_bytestring(cert_str, encoding)
 
         certificate = b64decode(cert_str.split(b&#34; &#34;)[1])
         return cls.from_bytes(cert_bytes=certificate)
@@ -332,324 +432,212 @@ class SSHCertificate:
         Returns:
             SSHCertificate: SSHCertificate child class
         &#34;&#34;&#34;
-        return cls.from_string(open(path, &#34;r&#34;, encoding=encoding).read())
+        with open(path, &#34;r&#34;, encoding=encoding) as file:
+            return cls.from_string(file.read())
 
-    def set_ca(self, ca_privkey: PrivateKey):
+    def get(self, field: str):
         &#34;&#34;&#34;
-        Set the CA Private Key for signing the certificate
+        Fetch a field from any of the sections of the certificate.
 
         Args:
-            ca_privkey (PrivateKey): The CA private key
-        &#34;&#34;&#34;
-        self.signature = _FIELD.SignatureField.from_object(ca_privkey)
-        self.signature_pubkey = _FIELD.CAPublicKeyField.from_object(
-            ca_privkey.public_key
-        )
-
-    def set_type(self, pubkey_type: str):
-        &#34;&#34;&#34;
-        Set the type of the public key if not already set automatically
-        The child classes will set this automatically
-
-        Args:
-            pubkey_type (str): Public key type, e.g. ssh-rsa-cert-v01@openssh.com
-        &#34;&#34;&#34;
-        if not getattr(self.header[&#34;pubkey_type&#34;], &#34;value&#34;, False):
-            self.header[&#34;pubkey_type&#34;] = self.header[&#34;pubkey_type&#34;](pubkey_type)
-
-    def set_opt(self, key: str, value):
-        &#34;&#34;&#34;
-        Add information to a field in the certificate
-
-        Args:
-            key (str): The key to set
-            value (mixed): The new value for the field
+            field (str): The field name to fetch
 
         Raises:
-            _EX.InvalidCertificateFieldException: Invalid field
+            _EX.InvalidCertificateFieldException: Invalid field name provided
+
+        Returns:
+            mixed: The certificate field contents
         &#34;&#34;&#34;
-        if key not in self.fields:
-            raise _EX.InvalidCertificateFieldException(
-                f&#34;{key} is not a valid certificate field&#34;
+        if field in (
+            self.header.getattrs() + self.fields.getattrs() + self.footer.getattrs()
+        ):
+            return (
+                self.fields.get(field, False)
+                or self.header.get(field, False)
+                or self.footer.get(field, False)
             )
 
-        try:
-            if self.fields[key].value not in [None, False, &#34;&#34;, [], ()]:
-                self.fields[key].value = value
-        except AttributeError:
-            self.fields[key] = self.fields[key](value)
+        raise _EX.InvalidCertificateFieldException(f&#34;Unknown field {field}&#34;)
 
-    def set_opts(self, **kwargs):
+    def set(self, field: str, value) -&gt; None:
         &#34;&#34;&#34;
-        Set multiple options at once
-        &#34;&#34;&#34;
-        for key, value in kwargs.items():
-            self.set_opt(key, value)
+        Set a field in any of the sections of the certificate.
 
-    # pylint: disable=used-before-assignment
+        Args:
+            field (str): The field name to set
+            value (mixed): The value to set the field to
+
+        Raises:
+            _EX.InvalidCertificateFieldException: Invalid field name provided
+
+        Returns:
+            mixed: The certificate field contents
+        &#34;&#34;&#34;
+        if self.fields.get(field, False):
+            setattr(self.fields, field, value)
+            return
+
+        if self.header.get(field, False):
+            setattr(self.header, field, value)
+            return
+
+        if self.footer.get(field, False):
+            setattr(self.footer, field, value)
+            return
+
+        raise _EX.InvalidCertificateFieldException(f&#34;Unknown field {field}&#34;)
+
+    def replace_ca(self, ca_privkey: PrivateKey):
+        &#34;&#34;&#34;
+        Replace the certificate authority private key with a new one.
+
+        Args:
+            ca_privkey (PrivateKey): The new CA private key
+        &#34;&#34;&#34;
+        self.footer.ca_pubkey = ca_privkey.public_key
+        self.footer.replace_field(
+            &#34;signature&#34;, _FIELD.SignatureField.from_object(ca_privkey)
+        )
+
     def can_sign(self) -&gt; bool:
         &#34;&#34;&#34;
-        Determine if the certificate is ready to be signed
+        Check if the certificate can be signed in its current state.
 
         Raises:
-            ...: Exception from the respective field with error
-            _EX.NoPrivateKeyException: Private key is missing from class
+            _EX.SignatureNotPossibleException: Exception if the certificate cannot be signed
 
         Returns:
-            bool: True/False if the certificate can be signed
+            bool: True if the certificate can be signed
         &#34;&#34;&#34;
-        exceptions = []
-        for field in self.fields.values():
-            try:
-                valid = field.validate()
-            except TypeError:
-                valid = _EX.SignatureNotPossibleException(
-                    f&#34;The field {field} is missing a value&#34;
-                )
-            finally:
-                if isinstance(valid, Exception):
-                    exceptions.append(valid)
-
-        if (
-            getattr(self, &#34;signature&#34;, False) is False
-            or getattr(self, &#34;signature_pubkey&#34;, False) is False
-        ):
-            exceptions.append(
-                _EX.SignatureNotPossibleException(&#34;No CA private key is set&#34;)
-            )
-
-        if len(exceptions) &gt; 0:
-            raise _EX.SignatureNotPossibleException(exceptions)
-
-        if self.signature.can_sign() is True:
-            return True
-
-        raise _EX.SignatureNotPossibleException(
-            &#34;The certificate cannot be signed, the CA private key is not loaded&#34;
+        valid_header = self.header.validate()
+        valid_fields = self.fields.validate()
+        check_keys = (
+            True
+            if isinstance(self.get(&#34;ca_pubkey&#34;), PublicKey)
+            and isinstance(self.footer.signature.private_key, PrivateKey)
+            else [
+                _EX.SignatureNotPossibleException(&#34;No CA Public/Private key is loaded&#34;)
+            ]
         )
 
-    def get_signable_data(self) -&gt; bytes:
-        &#34;&#34;&#34;
-        Gets the signable byte string from the certificate fields
-
-        Returns:
-            bytes: The data in the certificate which is signed
-        &#34;&#34;&#34;
-        return (
-            b&#34;&#34;.join(
-                [
-                    bytes(x)
-                    for x in tuple(self.header.values()) + tuple(self.fields.values())
-                ]
+        if (valid_header, valid_fields, check_keys) != (True, True, True):
+            exceptions = []
+            exceptions += valid_header if not isinstance(valid_header, bool) else []
+            exceptions += valid_fields if not isinstance(valid_fields, bool) else []
+            exceptions += check_keys if not isinstance(check_keys, bool) else []
+            raise _EX.SignatureNotPossibleException(
+                &#34;\n&#34;.join([str(e) for e in exceptions])
             )
-            + bytes(_FIELD.ReservedField())
-            + bytes(self.signature_pubkey)
+
+        return True
+
+    def get_signable(self) -&gt; bytes:
+        &#34;&#34;&#34;
+        Retrieves the signable data for the certificate in byte form
+        &#34;&#34;&#34;
+        return concat_to_bytestring(
+            bytes(self.header), bytes(self.fields), bytes(self.footer)
         )
 
-    def sign(self, **signing_args):
-        &#34;&#34;&#34;
-        Sign the certificate
+    def sign(self) -&gt; bool:
+        &#34;&#34;&#34;Sign the certificate
+
+        Raises:
+            _EX.NotSignedException: The certificate could not be signed
 
         Returns:
-            SSHCertificate: The signed certificate class
+            bool: Whether successful
         &#34;&#34;&#34;
         if self.can_sign():
-            self.signature.sign(data=self.get_signable_data(), **signing_args)
+            self.footer.signature.sign(data=self.get_signable())
 
-        return self
+            return True
+        raise _EX.NotSignedException(&#34;There was an error while signing the certificate&#34;)
 
-    def verify(self, ca_pubkey: PublicKey = None) -&gt; bool:
-        &#34;&#34;&#34;
-        Verifies a signature against a given public key.
+    def verify(
+        self, public_key: PublicKey = None, raise_on_error: bool = False
+    ) -&gt; bool:
+        &#34;&#34;&#34;Verify the signature on the certificate to make sure the data is not corrupted,
+           and that the signature comes from the given public key or the key included in the
+           certificate (insecure, useful for testing only)
 
-        If no public key is provided, the signature is checked against
-        the public/private key provided to the class on creation
-        or decoding.
-
-        Not providing the public key for the CA with an imported
-        certificate means the verification will succeed even if an
-        attacker has replaced the signature and public key for signing.
-
-        If the certificate wasn&#39;t created and signed on the same occasion
-        as the validity check, you should always provide a public key for
-        verificiation.
-
-        Returns:
-            bool: If the certificate signature is valid
-        &#34;&#34;&#34;
-
-        if ca_pubkey is None:
-            ca_pubkey = self.signature_pubkey.value
-
-        cert_data = self.get_signable_data()
-        signature = self.signature.value
-
-        return ca_pubkey.verify(cert_data, signature)
-
-    def to_bytes(self) -&gt; bytes:
-        &#34;&#34;&#34;
-        Export the signed certificate in byte-format
+        Args:
+            public_key (PublicKey, optional): The public key to use for verification
+            raise_on_error (bool, default False): Raise an exception if the certificate is invalid
 
         Raises:
-            _EX.NotSignedException: The certificate has not been signed yet
-
-        Returns:
-            bytes: The certificate bytes
+            _EX.InvalidSignatureException: The signature is invalid
         &#34;&#34;&#34;
-        if self.signature.is_signed is True:
-            return self.get_signable_data() + bytes(self.signature)
+        if not public_key:
+            public_key = self.get(&#34;ca_pubkey&#34;)
 
-        raise _EX.NotSignedException(&#34;The certificate has not been signed&#34;)
+        try:
+            public_key.verify(self.get_signable(), self.footer.get(&#34;signature&#34;))
+        except _EX.InvalidSignatureException as exception:
+            if raise_on_error:
+                raise exception
+            return False
 
-    def to_string(
-        self, comment: Union[str, bytes] = None, encoding: str = &#34;utf-8&#34;
-    ) -&gt; str:
-        &#34;&#34;&#34;
-        Export the signed certificate to a string, ready to be written to file
+        return True
+
+    def to_string(self, comment: str = &#34;&#34;, encoding: str = &#34;utf-8&#34;):
+        &#34;&#34;&#34;Export the certificate to a string
 
         Args:
-            comment (Union[str, bytes], optional): Comment to add to the string. Defaults to None.
-            encoding (str, optional): Encoding to use for the string. Defaults to &#39;utf-8&#39;.
+            comment (str, optional): Comment to append to the certificate. Defaults to &#34;&#34;.
+            encoding (str, optional): Which encoding to use for the string. Defaults to &#34;utf-8&#34;.
 
         Returns:
-            str: Certificate string
+            str: The certificate data, base64-encoded and in string format
         &#34;&#34;&#34;
-        return (
-            self.header[&#34;pubkey_type&#34;].value.encode(encoding)
-            + b&#34; &#34;
-            + b64encode(
-                self.to_bytes(),
-            )
-            + b&#34; &#34;
-            + (comment if comment else b&#34;&#34;)
-        ).decode(&#34;utf-8&#34;)
+        return concat_to_string(
+            self.header.get(&#34;pubkey_type&#34;),
+            &#34; &#34;,
+            b64encode(bytes(self)),
+            &#34; &#34;,
+            comment if comment else &#34;&#34;,
+            encoding=encoding,
+        )
 
-    def to_file(
-        self, path: str, comment: Union[str, bytes] = None, encoding: str = &#34;utf-8&#34;
-    ):
-        &#34;&#34;&#34;
-        Saves the certificate to a file
+    def to_file(self, filename: str, encoding: str = &#34;utf-8&#34;):
+        &#34;&#34;&#34;Export certificate to file
 
         Args:
-            path (str): The path of the file to save to
-            comment (Union[str, bytes], optional): Comment to add to the certificate end.
-                                                   Defaults to None.
-            encoding (str, optional): Encoding for the file. Defaults to &#39;utf-8&#39;.
+            filename (str): The filename to write to
+            encoding (str, optional): The encoding to use for the file/string. Defaults to &#34;utf-8&#34;.
         &#34;&#34;&#34;
-        with open(path, &#34;w&#34;, encoding=encoding) as file:
-            file.write(self.to_string(comment, encoding))
+        with open(filename, &#34;w&#34;, encoding=encoding) as file:
+            file.write(self.to_string())
 
 
 class RsaCertificate(SSHCertificate):
-    &#34;&#34;&#34;
-    Specific class for RSA Certificates. Inherits from SSHCertificate
-    &#34;&#34;&#34;
+    &#34;&#34;&#34;The RSA Certificate class&#34;&#34;&#34;
 
-    def __init__(
-        self,
-        subject_pubkey: RsaPublicKey,
-        ca_privkey: PrivateKey = None,
-        rsa_alg: RsaAlgs = RsaAlgs.SHA512,
-        **kwargs,
-    ):
-
-        super().__init__(subject_pubkey, ca_privkey, **kwargs)
-        self.rsa_alg = rsa_alg
-        self.set_type(f&#34;{rsa_alg.value[0]}-cert-v01@openssh.com&#34;)
-
-    @classmethod
-    # pylint: disable=arguments-differ
-    def decode(cls, cert_bytes: bytes) -&gt; &#34;SSHCertificate&#34;:
-        &#34;&#34;&#34;
-        Decode an existing RSA Certificate
-
-        Args:
-            cert_bytes (bytes): The base64-decoded bytes for the certificate
-
-        Returns:
-            RsaCertificate: The decoded certificate
-        &#34;&#34;&#34;
-        return super().decode(cert_bytes, _FIELD.RSAPubkeyField)
+    DEFAULT_KEY_TYPE = &#34;rsa-sha2-512-cert-v01@openssh.com&#34;
 
 
 class DsaCertificate(SSHCertificate):
-    &#34;&#34;&#34;
-    Specific class for DSA/DSS Certificates. Inherits from SSHCertificate
-    &#34;&#34;&#34;
+    &#34;&#34;&#34;The DSA Certificate class&#34;&#34;&#34;
 
-    def __init__(
-        self, subject_pubkey: DsaPublicKey, ca_privkey: PrivateKey = None, **kwargs
-    ):
-        super().__init__(subject_pubkey, ca_privkey, **kwargs)
-        self.set_type(&#34;ssh-dss-cert-v01@openssh.com&#34;)
-
-    @classmethod
-    # pylint: disable=arguments-differ
-    def decode(cls, cert_bytes: bytes) -&gt; &#34;DsaCertificate&#34;:
-        &#34;&#34;&#34;
-        Decode an existing DSA Certificate
-
-        Args:
-            cert_bytes (bytes): The base64-decoded bytes for the certificate
-
-        Returns:
-            DsaCertificate: The decoded certificate
-        &#34;&#34;&#34;
-        return super().decode(cert_bytes, _FIELD.DSAPubkeyField)
+    DEFAULT_KEY_TYPE = &#34;ssh-dss-cert-v01@openssh.com&#34;
 
 
 class EcdsaCertificate(SSHCertificate):
-    &#34;&#34;&#34;
-    Specific class for ECDSA Certificates. Inherits from SSHCertificate
-    &#34;&#34;&#34;
+    &#34;&#34;&#34;The ECDSA certificate class&#34;&#34;&#34;
 
-    def __init__(
-        self, subject_pubkey: EcdsaPublicKey, ca_privkey: PrivateKey = None, **kwargs
-    ):
-        super().__init__(subject_pubkey, ca_privkey, **kwargs)
-        self.set_type(
-            f&#34;ecdsa-sha2-nistp{subject_pubkey.key.curve.key_size}-cert-v01@openssh.com&#34;
+    DEFAULT_KEY_TYPE = &#34;ecdsa-sha2-nistp[curve_size]-cert-v01@openssh.com&#34;
+
+    def __post_init__(self):
+        &#34;&#34;&#34;Set the key name from the public key curve size&#34;&#34;&#34;
+        self.header.pubkey_type = self.header.get(&#34;pubkey_type&#34;).replace(
+            &#34;[curve_size]&#34;, str(self.header.public_key.value.key.curve.key_size)
         )
-
-    @classmethod
-    # pylint: disable=arguments-differ
-    def decode(cls, cert_bytes: bytes) -&gt; &#34;EcdsaCertificate&#34;:
-        &#34;&#34;&#34;
-        Decode an existing ECDSA Certificate
-
-        Args:
-            cert_bytes (bytes): The base64-decoded bytes for the certificate
-
-        Returns:
-            EcdsaCertificate: The decoded certificate
-        &#34;&#34;&#34;
-        return super().decode(cert_bytes, _FIELD.ECDSAPubkeyField)
 
 
 class Ed25519Certificate(SSHCertificate):
-    &#34;&#34;&#34;
-    Specific class for ED25519 Certificates. Inherits from SSHCertificate
-    &#34;&#34;&#34;
+    &#34;&#34;&#34;The ED25519 certificate class&#34;&#34;&#34;
 
-    def __init__(
-        self, subject_pubkey: Ed25519PublicKey, ca_privkey: PrivateKey = None, **kwargs
-    ):
-        super().__init__(subject_pubkey, ca_privkey, **kwargs)
-        self.set_type(&#34;ssh-ed25519-cert-v01@openssh.com&#34;)
-
-    @classmethod
-    # pylint: disable=arguments-differ
-    def decode(cls, cert_bytes: bytes) -&gt; &#34;Ed25519Certificate&#34;:
-        &#34;&#34;&#34;
-        Decode an existing ED25519 Certificate
-
-        Args:
-            cert_bytes (bytes): The base64-decoded bytes for the certificate
-
-        Returns:
-            Ed25519Certificate: The decoded certificate
-        &#34;&#34;&#34;
-        return super().decode(cert_bytes, _FIELD.ED25519PubkeyField)</code></pre>
+    DEFAULT_KEY_TYPE = &#34;ssh-ed25519-cert-v01@openssh.com&#34;</code></pre>
 </details>
 </section>
 <section>
@@ -661,80 +649,777 @@ class Ed25519Certificate(SSHCertificate):
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="sshkey_tools.cert.DsaCertificate"><code class="flex name class">
-<span>class <span class="ident">DsaCertificate</span></span>
-<span>(</span><span>subject_pubkey: <a title="sshkey_tools.keys.DsaPublicKey" href="keys.html#sshkey_tools.keys.DsaPublicKey">DsaPublicKey</a>, ca_privkey: <a title="sshkey_tools.keys.PrivateKey" href="keys.html#sshkey_tools.keys.PrivateKey">PrivateKey</a> = None, **kwargs)</span>
+<dt id="sshkey_tools.cert.CertificateFields"><code class="flex name class">
+<span>class <span class="ident">CertificateFields</span></span>
+<span>(</span><span>serial: <a title="sshkey_tools.fields.SerialField" href="fields.html#sshkey_tools.fields.SerialField">SerialField</a> = &lt;bound method CertificateField.factory of &lt;class &#x27;sshkey_tools.fields.SerialField&#x27;&gt;&gt;, cert_type: <a title="sshkey_tools.fields.CertificateTypeField" href="fields.html#sshkey_tools.fields.CertificateTypeField">CertificateTypeField</a> = &lt;bound method CertificateField.factory of &lt;class &#x27;sshkey_tools.fields.CertificateTypeField&#x27;&gt;&gt;, key_id: <a title="sshkey_tools.fields.KeyIdField" href="fields.html#sshkey_tools.fields.KeyIdField">KeyIdField</a> = &lt;bound method CertificateField.factory of &lt;class &#x27;sshkey_tools.fields.KeyIdField&#x27;&gt;&gt;, principals: <a title="sshkey_tools.fields.PrincipalsField" href="fields.html#sshkey_tools.fields.PrincipalsField">PrincipalsField</a> = &lt;bound method CertificateField.factory of &lt;class &#x27;sshkey_tools.fields.PrincipalsField&#x27;&gt;&gt;, valid_after: <a title="sshkey_tools.fields.ValidAfterField" href="fields.html#sshkey_tools.fields.ValidAfterField">ValidAfterField</a> = &lt;bound method CertificateField.factory of &lt;class &#x27;sshkey_tools.fields.ValidAfterField&#x27;&gt;&gt;, valid_before: <a title="sshkey_tools.fields.ValidBeforeField" href="fields.html#sshkey_tools.fields.ValidBeforeField">ValidBeforeField</a> = &lt;bound method CertificateField.factory of &lt;class &#x27;sshkey_tools.fields.ValidBeforeField&#x27;&gt;&gt;, critical_options: <a title="sshkey_tools.fields.CriticalOptionsField" href="fields.html#sshkey_tools.fields.CriticalOptionsField">CriticalOptionsField</a> = &lt;bound method CertificateField.factory of &lt;class &#x27;sshkey_tools.fields.CriticalOptionsField&#x27;&gt;&gt;, extensions: <a title="sshkey_tools.fields.ExtensionsField" href="fields.html#sshkey_tools.fields.ExtensionsField">ExtensionsField</a> = &lt;bound method CertificateField.factory of &lt;class &#x27;sshkey_tools.fields.ExtensionsField&#x27;&gt;&gt;)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Specific class for DSA/DSS Certificates. Inherits from SSHCertificate</p></div>
+<div class="desc"><p>Information fields for the certificate</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class DsaCertificate(SSHCertificate):
-    &#34;&#34;&#34;
-    Specific class for DSA/DSS Certificates. Inherits from SSHCertificate
-    &#34;&#34;&#34;
+<pre><code class="python">@dataclass
+# pylint: disable=too-many-instance-attributes
+class CertificateFields(Fieldset):
+    &#34;&#34;&#34;Information fields for the certificate&#34;&#34;&#34;
 
-    def __init__(
-        self, subject_pubkey: DsaPublicKey, ca_privkey: PrivateKey = None, **kwargs
-    ):
-        super().__init__(subject_pubkey, ca_privkey, **kwargs)
-        self.set_type(&#34;ssh-dss-cert-v01@openssh.com&#34;)
+    serial: _FIELD.SerialField = _FIELD.SerialField.factory
+    cert_type: _FIELD.CertificateTypeField = _FIELD.CertificateTypeField.factory
+    key_id: _FIELD.KeyIdField = _FIELD.KeyIdField.factory
+    principals: _FIELD.PrincipalsField = _FIELD.PrincipalsField.factory
+    valid_after: _FIELD.ValidAfterField = _FIELD.ValidAfterField.factory
+    valid_before: _FIELD.ValidBeforeField = _FIELD.ValidBeforeField.factory
+    critical_options: _FIELD.CriticalOptionsField = _FIELD.CriticalOptionsField.factory
+    extensions: _FIELD.ExtensionsField = _FIELD.ExtensionsField.factory
 
-    @classmethod
-    # pylint: disable=arguments-differ
-    def decode(cls, cert_bytes: bytes) -&gt; &#34;DsaCertificate&#34;:
-        &#34;&#34;&#34;
-        Decode an existing DSA Certificate
+    DECODE_ORDER = [
+        &#34;serial&#34;,
+        &#34;cert_type&#34;,
+        &#34;key_id&#34;,
+        &#34;principals&#34;,
+        &#34;valid_after&#34;,
+        &#34;valid_before&#34;,
+        &#34;critical_options&#34;,
+        &#34;extensions&#34;,
+    ]
 
-        Args:
-            cert_bytes (bytes): The base64-decoded bytes for the certificate
-
-        Returns:
-            DsaCertificate: The decoded certificate
-        &#34;&#34;&#34;
-        return super().decode(cert_bytes, _FIELD.DSAPubkeyField)</code></pre>
+    def __bytes__(self):
+        return concat_to_bytestring(
+            bytes(self.serial),
+            bytes(self.cert_type),
+            bytes(self.key_id),
+            bytes(self.principals),
+            bytes(self.valid_after),
+            bytes(self.valid_before),
+            bytes(self.critical_options),
+            bytes(self.extensions),
+        )</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="sshkey_tools.cert.SSHCertificate" href="#sshkey_tools.cert.SSHCertificate">SSHCertificate</a></li>
+<li><a title="sshkey_tools.cert.Fieldset" href="#sshkey_tools.cert.Fieldset">Fieldset</a></li>
 </ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="sshkey_tools.cert.CertificateFields.DECODE_ORDER"><code class="name">var <span class="ident">DECODE_ORDER</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
 <h3>Static methods</h3>
 <dl>
-<dt id="sshkey_tools.cert.DsaCertificate.decode"><code class="name flex">
-<span>def <span class="ident">decode</span></span>(<span>cert_bytes: bytes) ‑> <a title="sshkey_tools.cert.DsaCertificate" href="#sshkey_tools.cert.DsaCertificate">DsaCertificate</a></span>
+<dt id="sshkey_tools.cert.CertificateFields.cert_type"><code class="name flex">
+<span>def <span class="ident">cert_type</span></span>(<span>blank: bool = False) ‑> <a title="sshkey_tools.fields.CertificateField" href="fields.html#sshkey_tools.fields.CertificateField">CertificateField</a></span>
 </code></dt>
 <dd>
-<div class="desc"><p>Decode an existing DSA Certificate</p>
+<div class="desc"><p>Factory to create field with default value if set, otherwise empty</p>
 <h2 id="args">Args</h2>
 <dl>
-<dt><strong><code>cert_bytes</code></strong> :&ensp;<code>bytes</code></dt>
-<dd>The base64-decoded bytes for the certificate</dd>
+<dt><strong><code>blank</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Return a blank class (for decoding)</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code><a title="sshkey_tools.cert.DsaCertificate" href="#sshkey_tools.cert.DsaCertificate">DsaCertificate</a></code></dt>
-<dd>The decoded certificate</dd>
+<dt><code>CertificateField</code></dt>
+<dd>A new CertificateField subclass instance</dd>
 </dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@classmethod
-# pylint: disable=arguments-differ
-def decode(cls, cert_bytes: bytes) -&gt; &#34;DsaCertificate&#34;:
+# pylint: disable=not-callable
+def factory(cls, blank: bool = False) -&gt; &#34;CertificateField&#34;:
     &#34;&#34;&#34;
-    Decode an existing DSA Certificate
+    Factory to create field with default value if set, otherwise empty
 
     Args:
-        cert_bytes (bytes): The base64-decoded bytes for the certificate
+        blank (bool): Return a blank class (for decoding)
 
     Returns:
-        DsaCertificate: The decoded certificate
+        CertificateField: A new CertificateField subclass instance
     &#34;&#34;&#34;
-    return super().decode(cert_bytes, _FIELD.DSAPubkeyField)</code></pre>
+    if cls.DEFAULT is None or blank:
+        return cls
+
+    if callable(cls.DEFAULT):
+        return cls(cls.DEFAULT())
+
+    return cls(cls.DEFAULT)</code></pre>
 </details>
+</dd>
+<dt id="sshkey_tools.cert.CertificateFields.critical_options"><code class="name flex">
+<span>def <span class="ident">critical_options</span></span>(<span>blank: bool = False) ‑> <a title="sshkey_tools.fields.CertificateField" href="fields.html#sshkey_tools.fields.CertificateField">CertificateField</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Factory to create field with default value if set, otherwise empty</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>blank</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Return a blank class (for decoding)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>CertificateField</code></dt>
+<dd>A new CertificateField subclass instance</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+# pylint: disable=not-callable
+def factory(cls, blank: bool = False) -&gt; &#34;CertificateField&#34;:
+    &#34;&#34;&#34;
+    Factory to create field with default value if set, otherwise empty
+
+    Args:
+        blank (bool): Return a blank class (for decoding)
+
+    Returns:
+        CertificateField: A new CertificateField subclass instance
+    &#34;&#34;&#34;
+    if cls.DEFAULT is None or blank:
+        return cls
+
+    if callable(cls.DEFAULT):
+        return cls(cls.DEFAULT())
+
+    return cls(cls.DEFAULT)</code></pre>
+</details>
+</dd>
+<dt id="sshkey_tools.cert.CertificateFields.extensions"><code class="name flex">
+<span>def <span class="ident">extensions</span></span>(<span>blank: bool = False) ‑> <a title="sshkey_tools.fields.CertificateField" href="fields.html#sshkey_tools.fields.CertificateField">CertificateField</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Factory to create field with default value if set, otherwise empty</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>blank</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Return a blank class (for decoding)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>CertificateField</code></dt>
+<dd>A new CertificateField subclass instance</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+# pylint: disable=not-callable
+def factory(cls, blank: bool = False) -&gt; &#34;CertificateField&#34;:
+    &#34;&#34;&#34;
+    Factory to create field with default value if set, otherwise empty
+
+    Args:
+        blank (bool): Return a blank class (for decoding)
+
+    Returns:
+        CertificateField: A new CertificateField subclass instance
+    &#34;&#34;&#34;
+    if cls.DEFAULT is None or blank:
+        return cls
+
+    if callable(cls.DEFAULT):
+        return cls(cls.DEFAULT())
+
+    return cls(cls.DEFAULT)</code></pre>
+</details>
+</dd>
+<dt id="sshkey_tools.cert.CertificateFields.key_id"><code class="name flex">
+<span>def <span class="ident">key_id</span></span>(<span>blank: bool = False) ‑> <a title="sshkey_tools.fields.CertificateField" href="fields.html#sshkey_tools.fields.CertificateField">CertificateField</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Factory to create field with default value if set, otherwise empty</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>blank</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Return a blank class (for decoding)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>CertificateField</code></dt>
+<dd>A new CertificateField subclass instance</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+# pylint: disable=not-callable
+def factory(cls, blank: bool = False) -&gt; &#34;CertificateField&#34;:
+    &#34;&#34;&#34;
+    Factory to create field with default value if set, otherwise empty
+
+    Args:
+        blank (bool): Return a blank class (for decoding)
+
+    Returns:
+        CertificateField: A new CertificateField subclass instance
+    &#34;&#34;&#34;
+    if cls.DEFAULT is None or blank:
+        return cls
+
+    if callable(cls.DEFAULT):
+        return cls(cls.DEFAULT())
+
+    return cls(cls.DEFAULT)</code></pre>
+</details>
+</dd>
+<dt id="sshkey_tools.cert.CertificateFields.principals"><code class="name flex">
+<span>def <span class="ident">principals</span></span>(<span>blank: bool = False) ‑> <a title="sshkey_tools.fields.CertificateField" href="fields.html#sshkey_tools.fields.CertificateField">CertificateField</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Factory to create field with default value if set, otherwise empty</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>blank</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Return a blank class (for decoding)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>CertificateField</code></dt>
+<dd>A new CertificateField subclass instance</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+# pylint: disable=not-callable
+def factory(cls, blank: bool = False) -&gt; &#34;CertificateField&#34;:
+    &#34;&#34;&#34;
+    Factory to create field with default value if set, otherwise empty
+
+    Args:
+        blank (bool): Return a blank class (for decoding)
+
+    Returns:
+        CertificateField: A new CertificateField subclass instance
+    &#34;&#34;&#34;
+    if cls.DEFAULT is None or blank:
+        return cls
+
+    if callable(cls.DEFAULT):
+        return cls(cls.DEFAULT())
+
+    return cls(cls.DEFAULT)</code></pre>
+</details>
+</dd>
+<dt id="sshkey_tools.cert.CertificateFields.serial"><code class="name flex">
+<span>def <span class="ident">serial</span></span>(<span>blank: bool = False) ‑> <a title="sshkey_tools.fields.CertificateField" href="fields.html#sshkey_tools.fields.CertificateField">CertificateField</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Factory to create field with default value if set, otherwise empty</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>blank</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Return a blank class (for decoding)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>CertificateField</code></dt>
+<dd>A new CertificateField subclass instance</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+# pylint: disable=not-callable
+def factory(cls, blank: bool = False) -&gt; &#34;CertificateField&#34;:
+    &#34;&#34;&#34;
+    Factory to create field with default value if set, otherwise empty
+
+    Args:
+        blank (bool): Return a blank class (for decoding)
+
+    Returns:
+        CertificateField: A new CertificateField subclass instance
+    &#34;&#34;&#34;
+    if cls.DEFAULT is None or blank:
+        return cls
+
+    if callable(cls.DEFAULT):
+        return cls(cls.DEFAULT())
+
+    return cls(cls.DEFAULT)</code></pre>
+</details>
+</dd>
+<dt id="sshkey_tools.cert.CertificateFields.valid_after"><code class="name flex">
+<span>def <span class="ident">valid_after</span></span>(<span>blank: bool = False) ‑> <a title="sshkey_tools.fields.CertificateField" href="fields.html#sshkey_tools.fields.CertificateField">CertificateField</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Factory to create field with default value if set, otherwise empty</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>blank</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Return a blank class (for decoding)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>CertificateField</code></dt>
+<dd>A new CertificateField subclass instance</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+# pylint: disable=not-callable
+def factory(cls, blank: bool = False) -&gt; &#34;CertificateField&#34;:
+    &#34;&#34;&#34;
+    Factory to create field with default value if set, otherwise empty
+
+    Args:
+        blank (bool): Return a blank class (for decoding)
+
+    Returns:
+        CertificateField: A new CertificateField subclass instance
+    &#34;&#34;&#34;
+    if cls.DEFAULT is None or blank:
+        return cls
+
+    if callable(cls.DEFAULT):
+        return cls(cls.DEFAULT())
+
+    return cls(cls.DEFAULT)</code></pre>
+</details>
+</dd>
+<dt id="sshkey_tools.cert.CertificateFields.valid_before"><code class="name flex">
+<span>def <span class="ident">valid_before</span></span>(<span>blank: bool = False) ‑> <a title="sshkey_tools.fields.CertificateField" href="fields.html#sshkey_tools.fields.CertificateField">CertificateField</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Factory to create field with default value if set, otherwise empty</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>blank</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Return a blank class (for decoding)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>CertificateField</code></dt>
+<dd>A new CertificateField subclass instance</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+# pylint: disable=not-callable
+def factory(cls, blank: bool = False) -&gt; &#34;CertificateField&#34;:
+    &#34;&#34;&#34;
+    Factory to create field with default value if set, otherwise empty
+
+    Args:
+        blank (bool): Return a blank class (for decoding)
+
+    Returns:
+        CertificateField: A new CertificateField subclass instance
+    &#34;&#34;&#34;
+    if cls.DEFAULT is None or blank:
+        return cls
+
+    if callable(cls.DEFAULT):
+        return cls(cls.DEFAULT())
+
+    return cls(cls.DEFAULT)</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="sshkey_tools.cert.Fieldset" href="#sshkey_tools.cert.Fieldset">Fieldset</a></b></code>:
+<ul class="hlist">
+<li><code><a title="sshkey_tools.cert.Fieldset.decode" href="#sshkey_tools.cert.Fieldset.decode">decode</a></code></li>
+<li><code><a title="sshkey_tools.cert.Fieldset.get" href="#sshkey_tools.cert.Fieldset.get">get</a></code></li>
+<li><code><a title="sshkey_tools.cert.Fieldset.getattrs" href="#sshkey_tools.cert.Fieldset.getattrs">getattrs</a></code></li>
+<li><code><a title="sshkey_tools.cert.Fieldset.replace_field" href="#sshkey_tools.cert.Fieldset.replace_field">replace_field</a></code></li>
+<li><code><a title="sshkey_tools.cert.Fieldset.validate" href="#sshkey_tools.cert.Fieldset.validate">validate</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="sshkey_tools.cert.CertificateFooter"><code class="flex name class">
+<span>class <span class="ident">CertificateFooter</span></span>
+<span>(</span><span>reserved: <a title="sshkey_tools.fields.ReservedField" href="fields.html#sshkey_tools.fields.ReservedField">ReservedField</a> = &lt;bound method CertificateField.factory of &lt;class &#x27;sshkey_tools.fields.ReservedField&#x27;&gt;&gt;, ca_pubkey: <a title="sshkey_tools.fields.CAPublicKeyField" href="fields.html#sshkey_tools.fields.CAPublicKeyField">CAPublicKeyField</a> = &lt;bound method CertificateField.factory of &lt;class &#x27;sshkey_tools.fields.CAPublicKeyField&#x27;&gt;&gt;, signature: <a title="sshkey_tools.fields.SignatureField" href="fields.html#sshkey_tools.fields.SignatureField">SignatureField</a> = &lt;bound method CertificateField.factory of &lt;class &#x27;sshkey_tools.fields.SignatureField&#x27;&gt;&gt;)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Footer fields and signature for the certificate</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass
+class CertificateFooter(Fieldset):
+    &#34;&#34;&#34;Footer fields and signature for the certificate&#34;&#34;&#34;
+
+    reserved: _FIELD.ReservedField = _FIELD.ReservedField.factory
+    ca_pubkey: _FIELD.CAPublicKeyField = _FIELD.CAPublicKeyField.factory
+    signature: _FIELD.SignatureField = _FIELD.SignatureField.factory
+
+    DECODE_ORDER = [&#34;reserved&#34;, &#34;ca_pubkey&#34;, &#34;signature&#34;]
+
+    def __bytes__(self):
+        return concat_to_bytestring(bytes(self.reserved), bytes(self.ca_pubkey))</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="sshkey_tools.cert.Fieldset" href="#sshkey_tools.cert.Fieldset">Fieldset</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="sshkey_tools.cert.CertificateFooter.DECODE_ORDER"><code class="name">var <span class="ident">DECODE_ORDER</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Static methods</h3>
+<dl>
+<dt id="sshkey_tools.cert.CertificateFooter.ca_pubkey"><code class="name flex">
+<span>def <span class="ident">ca_pubkey</span></span>(<span>blank: bool = False) ‑> <a title="sshkey_tools.fields.CertificateField" href="fields.html#sshkey_tools.fields.CertificateField">CertificateField</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Factory to create field with default value if set, otherwise empty</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>blank</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Return a blank class (for decoding)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>CertificateField</code></dt>
+<dd>A new CertificateField subclass instance</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+# pylint: disable=not-callable
+def factory(cls, blank: bool = False) -&gt; &#34;CertificateField&#34;:
+    &#34;&#34;&#34;
+    Factory to create field with default value if set, otherwise empty
+
+    Args:
+        blank (bool): Return a blank class (for decoding)
+
+    Returns:
+        CertificateField: A new CertificateField subclass instance
+    &#34;&#34;&#34;
+    if cls.DEFAULT is None or blank:
+        return cls
+
+    if callable(cls.DEFAULT):
+        return cls(cls.DEFAULT())
+
+    return cls(cls.DEFAULT)</code></pre>
+</details>
+</dd>
+<dt id="sshkey_tools.cert.CertificateFooter.reserved"><code class="name flex">
+<span>def <span class="ident">reserved</span></span>(<span>blank: bool = False) ‑> <a title="sshkey_tools.fields.CertificateField" href="fields.html#sshkey_tools.fields.CertificateField">CertificateField</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Factory to create field with default value if set, otherwise empty</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>blank</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Return a blank class (for decoding)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>CertificateField</code></dt>
+<dd>A new CertificateField subclass instance</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+# pylint: disable=not-callable
+def factory(cls, blank: bool = False) -&gt; &#34;CertificateField&#34;:
+    &#34;&#34;&#34;
+    Factory to create field with default value if set, otherwise empty
+
+    Args:
+        blank (bool): Return a blank class (for decoding)
+
+    Returns:
+        CertificateField: A new CertificateField subclass instance
+    &#34;&#34;&#34;
+    if cls.DEFAULT is None or blank:
+        return cls
+
+    if callable(cls.DEFAULT):
+        return cls(cls.DEFAULT())
+
+    return cls(cls.DEFAULT)</code></pre>
+</details>
+</dd>
+<dt id="sshkey_tools.cert.CertificateFooter.signature"><code class="name flex">
+<span>def <span class="ident">signature</span></span>(<span>blank: bool = False) ‑> <a title="sshkey_tools.fields.CertificateField" href="fields.html#sshkey_tools.fields.CertificateField">CertificateField</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Factory to create field with default value if set, otherwise empty</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>blank</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Return a blank class (for decoding)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>CertificateField</code></dt>
+<dd>A new CertificateField subclass instance</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+# pylint: disable=not-callable
+def factory(cls, blank: bool = False) -&gt; &#34;CertificateField&#34;:
+    &#34;&#34;&#34;
+    Factory to create field with default value if set, otherwise empty
+
+    Args:
+        blank (bool): Return a blank class (for decoding)
+
+    Returns:
+        CertificateField: A new CertificateField subclass instance
+    &#34;&#34;&#34;
+    if cls.DEFAULT is None or blank:
+        return cls
+
+    if callable(cls.DEFAULT):
+        return cls(cls.DEFAULT())
+
+    return cls(cls.DEFAULT)</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="sshkey_tools.cert.Fieldset" href="#sshkey_tools.cert.Fieldset">Fieldset</a></b></code>:
+<ul class="hlist">
+<li><code><a title="sshkey_tools.cert.Fieldset.decode" href="#sshkey_tools.cert.Fieldset.decode">decode</a></code></li>
+<li><code><a title="sshkey_tools.cert.Fieldset.get" href="#sshkey_tools.cert.Fieldset.get">get</a></code></li>
+<li><code><a title="sshkey_tools.cert.Fieldset.getattrs" href="#sshkey_tools.cert.Fieldset.getattrs">getattrs</a></code></li>
+<li><code><a title="sshkey_tools.cert.Fieldset.replace_field" href="#sshkey_tools.cert.Fieldset.replace_field">replace_field</a></code></li>
+<li><code><a title="sshkey_tools.cert.Fieldset.validate" href="#sshkey_tools.cert.Fieldset.validate">validate</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="sshkey_tools.cert.CertificateHeader"><code class="flex name class">
+<span>class <span class="ident">CertificateHeader</span></span>
+<span>(</span><span>public_key: <a title="sshkey_tools.fields.PublicKeyField" href="fields.html#sshkey_tools.fields.PublicKeyField">PublicKeyField</a> = &lt;bound method CertificateField.factory of &lt;class &#x27;sshkey_tools.fields.PublicKeyField&#x27;&gt;&gt;, pubkey_type: <a title="sshkey_tools.fields.PubkeyTypeField" href="fields.html#sshkey_tools.fields.PubkeyTypeField">PubkeyTypeField</a> = &lt;bound method CertificateField.factory of &lt;class &#x27;sshkey_tools.fields.PubkeyTypeField&#x27;&gt;&gt;, nonce: <a title="sshkey_tools.fields.NonceField" href="fields.html#sshkey_tools.fields.NonceField">NonceField</a> = &lt;bound method CertificateField.factory of &lt;class &#x27;sshkey_tools.fields.NonceField&#x27;&gt;&gt;)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Header fields for the certificate</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass
+class CertificateHeader(Fieldset):
+    &#34;&#34;&#34;Header fields for the certificate&#34;&#34;&#34;
+
+    public_key: _FIELD.PublicKeyField = _FIELD.PublicKeyField.factory
+    pubkey_type: _FIELD.PubkeyTypeField = _FIELD.PubkeyTypeField.factory
+    nonce: _FIELD.NonceField = _FIELD.NonceField.factory
+
+    DECODE_ORDER = [&#34;pubkey_type&#34;, &#34;nonce&#34;]
+
+    def __bytes__(self):
+        return concat_to_bytestring(
+            bytes(self.pubkey_type), bytes(self.nonce), bytes(self.public_key)
+        )
+
+    @classmethod
+    def decode(cls, data: bytes) -&gt; Tuple[&#34;CertificateHeader&#34;, bytes]:
+        cl_instance, data = super().decode(data)
+
+        target_class = CERT_TYPES[cl_instance.get(&#34;pubkey_type&#34;)]
+
+        public_key, data = getattr(_FIELD, target_class[1]).from_decode(data)
+        cl_instance.public_key = public_key
+
+        return cl_instance, data</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="sshkey_tools.cert.Fieldset" href="#sshkey_tools.cert.Fieldset">Fieldset</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="sshkey_tools.cert.CertificateHeader.DECODE_ORDER"><code class="name">var <span class="ident">DECODE_ORDER</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Static methods</h3>
+<dl>
+<dt id="sshkey_tools.cert.CertificateHeader.nonce"><code class="name flex">
+<span>def <span class="ident">nonce</span></span>(<span>blank: bool = False) ‑> <a title="sshkey_tools.fields.CertificateField" href="fields.html#sshkey_tools.fields.CertificateField">CertificateField</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Factory to create field with default value if set, otherwise empty</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>blank</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Return a blank class (for decoding)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>CertificateField</code></dt>
+<dd>A new CertificateField subclass instance</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+# pylint: disable=not-callable
+def factory(cls, blank: bool = False) -&gt; &#34;CertificateField&#34;:
+    &#34;&#34;&#34;
+    Factory to create field with default value if set, otherwise empty
+
+    Args:
+        blank (bool): Return a blank class (for decoding)
+
+    Returns:
+        CertificateField: A new CertificateField subclass instance
+    &#34;&#34;&#34;
+    if cls.DEFAULT is None or blank:
+        return cls
+
+    if callable(cls.DEFAULT):
+        return cls(cls.DEFAULT())
+
+    return cls(cls.DEFAULT)</code></pre>
+</details>
+</dd>
+<dt id="sshkey_tools.cert.CertificateHeader.pubkey_type"><code class="name flex">
+<span>def <span class="ident">pubkey_type</span></span>(<span>blank: bool = False) ‑> <a title="sshkey_tools.fields.CertificateField" href="fields.html#sshkey_tools.fields.CertificateField">CertificateField</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Factory to create field with default value if set, otherwise empty</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>blank</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Return a blank class (for decoding)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>CertificateField</code></dt>
+<dd>A new CertificateField subclass instance</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+# pylint: disable=not-callable
+def factory(cls, blank: bool = False) -&gt; &#34;CertificateField&#34;:
+    &#34;&#34;&#34;
+    Factory to create field with default value if set, otherwise empty
+
+    Args:
+        blank (bool): Return a blank class (for decoding)
+
+    Returns:
+        CertificateField: A new CertificateField subclass instance
+    &#34;&#34;&#34;
+    if cls.DEFAULT is None or blank:
+        return cls
+
+    if callable(cls.DEFAULT):
+        return cls(cls.DEFAULT())
+
+    return cls(cls.DEFAULT)</code></pre>
+</details>
+</dd>
+<dt id="sshkey_tools.cert.CertificateHeader.public_key"><code class="name flex">
+<span>def <span class="ident">public_key</span></span>(<span>blank: bool = False) ‑> <a title="sshkey_tools.fields.CertificateField" href="fields.html#sshkey_tools.fields.CertificateField">CertificateField</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Factory to create field with default value if set, otherwise empty</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>blank</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Return a blank class (for decoding)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>CertificateField</code></dt>
+<dd>A new CertificateField subclass instance</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+# pylint: disable=not-callable
+def factory(cls, blank: bool = False) -&gt; &#34;CertificateField&#34;:
+    &#34;&#34;&#34;
+    Factory to create field with default value if set, otherwise empty
+
+    Args:
+        blank (bool): Return a blank class (for decoding)
+
+    Returns:
+        CertificateField: A new CertificateField subclass instance
+    &#34;&#34;&#34;
+    if cls.DEFAULT is None or blank:
+        return cls
+
+    if callable(cls.DEFAULT):
+        return cls(cls.DEFAULT())
+
+    return cls(cls.DEFAULT)</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="sshkey_tools.cert.Fieldset" href="#sshkey_tools.cert.Fieldset">Fieldset</a></b></code>:
+<ul class="hlist">
+<li><code><a title="sshkey_tools.cert.Fieldset.decode" href="#sshkey_tools.cert.Fieldset.decode">decode</a></code></li>
+<li><code><a title="sshkey_tools.cert.Fieldset.get" href="#sshkey_tools.cert.Fieldset.get">get</a></code></li>
+<li><code><a title="sshkey_tools.cert.Fieldset.getattrs" href="#sshkey_tools.cert.Fieldset.getattrs">getattrs</a></code></li>
+<li><code><a title="sshkey_tools.cert.Fieldset.replace_field" href="#sshkey_tools.cert.Fieldset.replace_field">replace_field</a></code></li>
+<li><code><a title="sshkey_tools.cert.Fieldset.validate" href="#sshkey_tools.cert.Fieldset.validate">validate</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="sshkey_tools.cert.DsaCertificate"><code class="flex name class">
+<span>class <span class="ident">DsaCertificate</span></span>
+<span>(</span><span>subject_pubkey: <a title="sshkey_tools.keys.PublicKey" href="keys.html#sshkey_tools.keys.PublicKey">PublicKey</a> = None, ca_privkey: <a title="sshkey_tools.keys.PrivateKey" href="keys.html#sshkey_tools.keys.PrivateKey">PrivateKey</a> = None, fields: <a title="sshkey_tools.cert.CertificateFields" href="#sshkey_tools.cert.CertificateFields">CertificateFields</a> = sshkey_tools.cert.CertificateFields, header: <a title="sshkey_tools.cert.CertificateHeader" href="#sshkey_tools.cert.CertificateHeader">CertificateHeader</a> = sshkey_tools.cert.CertificateHeader, footer: <a title="sshkey_tools.cert.CertificateFooter" href="#sshkey_tools.cert.CertificateFooter">CertificateFooter</a> = sshkey_tools.cert.CertificateFooter)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>The DSA Certificate class</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DsaCertificate(SSHCertificate):
+    &#34;&#34;&#34;The DSA Certificate class&#34;&#34;&#34;
+
+    DEFAULT_KEY_TYPE = &#34;ssh-dss-cert-v01@openssh.com&#34;</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="sshkey_tools.cert.SSHCertificate" href="#sshkey_tools.cert.SSHCertificate">SSHCertificate</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="sshkey_tools.cert.DsaCertificate.DEFAULT_KEY_TYPE"><code class="name">var <span class="ident">DEFAULT_KEY_TYPE</span></code></dt>
+<dd>
+<div class="desc"></div>
 </dd>
 </dl>
 <h3>Inherited members</h3>
@@ -742,17 +1427,16 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;DsaCertificate&#34;:
 <li><code><b><a title="sshkey_tools.cert.SSHCertificate" href="#sshkey_tools.cert.SSHCertificate">SSHCertificate</a></b></code>:
 <ul class="hlist">
 <li><code><a title="sshkey_tools.cert.SSHCertificate.can_sign" href="#sshkey_tools.cert.SSHCertificate.can_sign">can_sign</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.create" href="#sshkey_tools.cert.SSHCertificate.create">create</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.decode" href="#sshkey_tools.cert.SSHCertificate.decode">decode</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.from_bytes" href="#sshkey_tools.cert.SSHCertificate.from_bytes">from_bytes</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.from_file" href="#sshkey_tools.cert.SSHCertificate.from_file">from_file</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.from_public_class" href="#sshkey_tools.cert.SSHCertificate.from_public_class">from_public_class</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.from_string" href="#sshkey_tools.cert.SSHCertificate.from_string">from_string</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.get_signable_data" href="#sshkey_tools.cert.SSHCertificate.get_signable_data">get_signable_data</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.set_ca" href="#sshkey_tools.cert.SSHCertificate.set_ca">set_ca</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.set_opt" href="#sshkey_tools.cert.SSHCertificate.set_opt">set_opt</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.set_opts" href="#sshkey_tools.cert.SSHCertificate.set_opts">set_opts</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.set_type" href="#sshkey_tools.cert.SSHCertificate.set_type">set_type</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.get" href="#sshkey_tools.cert.SSHCertificate.get">get</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.get_signable" href="#sshkey_tools.cert.SSHCertificate.get_signable">get_signable</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.replace_ca" href="#sshkey_tools.cert.SSHCertificate.replace_ca">replace_ca</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.set" href="#sshkey_tools.cert.SSHCertificate.set">set</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.sign" href="#sshkey_tools.cert.SSHCertificate.sign">sign</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.to_bytes" href="#sshkey_tools.cert.SSHCertificate.to_bytes">to_bytes</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.to_file" href="#sshkey_tools.cert.SSHCertificate.to_file">to_file</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.to_string" href="#sshkey_tools.cert.SSHCertificate.to_string">to_string</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.verify" href="#sshkey_tools.cert.SSHCertificate.verify">verify</a></code></li>
@@ -762,80 +1446,34 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;DsaCertificate&#34;:
 </dd>
 <dt id="sshkey_tools.cert.EcdsaCertificate"><code class="flex name class">
 <span>class <span class="ident">EcdsaCertificate</span></span>
-<span>(</span><span>subject_pubkey: <a title="sshkey_tools.keys.EcdsaPublicKey" href="keys.html#sshkey_tools.keys.EcdsaPublicKey">EcdsaPublicKey</a>, ca_privkey: <a title="sshkey_tools.keys.PrivateKey" href="keys.html#sshkey_tools.keys.PrivateKey">PrivateKey</a> = None, **kwargs)</span>
+<span>(</span><span>subject_pubkey: <a title="sshkey_tools.keys.PublicKey" href="keys.html#sshkey_tools.keys.PublicKey">PublicKey</a> = None, ca_privkey: <a title="sshkey_tools.keys.PrivateKey" href="keys.html#sshkey_tools.keys.PrivateKey">PrivateKey</a> = None, fields: <a title="sshkey_tools.cert.CertificateFields" href="#sshkey_tools.cert.CertificateFields">CertificateFields</a> = sshkey_tools.cert.CertificateFields, header: <a title="sshkey_tools.cert.CertificateHeader" href="#sshkey_tools.cert.CertificateHeader">CertificateHeader</a> = sshkey_tools.cert.CertificateHeader, footer: <a title="sshkey_tools.cert.CertificateFooter" href="#sshkey_tools.cert.CertificateFooter">CertificateFooter</a> = sshkey_tools.cert.CertificateFooter)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Specific class for ECDSA Certificates. Inherits from SSHCertificate</p></div>
+<div class="desc"><p>The ECDSA certificate class</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class EcdsaCertificate(SSHCertificate):
-    &#34;&#34;&#34;
-    Specific class for ECDSA Certificates. Inherits from SSHCertificate
-    &#34;&#34;&#34;
+    &#34;&#34;&#34;The ECDSA certificate class&#34;&#34;&#34;
 
-    def __init__(
-        self, subject_pubkey: EcdsaPublicKey, ca_privkey: PrivateKey = None, **kwargs
-    ):
-        super().__init__(subject_pubkey, ca_privkey, **kwargs)
-        self.set_type(
-            f&#34;ecdsa-sha2-nistp{subject_pubkey.key.curve.key_size}-cert-v01@openssh.com&#34;
-        )
+    DEFAULT_KEY_TYPE = &#34;ecdsa-sha2-nistp[curve_size]-cert-v01@openssh.com&#34;
 
-    @classmethod
-    # pylint: disable=arguments-differ
-    def decode(cls, cert_bytes: bytes) -&gt; &#34;EcdsaCertificate&#34;:
-        &#34;&#34;&#34;
-        Decode an existing ECDSA Certificate
-
-        Args:
-            cert_bytes (bytes): The base64-decoded bytes for the certificate
-
-        Returns:
-            EcdsaCertificate: The decoded certificate
-        &#34;&#34;&#34;
-        return super().decode(cert_bytes, _FIELD.ECDSAPubkeyField)</code></pre>
+    def __post_init__(self):
+        &#34;&#34;&#34;Set the key name from the public key curve size&#34;&#34;&#34;
+        self.header.pubkey_type = self.header.get(&#34;pubkey_type&#34;).replace(
+            &#34;[curve_size]&#34;, str(self.header.public_key.value.key.curve.key_size)
+        )</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li><a title="sshkey_tools.cert.SSHCertificate" href="#sshkey_tools.cert.SSHCertificate">SSHCertificate</a></li>
 </ul>
-<h3>Static methods</h3>
+<h3>Class variables</h3>
 <dl>
-<dt id="sshkey_tools.cert.EcdsaCertificate.decode"><code class="name flex">
-<span>def <span class="ident">decode</span></span>(<span>cert_bytes: bytes) ‑> <a title="sshkey_tools.cert.EcdsaCertificate" href="#sshkey_tools.cert.EcdsaCertificate">EcdsaCertificate</a></span>
-</code></dt>
+<dt id="sshkey_tools.cert.EcdsaCertificate.DEFAULT_KEY_TYPE"><code class="name">var <span class="ident">DEFAULT_KEY_TYPE</span></code></dt>
 <dd>
-<div class="desc"><p>Decode an existing ECDSA Certificate</p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>cert_bytes</code></strong> :&ensp;<code>bytes</code></dt>
-<dd>The base64-decoded bytes for the certificate</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<dl>
-<dt><code><a title="sshkey_tools.cert.EcdsaCertificate" href="#sshkey_tools.cert.EcdsaCertificate">EcdsaCertificate</a></code></dt>
-<dd>The decoded certificate</dd>
-</dl></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@classmethod
-# pylint: disable=arguments-differ
-def decode(cls, cert_bytes: bytes) -&gt; &#34;EcdsaCertificate&#34;:
-    &#34;&#34;&#34;
-    Decode an existing ECDSA Certificate
-
-    Args:
-        cert_bytes (bytes): The base64-decoded bytes for the certificate
-
-    Returns:
-        EcdsaCertificate: The decoded certificate
-    &#34;&#34;&#34;
-    return super().decode(cert_bytes, _FIELD.ECDSAPubkeyField)</code></pre>
-</details>
+<div class="desc"></div>
 </dd>
 </dl>
 <h3>Inherited members</h3>
@@ -843,17 +1481,16 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;EcdsaCertificate&#34;:
 <li><code><b><a title="sshkey_tools.cert.SSHCertificate" href="#sshkey_tools.cert.SSHCertificate">SSHCertificate</a></b></code>:
 <ul class="hlist">
 <li><code><a title="sshkey_tools.cert.SSHCertificate.can_sign" href="#sshkey_tools.cert.SSHCertificate.can_sign">can_sign</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.create" href="#sshkey_tools.cert.SSHCertificate.create">create</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.decode" href="#sshkey_tools.cert.SSHCertificate.decode">decode</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.from_bytes" href="#sshkey_tools.cert.SSHCertificate.from_bytes">from_bytes</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.from_file" href="#sshkey_tools.cert.SSHCertificate.from_file">from_file</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.from_public_class" href="#sshkey_tools.cert.SSHCertificate.from_public_class">from_public_class</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.from_string" href="#sshkey_tools.cert.SSHCertificate.from_string">from_string</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.get_signable_data" href="#sshkey_tools.cert.SSHCertificate.get_signable_data">get_signable_data</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.set_ca" href="#sshkey_tools.cert.SSHCertificate.set_ca">set_ca</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.set_opt" href="#sshkey_tools.cert.SSHCertificate.set_opt">set_opt</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.set_opts" href="#sshkey_tools.cert.SSHCertificate.set_opts">set_opts</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.set_type" href="#sshkey_tools.cert.SSHCertificate.set_type">set_type</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.get" href="#sshkey_tools.cert.SSHCertificate.get">get</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.get_signable" href="#sshkey_tools.cert.SSHCertificate.get_signable">get_signable</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.replace_ca" href="#sshkey_tools.cert.SSHCertificate.replace_ca">replace_ca</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.set" href="#sshkey_tools.cert.SSHCertificate.set">set</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.sign" href="#sshkey_tools.cert.SSHCertificate.sign">sign</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.to_bytes" href="#sshkey_tools.cert.SSHCertificate.to_bytes">to_bytes</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.to_file" href="#sshkey_tools.cert.SSHCertificate.to_file">to_file</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.to_string" href="#sshkey_tools.cert.SSHCertificate.to_string">to_string</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.verify" href="#sshkey_tools.cert.SSHCertificate.verify">verify</a></code></li>
@@ -863,78 +1500,28 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;EcdsaCertificate&#34;:
 </dd>
 <dt id="sshkey_tools.cert.Ed25519Certificate"><code class="flex name class">
 <span>class <span class="ident">Ed25519Certificate</span></span>
-<span>(</span><span>subject_pubkey: <a title="sshkey_tools.keys.Ed25519PublicKey" href="keys.html#sshkey_tools.keys.Ed25519PublicKey">Ed25519PublicKey</a>, ca_privkey: <a title="sshkey_tools.keys.PrivateKey" href="keys.html#sshkey_tools.keys.PrivateKey">PrivateKey</a> = None, **kwargs)</span>
+<span>(</span><span>subject_pubkey: <a title="sshkey_tools.keys.PublicKey" href="keys.html#sshkey_tools.keys.PublicKey">PublicKey</a> = None, ca_privkey: <a title="sshkey_tools.keys.PrivateKey" href="keys.html#sshkey_tools.keys.PrivateKey">PrivateKey</a> = None, fields: <a title="sshkey_tools.cert.CertificateFields" href="#sshkey_tools.cert.CertificateFields">CertificateFields</a> = sshkey_tools.cert.CertificateFields, header: <a title="sshkey_tools.cert.CertificateHeader" href="#sshkey_tools.cert.CertificateHeader">CertificateHeader</a> = sshkey_tools.cert.CertificateHeader, footer: <a title="sshkey_tools.cert.CertificateFooter" href="#sshkey_tools.cert.CertificateFooter">CertificateFooter</a> = sshkey_tools.cert.CertificateFooter)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Specific class for ED25519 Certificates. Inherits from SSHCertificate</p></div>
+<div class="desc"><p>The ED25519 certificate class</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Ed25519Certificate(SSHCertificate):
-    &#34;&#34;&#34;
-    Specific class for ED25519 Certificates. Inherits from SSHCertificate
-    &#34;&#34;&#34;
+    &#34;&#34;&#34;The ED25519 certificate class&#34;&#34;&#34;
 
-    def __init__(
-        self, subject_pubkey: Ed25519PublicKey, ca_privkey: PrivateKey = None, **kwargs
-    ):
-        super().__init__(subject_pubkey, ca_privkey, **kwargs)
-        self.set_type(&#34;ssh-ed25519-cert-v01@openssh.com&#34;)
-
-    @classmethod
-    # pylint: disable=arguments-differ
-    def decode(cls, cert_bytes: bytes) -&gt; &#34;Ed25519Certificate&#34;:
-        &#34;&#34;&#34;
-        Decode an existing ED25519 Certificate
-
-        Args:
-            cert_bytes (bytes): The base64-decoded bytes for the certificate
-
-        Returns:
-            Ed25519Certificate: The decoded certificate
-        &#34;&#34;&#34;
-        return super().decode(cert_bytes, _FIELD.ED25519PubkeyField)</code></pre>
+    DEFAULT_KEY_TYPE = &#34;ssh-ed25519-cert-v01@openssh.com&#34;</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li><a title="sshkey_tools.cert.SSHCertificate" href="#sshkey_tools.cert.SSHCertificate">SSHCertificate</a></li>
 </ul>
-<h3>Static methods</h3>
+<h3>Class variables</h3>
 <dl>
-<dt id="sshkey_tools.cert.Ed25519Certificate.decode"><code class="name flex">
-<span>def <span class="ident">decode</span></span>(<span>cert_bytes: bytes) ‑> <a title="sshkey_tools.cert.Ed25519Certificate" href="#sshkey_tools.cert.Ed25519Certificate">Ed25519Certificate</a></span>
-</code></dt>
+<dt id="sshkey_tools.cert.Ed25519Certificate.DEFAULT_KEY_TYPE"><code class="name">var <span class="ident">DEFAULT_KEY_TYPE</span></code></dt>
 <dd>
-<div class="desc"><p>Decode an existing ED25519 Certificate</p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>cert_bytes</code></strong> :&ensp;<code>bytes</code></dt>
-<dd>The base64-decoded bytes for the certificate</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<dl>
-<dt><code><a title="sshkey_tools.cert.Ed25519Certificate" href="#sshkey_tools.cert.Ed25519Certificate">Ed25519Certificate</a></code></dt>
-<dd>The decoded certificate</dd>
-</dl></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@classmethod
-# pylint: disable=arguments-differ
-def decode(cls, cert_bytes: bytes) -&gt; &#34;Ed25519Certificate&#34;:
-    &#34;&#34;&#34;
-    Decode an existing ED25519 Certificate
-
-    Args:
-        cert_bytes (bytes): The base64-decoded bytes for the certificate
-
-    Returns:
-        Ed25519Certificate: The decoded certificate
-    &#34;&#34;&#34;
-    return super().decode(cert_bytes, _FIELD.ED25519PubkeyField)</code></pre>
-</details>
+<div class="desc"></div>
 </dd>
 </dl>
 <h3>Inherited members</h3>
@@ -942,17 +1529,16 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;Ed25519Certificate&#34;:
 <li><code><b><a title="sshkey_tools.cert.SSHCertificate" href="#sshkey_tools.cert.SSHCertificate">SSHCertificate</a></b></code>:
 <ul class="hlist">
 <li><code><a title="sshkey_tools.cert.SSHCertificate.can_sign" href="#sshkey_tools.cert.SSHCertificate.can_sign">can_sign</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.create" href="#sshkey_tools.cert.SSHCertificate.create">create</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.decode" href="#sshkey_tools.cert.SSHCertificate.decode">decode</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.from_bytes" href="#sshkey_tools.cert.SSHCertificate.from_bytes">from_bytes</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.from_file" href="#sshkey_tools.cert.SSHCertificate.from_file">from_file</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.from_public_class" href="#sshkey_tools.cert.SSHCertificate.from_public_class">from_public_class</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.from_string" href="#sshkey_tools.cert.SSHCertificate.from_string">from_string</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.get_signable_data" href="#sshkey_tools.cert.SSHCertificate.get_signable_data">get_signable_data</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.set_ca" href="#sshkey_tools.cert.SSHCertificate.set_ca">set_ca</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.set_opt" href="#sshkey_tools.cert.SSHCertificate.set_opt">set_opt</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.set_opts" href="#sshkey_tools.cert.SSHCertificate.set_opts">set_opts</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.set_type" href="#sshkey_tools.cert.SSHCertificate.set_type">set_type</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.get" href="#sshkey_tools.cert.SSHCertificate.get">get</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.get_signable" href="#sshkey_tools.cert.SSHCertificate.get_signable">get_signable</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.replace_ca" href="#sshkey_tools.cert.SSHCertificate.replace_ca">replace_ca</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.set" href="#sshkey_tools.cert.SSHCertificate.set">set</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.sign" href="#sshkey_tools.cert.SSHCertificate.sign">sign</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.to_bytes" href="#sshkey_tools.cert.SSHCertificate.to_bytes">to_bytes</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.to_file" href="#sshkey_tools.cert.SSHCertificate.to_file">to_file</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.to_string" href="#sshkey_tools.cert.SSHCertificate.to_string">to_string</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.verify" href="#sshkey_tools.cert.SSHCertificate.verify">verify</a></code></li>
@@ -960,86 +1546,314 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;Ed25519Certificate&#34;:
 </li>
 </ul>
 </dd>
-<dt id="sshkey_tools.cert.RsaCertificate"><code class="flex name class">
-<span>class <span class="ident">RsaCertificate</span></span>
-<span>(</span><span>subject_pubkey: <a title="sshkey_tools.keys.RsaPublicKey" href="keys.html#sshkey_tools.keys.RsaPublicKey">RsaPublicKey</a>, ca_privkey: <a title="sshkey_tools.keys.PrivateKey" href="keys.html#sshkey_tools.keys.PrivateKey">PrivateKey</a> = None, rsa_alg: <a title="sshkey_tools.keys.RsaAlgs" href="keys.html#sshkey_tools.keys.RsaAlgs">RsaAlgs</a> = RsaAlgs.SHA512, **kwargs)</span>
+<dt id="sshkey_tools.cert.Fieldset"><code class="flex name class">
+<span>class <span class="ident">Fieldset</span></span>
 </code></dt>
 <dd>
-<div class="desc"><p>Specific class for RSA Certificates. Inherits from SSHCertificate</p></div>
+<div class="desc"><p>Set of fields for SSHCertificate class</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class RsaCertificate(SSHCertificate):
-    &#34;&#34;&#34;
-    Specific class for RSA Certificates. Inherits from SSHCertificate
-    &#34;&#34;&#34;
+<pre><code class="python">@dataclass
+class Fieldset:
+    &#34;&#34;&#34;Set of fields for SSHCertificate class&#34;&#34;&#34;
 
-    def __init__(
-        self,
-        subject_pubkey: RsaPublicKey,
-        ca_privkey: PrivateKey = None,
-        rsa_alg: RsaAlgs = RsaAlgs.SHA512,
-        **kwargs,
-    ):
+    DECODE_ORDER = []
 
-        super().__init__(subject_pubkey, ca_privkey, **kwargs)
-        self.rsa_alg = rsa_alg
-        self.set_type(f&#34;{rsa_alg.value[0]}-cert-v01@openssh.com&#34;)
+    def __table__(self):
+        return [getattr(self, item).__table__() for item in self.getattrs()]
 
-    @classmethod
-    # pylint: disable=arguments-differ
-    def decode(cls, cert_bytes: bytes) -&gt; &#34;SSHCertificate&#34;:
-        &#34;&#34;&#34;
-        Decode an existing RSA Certificate
+    def __setattr__(self, name, value):
+        field = getattr(self, name, None)
+
+        if isinstance(value, _FIELD.CertificateField):
+            self.replace_field(name, value)
+            return
+
+        if callable(field) and not isinstance(field, _FIELD.CertificateField):
+            if field.__name__ == &#34;factory&#34;:
+                super().__setattr__(name, field())
+                self.__setattr__(name, value)
+                return
+
+        if isinstance(field, type) and getattr(value, &#34;__name__&#34;, &#34;&#34;) != &#34;factory&#34;:
+            super().__setattr__(name, field(value))
+            return
+
+        if getattr(value, &#34;__name__&#34;, &#34;&#34;) != &#34;factory&#34;:
+            field.value = value
+            super().__setattr__(name, field)
+
+    def replace_field(self, name: str, value: Union[_FIELD.CertificateField, type]):
+        &#34;&#34;&#34;Completely replace field instead of just setting value (original __setattr__ behaviour)
 
         Args:
-            cert_bytes (bytes): The base64-decoded bytes for the certificate
+            name (str): The field to replace
+            value (Union[_FIELD.CertificateField, type]): The CertificateField
+            subclass or instance to replace with
+        &#34;&#34;&#34;
+        super(Fieldset, self).__setattr__(name, value)
+
+    def get(self, name: str, default=None):
+        &#34;&#34;&#34;Get field contents
+
+        Args:
+            name (str): Field name
+            default (_type_, optional): The default value to return in case the
+            field is not set. Defaults to None.
 
         Returns:
-            RsaCertificate: The decoded certificate
+            mixed: The contents of the field
         &#34;&#34;&#34;
-        return super().decode(cert_bytes, _FIELD.RSAPubkeyField)</code></pre>
+        field = getattr(self, name, default)
+        if field:
+            if isinstance(field, type):
+                return field.DEFAULT
+            return field.value
+        return field
+
+    def getattrs(self) -&gt; tuple:
+        &#34;&#34;&#34;Get all class attributes
+
+        Returns:
+            tuple: All public class attributes
+        &#34;&#34;&#34;
+        # pylint: disable=consider-iterating-dictionary
+        return tuple(att for att in self.__dict__.keys() if not att.startswith(&#34;_&#34;))
+
+    def validate(self):
+        &#34;&#34;&#34;Validate all fields to ensure the data is correct
+
+        Returns:
+            bool: True if valid, else exception
+        &#34;&#34;&#34;
+        ex = []
+        for key in self.getattrs():
+            if not getattr(self, key).validate():
+                list(
+                    ex.append(f&#34;{type(x)}: {str(x)}&#34;)
+                    for x in getattr(self, key).exception
+                    if isinstance(x, Exception)
+                )
+
+        return True if len(ex) == 0 else ex
+
+    @classmethod
+    def decode(cls, data: bytes) -&gt; Tuple[&#34;Fieldset&#34;, bytes]:
+        &#34;&#34;&#34;Decode the certificate field data from a stream of bytes
+
+        Returns:
+            Tuple[Fieldset, bytes]: A tuple with the fieldset (Header, Fields or Footer)
+            and the remaining bytes.
+        &#34;&#34;&#34;
+        cl_instance = cls()
+        for item in cls.DECODE_ORDER:
+            decoded, data = getattr(cl_instance, item).from_decode(data)
+            setattr(cl_instance, item, decoded)
+
+        return cl_instance, data</code></pre>
 </details>
-<h3>Ancestors</h3>
+<h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="sshkey_tools.cert.SSHCertificate" href="#sshkey_tools.cert.SSHCertificate">SSHCertificate</a></li>
+<li><a title="sshkey_tools.cert.CertificateFields" href="#sshkey_tools.cert.CertificateFields">CertificateFields</a></li>
+<li><a title="sshkey_tools.cert.CertificateFooter" href="#sshkey_tools.cert.CertificateFooter">CertificateFooter</a></li>
+<li><a title="sshkey_tools.cert.CertificateHeader" href="#sshkey_tools.cert.CertificateHeader">CertificateHeader</a></li>
 </ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="sshkey_tools.cert.Fieldset.DECODE_ORDER"><code class="name">var <span class="ident">DECODE_ORDER</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
 <h3>Static methods</h3>
 <dl>
-<dt id="sshkey_tools.cert.RsaCertificate.decode"><code class="name flex">
-<span>def <span class="ident">decode</span></span>(<span>cert_bytes: bytes) ‑> <a title="sshkey_tools.cert.SSHCertificate" href="#sshkey_tools.cert.SSHCertificate">SSHCertificate</a></span>
+<dt id="sshkey_tools.cert.Fieldset.decode"><code class="name flex">
+<span>def <span class="ident">decode</span></span>(<span>data: bytes) ‑> Tuple[<a title="sshkey_tools.cert.Fieldset" href="#sshkey_tools.cert.Fieldset">Fieldset</a>, bytes]</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Decode an existing RSA Certificate</p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>cert_bytes</code></strong> :&ensp;<code>bytes</code></dt>
-<dd>The base64-decoded bytes for the certificate</dd>
-</dl>
+<div class="desc"><p>Decode the certificate field data from a stream of bytes</p>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code><a title="sshkey_tools.cert.RsaCertificate" href="#sshkey_tools.cert.RsaCertificate">RsaCertificate</a></code></dt>
-<dd>The decoded certificate</dd>
-</dl></div>
+<dt><code>Tuple[<a title="sshkey_tools.cert.Fieldset" href="#sshkey_tools.cert.Fieldset">Fieldset</a>, bytes]</code></dt>
+<dd>A tuple with the fieldset (Header, Fields or Footer)</dd>
+</dl>
+<p>and the remaining bytes.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@classmethod
-# pylint: disable=arguments-differ
-def decode(cls, cert_bytes: bytes) -&gt; &#34;SSHCertificate&#34;:
-    &#34;&#34;&#34;
-    Decode an existing RSA Certificate
-
-    Args:
-        cert_bytes (bytes): The base64-decoded bytes for the certificate
+def decode(cls, data: bytes) -&gt; Tuple[&#34;Fieldset&#34;, bytes]:
+    &#34;&#34;&#34;Decode the certificate field data from a stream of bytes
 
     Returns:
-        RsaCertificate: The decoded certificate
+        Tuple[Fieldset, bytes]: A tuple with the fieldset (Header, Fields or Footer)
+        and the remaining bytes.
     &#34;&#34;&#34;
-    return super().decode(cert_bytes, _FIELD.RSAPubkeyField)</code></pre>
+    cl_instance = cls()
+    for item in cls.DECODE_ORDER:
+        decoded, data = getattr(cl_instance, item).from_decode(data)
+        setattr(cl_instance, item, decoded)
+
+    return cl_instance, data</code></pre>
 </details>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="sshkey_tools.cert.Fieldset.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>self, name: str, default=None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Get field contents</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>name</code></strong> :&ensp;<code>str</code></dt>
+<dd>Field name</dd>
+<dt><strong><code>default</code></strong> :&ensp;<code>_type_</code>, optional</dt>
+<dd>The default value to return in case the</dd>
+</dl>
+<p>field is not set. Defaults to None.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>mixed</code></dt>
+<dd>The contents of the field</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get(self, name: str, default=None):
+    &#34;&#34;&#34;Get field contents
+
+    Args:
+        name (str): Field name
+        default (_type_, optional): The default value to return in case the
+        field is not set. Defaults to None.
+
+    Returns:
+        mixed: The contents of the field
+    &#34;&#34;&#34;
+    field = getattr(self, name, default)
+    if field:
+        if isinstance(field, type):
+            return field.DEFAULT
+        return field.value
+    return field</code></pre>
+</details>
+</dd>
+<dt id="sshkey_tools.cert.Fieldset.getattrs"><code class="name flex">
+<span>def <span class="ident">getattrs</span></span>(<span>self) ‑> tuple</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Get all class attributes</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>tuple</code></dt>
+<dd>All public class attributes</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def getattrs(self) -&gt; tuple:
+    &#34;&#34;&#34;Get all class attributes
+
+    Returns:
+        tuple: All public class attributes
+    &#34;&#34;&#34;
+    # pylint: disable=consider-iterating-dictionary
+    return tuple(att for att in self.__dict__.keys() if not att.startswith(&#34;_&#34;))</code></pre>
+</details>
+</dd>
+<dt id="sshkey_tools.cert.Fieldset.replace_field"><code class="name flex">
+<span>def <span class="ident">replace_field</span></span>(<span>self, name: str, value: Union[<a title="sshkey_tools.fields.CertificateField" href="fields.html#sshkey_tools.fields.CertificateField">CertificateField</a>, type])</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Completely replace field instead of just setting value (original <strong>setattr</strong> behaviour)</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>name</code></strong> :&ensp;<code>str</code></dt>
+<dd>The field to replace</dd>
+<dt><strong><code>value</code></strong> :&ensp;<code>Union[_FIELD.CertificateField, type]</code></dt>
+<dd>The CertificateField</dd>
+</dl>
+<p>subclass or instance to replace with</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def replace_field(self, name: str, value: Union[_FIELD.CertificateField, type]):
+    &#34;&#34;&#34;Completely replace field instead of just setting value (original __setattr__ behaviour)
+
+    Args:
+        name (str): The field to replace
+        value (Union[_FIELD.CertificateField, type]): The CertificateField
+        subclass or instance to replace with
+    &#34;&#34;&#34;
+    super(Fieldset, self).__setattr__(name, value)</code></pre>
+</details>
+</dd>
+<dt id="sshkey_tools.cert.Fieldset.validate"><code class="name flex">
+<span>def <span class="ident">validate</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Validate all fields to ensure the data is correct</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>bool</code></dt>
+<dd>True if valid, else exception</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def validate(self):
+    &#34;&#34;&#34;Validate all fields to ensure the data is correct
+
+    Returns:
+        bool: True if valid, else exception
+    &#34;&#34;&#34;
+    ex = []
+    for key in self.getattrs():
+        if not getattr(self, key).validate():
+            list(
+                ex.append(f&#34;{type(x)}: {str(x)}&#34;)
+                for x in getattr(self, key).exception
+                if isinstance(x, Exception)
+            )
+
+    return True if len(ex) == 0 else ex</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="sshkey_tools.cert.RsaCertificate"><code class="flex name class">
+<span>class <span class="ident">RsaCertificate</span></span>
+<span>(</span><span>subject_pubkey: <a title="sshkey_tools.keys.PublicKey" href="keys.html#sshkey_tools.keys.PublicKey">PublicKey</a> = None, ca_privkey: <a title="sshkey_tools.keys.PrivateKey" href="keys.html#sshkey_tools.keys.PrivateKey">PrivateKey</a> = None, fields: <a title="sshkey_tools.cert.CertificateFields" href="#sshkey_tools.cert.CertificateFields">CertificateFields</a> = sshkey_tools.cert.CertificateFields, header: <a title="sshkey_tools.cert.CertificateHeader" href="#sshkey_tools.cert.CertificateHeader">CertificateHeader</a> = sshkey_tools.cert.CertificateHeader, footer: <a title="sshkey_tools.cert.CertificateFooter" href="#sshkey_tools.cert.CertificateFooter">CertificateFooter</a> = sshkey_tools.cert.CertificateFooter)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>The RSA Certificate class</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class RsaCertificate(SSHCertificate):
+    &#34;&#34;&#34;The RSA Certificate class&#34;&#34;&#34;
+
+    DEFAULT_KEY_TYPE = &#34;rsa-sha2-512-cert-v01@openssh.com&#34;</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="sshkey_tools.cert.SSHCertificate" href="#sshkey_tools.cert.SSHCertificate">SSHCertificate</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="sshkey_tools.cert.RsaCertificate.DEFAULT_KEY_TYPE"><code class="name">var <span class="ident">DEFAULT_KEY_TYPE</span></code></dt>
+<dd>
+<div class="desc"></div>
 </dd>
 </dl>
 <h3>Inherited members</h3>
@@ -1047,17 +1861,16 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;SSHCertificate&#34;:
 <li><code><b><a title="sshkey_tools.cert.SSHCertificate" href="#sshkey_tools.cert.SSHCertificate">SSHCertificate</a></b></code>:
 <ul class="hlist">
 <li><code><a title="sshkey_tools.cert.SSHCertificate.can_sign" href="#sshkey_tools.cert.SSHCertificate.can_sign">can_sign</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.create" href="#sshkey_tools.cert.SSHCertificate.create">create</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.decode" href="#sshkey_tools.cert.SSHCertificate.decode">decode</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.from_bytes" href="#sshkey_tools.cert.SSHCertificate.from_bytes">from_bytes</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.from_file" href="#sshkey_tools.cert.SSHCertificate.from_file">from_file</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.from_public_class" href="#sshkey_tools.cert.SSHCertificate.from_public_class">from_public_class</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.from_string" href="#sshkey_tools.cert.SSHCertificate.from_string">from_string</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.get_signable_data" href="#sshkey_tools.cert.SSHCertificate.get_signable_data">get_signable_data</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.set_ca" href="#sshkey_tools.cert.SSHCertificate.set_ca">set_ca</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.set_opt" href="#sshkey_tools.cert.SSHCertificate.set_opt">set_opt</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.set_opts" href="#sshkey_tools.cert.SSHCertificate.set_opts">set_opts</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.set_type" href="#sshkey_tools.cert.SSHCertificate.set_type">set_type</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.get" href="#sshkey_tools.cert.SSHCertificate.get">get</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.get_signable" href="#sshkey_tools.cert.SSHCertificate.get_signable">get_signable</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.replace_ca" href="#sshkey_tools.cert.SSHCertificate.replace_ca">replace_ca</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.set" href="#sshkey_tools.cert.SSHCertificate.set">set</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.sign" href="#sshkey_tools.cert.SSHCertificate.sign">sign</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.to_bytes" href="#sshkey_tools.cert.SSHCertificate.to_bytes">to_bytes</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.to_file" href="#sshkey_tools.cert.SSHCertificate.to_file">to_file</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.to_string" href="#sshkey_tools.cert.SSHCertificate.to_string">to_string</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.verify" href="#sshkey_tools.cert.SSHCertificate.verify">verify</a></code></li>
@@ -1067,7 +1880,7 @@ def decode(cls, cert_bytes: bytes) -&gt; &#34;SSHCertificate&#34;:
 </dd>
 <dt id="sshkey_tools.cert.SSHCertificate"><code class="flex name class">
 <span>class <span class="ident">SSHCertificate</span></span>
-<span>(</span><span>subject_pubkey: <a title="sshkey_tools.keys.PublicKey" href="keys.html#sshkey_tools.keys.PublicKey">PublicKey</a> = None, ca_privkey: <a title="sshkey_tools.keys.PrivateKey" href="keys.html#sshkey_tools.keys.PrivateKey">PrivateKey</a> = None, decoded: dict = None, **kwargs)</span>
+<span>(</span><span>subject_pubkey: <a title="sshkey_tools.keys.PublicKey" href="keys.html#sshkey_tools.keys.PublicKey">PublicKey</a> = None, ca_privkey: <a title="sshkey_tools.keys.PrivateKey" href="keys.html#sshkey_tools.keys.PrivateKey">PrivateKey</a> = None, fields: <a title="sshkey_tools.cert.CertificateFields" href="#sshkey_tools.cert.CertificateFields">CertificateFields</a> = sshkey_tools.cert.CertificateFields, header: <a title="sshkey_tools.cert.CertificateHeader" href="#sshkey_tools.cert.CertificateHeader">CertificateHeader</a> = sshkey_tools.cert.CertificateHeader, footer: <a title="sshkey_tools.cert.CertificateFooter" href="#sshkey_tools.cert.CertificateFooter">CertificateFooter</a> = sshkey_tools.cert.CertificateFooter)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>General class for SSH Certificates, used for loading and parsing.
@@ -1084,182 +1897,118 @@ or the from_public_key classmethod</p></div>
     or the from_public_key classmethod
     &#34;&#34;&#34;
 
+    DEFAULT_KEY_TYPE = &#34;none@openssh.com&#34;
+    # pylint: disable=too-many-arguments
     def __init__(
         self,
         subject_pubkey: PublicKey = None,
         ca_privkey: PrivateKey = None,
-        decoded: dict = None,
-        **kwargs,
-    ) -&gt; None:
+        fields: CertificateFields = CertificateFields,
+        header: CertificateHeader = CertificateHeader,
+        footer: CertificateFooter = CertificateFooter,
+    ):
         if self.__class__.__name__ == &#34;SSHCertificate&#34;:
             raise _EX.InvalidClassCallException(
                 &#34;You cannot instantiate SSHCertificate directly. Use \n&#34;
-                + &#34;one of the child classes, or call via decode, \n&#34;
+                + &#34;one of the child classes, or call via decode, create \n&#34;
                 + &#34;or one of the from_-classmethods&#34;
             )
 
-        if decoded is not None:
-            self.signature = decoded.pop(&#34;signature&#34;)
-            self.signature_pubkey = decoded.pop(&#34;ca_pubkey&#34;)
+        self.fields = fields() if isinstance(fields, type) else fields
+        self.header = header() if isinstance(header, type) else header
+        self.footer = footer() if isinstance(footer, type) else footer
 
-            self.header = {
-                &#34;pubkey_type&#34;: decoded.pop(&#34;pubkey_type&#34;),
-                &#34;nonce&#34;: decoded.pop(&#34;nonce&#34;),
-                &#34;public_key&#34;: decoded.pop(&#34;public_key&#34;),
-            }
-
-            self.fields = decoded
-
-            return
-
-        if subject_pubkey is None:
-            raise _EX.SSHCertificateException(&#34;The subject public key is required&#34;)
-
-        self.header = {
-            &#34;pubkey_type&#34;: _FIELD.PubkeyTypeField,
-            &#34;nonce&#34;: _FIELD.NonceField(),
-            &#34;public_key&#34;: _FIELD.PublicKeyField.from_object(subject_pubkey),
-        }
-
-        if ca_privkey is not None:
-            self.signature = _FIELD.SignatureField.from_object(ca_privkey)
-            self.signature_pubkey = _FIELD.CAPublicKeyField.from_object(
-                ca_privkey.public_key
+        if isinstance(header, type) and subject_pubkey is not None:
+            self.header.pubkey_type = self.DEFAULT_KEY_TYPE
+            self.header.replace_field(
+                &#34;public_key&#34;, _FIELD.PublicKeyField.from_object(subject_pubkey)
             )
 
-        self.fields = dict(CERTIFICATE_FIELDS)
-        self.set_opts(**kwargs)
-
-    def __str__(self):
-        principals = (
-            &#34;\n&#34;
-            + &#34;\n&#34;.join(
-                &#34;&#34;.join([&#34; &#34;] * 32) + (x.decode(&#34;utf-8&#34;) if isinstance(x, bytes) else x)
-                for x in self.fields[&#34;principals&#34;].value
+        if isinstance(footer, type) and ca_privkey is not None:
+            self.footer.ca_pubkey = ca_privkey.public_key
+            self.footer.replace_field(
+                &#34;signature&#34;, _FIELD.SignatureField.from_object(ca_privkey)
             )
-            if len(self.fields[&#34;principals&#34;].value) &gt; 0
-            else &#34;none&#34;
-        )
 
-        critical = (
-            &#34;\n&#34;
-            + &#34;\n&#34;.join(
-                &#34;&#34;.join([&#34; &#34;] * 32) + (x.decode(&#34;utf-8&#34;) if isinstance(x, bytes) else x)
-                for x in self.fields[&#34;critical_options&#34;].value
+        self.__post_init__()
+
+    def __post_init__(self):
+        &#34;&#34;&#34;Extensible function for post-initialization for child classes&#34;&#34;&#34;
+
+    def __bytes__(self):
+        if not self.footer.signature.is_signed:
+            raise _EX.InvalidCertificateFormatException(
+                &#34;Failed exporting certificate: Certificate is not signed&#34;
             )
-            if len(self.fields[&#34;critical_options&#34;].value) &gt; 0
-            else &#34;none&#34;
+
+        return concat_to_bytestring(
+            bytes(self.header),
+            bytes(self.fields),
+            bytes(self.footer),
+            bytes(self.footer.signature),
         )
 
-        extensions = (
-            &#34;\n&#34;
-            + &#34;\n&#34;.join(
-                &#34;&#34;.join([&#34; &#34;] * 32) + (x.decode(&#34;utf-8&#34;) if isinstance(x, bytes) else x)
-                for x in self.fields[&#34;extensions&#34;].value
-            )
-            if len(self.fields[&#34;extensions&#34;].value) &gt; 0
-            else &#34;none&#34;
-        )
+    def __str__(self) -&gt; str:
+        table = PrettyTable([&#34;Field&#34;, &#34;Value&#34;])
 
-        signature_val = (
-            b64encode(self.signature.value).decode(&#34;utf-8&#34;)
-            if isinstance(self.signature.value, bytes)
-            else &#34;Not signed&#34;
-        )
+        for item in (self.header, self.fields, self.footer):
+            for row in item.__table__():
+                table.add_row(row)
 
-        return f&#34;&#34;&#34;
-        Certificate:
-            Pubkey Type:        {self.header[&#39;pubkey_type&#39;].value}
-            Public Key:         {str(self.header[&#39;public_key&#39;])}
-            CA Public Key:      {str(self.signature_pubkey)}
-            Nonce:              {self.header[&#39;nonce&#39;].value}
-            Certificate Type:   {&#39;User&#39; if self.fields[&#39;cert_type&#39;].value == 1 else &#39;Host&#39;}
-            Valid After:        {self.fields[&#39;valid_after&#39;].value.strftime(&#39;%Y-%m-%d %H:%M:%S&#39;)}
-            Valid Until:        {self.fields[&#39;valid_before&#39;].value.strftime(&#39;%Y-%m-%d %H:%M:%S&#39;)}
-            Principals:         {principals}
-            Critical options:   {critical}
-            Extensions:         {extensions}
-            Signature:          {signature_val}
-        &#34;&#34;&#34;
+        return str(table)
 
-    @staticmethod
-    def decode(
-        cert_bytes: bytes, pubkey_class: _FIELD.PublicKeyField = None
+    @classmethod
+    def create(
+        cls,
+        subject_pubkey: PublicKey = None,
+        ca_privkey: PrivateKey = None,
+        fields: CertificateFields = CertificateFields,
+        header: CertificateHeader = CertificateHeader,
+        footer: CertificateFooter = CertificateFooter,
     ) -&gt; &#34;SSHCertificate&#34;:
+        &#34;&#34;&#34;
+        Creates a new certificate from the given parameters.
+
+        Args:
+            subject_pubkey (PublicKey, optional): The subject public key. Defaults to None.
+            ca_privkey (PrivateKey, optional): The CA private key. Defaults to None.
+            fields (CertificateFields, optional): The CertificateFields object containing the
+                body fields. Defaults to blank CertificateFields.
+            header (CertificateHeader, optional): The certificate header.
+                Defaults to new CertificateHeader.
+            footer (CertificateFooter, optional): The certificate footer.
+                Defaults to new CertificateFooter.
+
+        Returns:
+            SSHCertificate: A SSHCertificate subclass depending on the type of subject_pubkey
+        &#34;&#34;&#34;
+        cert_class = subject_pubkey.__class__.__name__.replace(
+            &#34;PublicKey&#34;, &#34;Certificate&#34;
+        )
+        return globals()[cert_class](
+            subject_pubkey=subject_pubkey,
+            ca_privkey=ca_privkey,
+            fields=fields,
+            header=header,
+            footer=footer,
+        )
+
+    @classmethod
+    def decode(cls, data: bytes) -&gt; &#34;SSHCertificate&#34;:
         &#34;&#34;&#34;
         Decode an existing certificate and import it into a new object
 
         Args:
-            cert_bytes (bytes): The certificate bytes, base64 decoded middle part of the certificate
-            pubkey_field (_FIELD.PublicKeyField): Instance of the PublicKeyField class, only needs
-                to be set if it can&#39;t be detected automatically
-
-        Raises:
-            _EX.InvalidCertificateFormatException: Invalid or unknown certificate format
+            data (bytes): The certificate bytes, base64 decoded middle part of the certificate
 
         Returns:
             SSHCertificate: SSHCertificate child class
         &#34;&#34;&#34;
-        if pubkey_class is None:
-            cert_type = _FIELD.StringField.decode(cert_bytes)[0].encode(&#34;utf-8&#34;)
-            pubkey_class = CERT_TYPES.get(cert_type, False)
+        cert_header, data = CertificateHeader.decode(data)
+        cert_fields, data = CertificateFields.decode(data)
+        cert_footer, data = CertificateFooter.decode(data)
 
-        if pubkey_class is False:
-            raise _EX.InvalidCertificateFormatException(
-                &#34;Could not determine certificate type, please use one &#34;
-                + &#34;of the specific classes or specify the pubkey_class&#34;
-            )
-
-        decode_fields = join_dicts(
-            {
-                &#34;pubkey_type&#34;: _FIELD.PubkeyTypeField,
-                &#34;nonce&#34;: _FIELD.NonceField,
-                &#34;public_key&#34;: pubkey_class,
-            },
-            CERTIFICATE_FIELDS,
-            {
-                &#34;reserved&#34;: _FIELD.ReservedField,
-                &#34;ca_pubkey&#34;: _FIELD.CAPublicKeyField,
-                &#34;signature&#34;: _FIELD.SignatureField,
-            },
-        )
-
-        cert = {}
-
-        for item in decode_fields.keys():
-            cert[item], cert_bytes = decode_fields[item].from_decode(cert_bytes)
-
-        if cert_bytes != b&#34;&#34;:
-            raise _EX.InvalidCertificateFormatException(
-                &#34;The certificate has additional data after everything has been extracted&#34;
-            )
-
-        pubkey_type = cert[&#34;pubkey_type&#34;].value
-        if isinstance(pubkey_type, bytes):
-            pubkey_type = pubkey_type.decode(&#34;utf-8&#34;)
-
-        cert_type = CERT_TYPES[pubkey_type]
-        cert.pop(&#34;reserved&#34;)
-        return globals()[cert_type[0]](
-            subject_pubkey=cert[&#34;public_key&#34;].value, decoded=cert
-        )
-
-    @classmethod
-    def from_public_class(
-        cls, public_key: PublicKey, ca_privkey: PrivateKey = None, **kwargs
-    ) -&gt; &#34;SSHCertificate&#34;:
-        &#34;&#34;&#34;
-        Creates a new certificate from a supplied public key
-
-        Args:
-            public_key (PublicKey): The public key for which to create a certificate
-
-        Returns:
-            SSHCertificate: SSHCertificate child class
-        &#34;&#34;&#34;
-        return globals()[
-            public_key.__class__.__name__.replace(&#34;PublicKey&#34;, &#34;Certificate&#34;)
-        ](public_key, ca_privkey, **kwargs)
+        return cls(header=cert_header, fields=cert_fields, footer=cert_footer)
 
     @classmethod
     def from_bytes(cls, cert_bytes: bytes):
@@ -1289,8 +2038,7 @@ or the from_public_key classmethod</p></div>
         Returns:
             SSHCertificate: SSHCertificate child class
         &#34;&#34;&#34;
-        if isinstance(cert_str, str):
-            cert_str = cert_str.encode(encoding)
+        cert_str = ensure_bytestring(cert_str, encoding)
 
         certificate = b64decode(cert_str.split(b&#34; &#34;)[1])
         return cls.from_bytes(cert_bytes=certificate)
@@ -1307,212 +2055,182 @@ or the from_public_key classmethod</p></div>
         Returns:
             SSHCertificate: SSHCertificate child class
         &#34;&#34;&#34;
-        return cls.from_string(open(path, &#34;r&#34;, encoding=encoding).read())
+        with open(path, &#34;r&#34;, encoding=encoding) as file:
+            return cls.from_string(file.read())
 
-    def set_ca(self, ca_privkey: PrivateKey):
+    def get(self, field: str):
         &#34;&#34;&#34;
-        Set the CA Private Key for signing the certificate
+        Fetch a field from any of the sections of the certificate.
 
         Args:
-            ca_privkey (PrivateKey): The CA private key
-        &#34;&#34;&#34;
-        self.signature = _FIELD.SignatureField.from_object(ca_privkey)
-        self.signature_pubkey = _FIELD.CAPublicKeyField.from_object(
-            ca_privkey.public_key
-        )
-
-    def set_type(self, pubkey_type: str):
-        &#34;&#34;&#34;
-        Set the type of the public key if not already set automatically
-        The child classes will set this automatically
-
-        Args:
-            pubkey_type (str): Public key type, e.g. ssh-rsa-cert-v01@openssh.com
-        &#34;&#34;&#34;
-        if not getattr(self.header[&#34;pubkey_type&#34;], &#34;value&#34;, False):
-            self.header[&#34;pubkey_type&#34;] = self.header[&#34;pubkey_type&#34;](pubkey_type)
-
-    def set_opt(self, key: str, value):
-        &#34;&#34;&#34;
-        Add information to a field in the certificate
-
-        Args:
-            key (str): The key to set
-            value (mixed): The new value for the field
+            field (str): The field name to fetch
 
         Raises:
-            _EX.InvalidCertificateFieldException: Invalid field
+            _EX.InvalidCertificateFieldException: Invalid field name provided
+
+        Returns:
+            mixed: The certificate field contents
         &#34;&#34;&#34;
-        if key not in self.fields:
-            raise _EX.InvalidCertificateFieldException(
-                f&#34;{key} is not a valid certificate field&#34;
+        if field in (
+            self.header.getattrs() + self.fields.getattrs() + self.footer.getattrs()
+        ):
+            return (
+                self.fields.get(field, False)
+                or self.header.get(field, False)
+                or self.footer.get(field, False)
             )
 
-        try:
-            if self.fields[key].value not in [None, False, &#34;&#34;, [], ()]:
-                self.fields[key].value = value
-        except AttributeError:
-            self.fields[key] = self.fields[key](value)
+        raise _EX.InvalidCertificateFieldException(f&#34;Unknown field {field}&#34;)
 
-    def set_opts(self, **kwargs):
+    def set(self, field: str, value) -&gt; None:
         &#34;&#34;&#34;
-        Set multiple options at once
-        &#34;&#34;&#34;
-        for key, value in kwargs.items():
-            self.set_opt(key, value)
+        Set a field in any of the sections of the certificate.
 
-    # pylint: disable=used-before-assignment
+        Args:
+            field (str): The field name to set
+            value (mixed): The value to set the field to
+
+        Raises:
+            _EX.InvalidCertificateFieldException: Invalid field name provided
+
+        Returns:
+            mixed: The certificate field contents
+        &#34;&#34;&#34;
+        if self.fields.get(field, False):
+            setattr(self.fields, field, value)
+            return
+
+        if self.header.get(field, False):
+            setattr(self.header, field, value)
+            return
+
+        if self.footer.get(field, False):
+            setattr(self.footer, field, value)
+            return
+
+        raise _EX.InvalidCertificateFieldException(f&#34;Unknown field {field}&#34;)
+
+    def replace_ca(self, ca_privkey: PrivateKey):
+        &#34;&#34;&#34;
+        Replace the certificate authority private key with a new one.
+
+        Args:
+            ca_privkey (PrivateKey): The new CA private key
+        &#34;&#34;&#34;
+        self.footer.ca_pubkey = ca_privkey.public_key
+        self.footer.replace_field(
+            &#34;signature&#34;, _FIELD.SignatureField.from_object(ca_privkey)
+        )
+
     def can_sign(self) -&gt; bool:
         &#34;&#34;&#34;
-        Determine if the certificate is ready to be signed
+        Check if the certificate can be signed in its current state.
 
         Raises:
-            ...: Exception from the respective field with error
-            _EX.NoPrivateKeyException: Private key is missing from class
+            _EX.SignatureNotPossibleException: Exception if the certificate cannot be signed
 
         Returns:
-            bool: True/False if the certificate can be signed
+            bool: True if the certificate can be signed
         &#34;&#34;&#34;
-        exceptions = []
-        for field in self.fields.values():
-            try:
-                valid = field.validate()
-            except TypeError:
-                valid = _EX.SignatureNotPossibleException(
-                    f&#34;The field {field} is missing a value&#34;
-                )
-            finally:
-                if isinstance(valid, Exception):
-                    exceptions.append(valid)
-
-        if (
-            getattr(self, &#34;signature&#34;, False) is False
-            or getattr(self, &#34;signature_pubkey&#34;, False) is False
-        ):
-            exceptions.append(
-                _EX.SignatureNotPossibleException(&#34;No CA private key is set&#34;)
-            )
-
-        if len(exceptions) &gt; 0:
-            raise _EX.SignatureNotPossibleException(exceptions)
-
-        if self.signature.can_sign() is True:
-            return True
-
-        raise _EX.SignatureNotPossibleException(
-            &#34;The certificate cannot be signed, the CA private key is not loaded&#34;
+        valid_header = self.header.validate()
+        valid_fields = self.fields.validate()
+        check_keys = (
+            True
+            if isinstance(self.get(&#34;ca_pubkey&#34;), PublicKey)
+            and isinstance(self.footer.signature.private_key, PrivateKey)
+            else [
+                _EX.SignatureNotPossibleException(&#34;No CA Public/Private key is loaded&#34;)
+            ]
         )
 
-    def get_signable_data(self) -&gt; bytes:
-        &#34;&#34;&#34;
-        Gets the signable byte string from the certificate fields
-
-        Returns:
-            bytes: The data in the certificate which is signed
-        &#34;&#34;&#34;
-        return (
-            b&#34;&#34;.join(
-                [
-                    bytes(x)
-                    for x in tuple(self.header.values()) + tuple(self.fields.values())
-                ]
+        if (valid_header, valid_fields, check_keys) != (True, True, True):
+            exceptions = []
+            exceptions += valid_header if not isinstance(valid_header, bool) else []
+            exceptions += valid_fields if not isinstance(valid_fields, bool) else []
+            exceptions += check_keys if not isinstance(check_keys, bool) else []
+            raise _EX.SignatureNotPossibleException(
+                &#34;\n&#34;.join([str(e) for e in exceptions])
             )
-            + bytes(_FIELD.ReservedField())
-            + bytes(self.signature_pubkey)
+
+        return True
+
+    def get_signable(self) -&gt; bytes:
+        &#34;&#34;&#34;
+        Retrieves the signable data for the certificate in byte form
+        &#34;&#34;&#34;
+        return concat_to_bytestring(
+            bytes(self.header), bytes(self.fields), bytes(self.footer)
         )
 
-    def sign(self, **signing_args):
-        &#34;&#34;&#34;
-        Sign the certificate
+    def sign(self) -&gt; bool:
+        &#34;&#34;&#34;Sign the certificate
+
+        Raises:
+            _EX.NotSignedException: The certificate could not be signed
 
         Returns:
-            SSHCertificate: The signed certificate class
+            bool: Whether successful
         &#34;&#34;&#34;
         if self.can_sign():
-            self.signature.sign(data=self.get_signable_data(), **signing_args)
+            self.footer.signature.sign(data=self.get_signable())
 
-        return self
+            return True
+        raise _EX.NotSignedException(&#34;There was an error while signing the certificate&#34;)
 
-    def verify(self, ca_pubkey: PublicKey = None) -&gt; bool:
-        &#34;&#34;&#34;
-        Verifies a signature against a given public key.
+    def verify(
+        self, public_key: PublicKey = None, raise_on_error: bool = False
+    ) -&gt; bool:
+        &#34;&#34;&#34;Verify the signature on the certificate to make sure the data is not corrupted,
+           and that the signature comes from the given public key or the key included in the
+           certificate (insecure, useful for testing only)
 
-        If no public key is provided, the signature is checked against
-        the public/private key provided to the class on creation
-        or decoding.
-
-        Not providing the public key for the CA with an imported
-        certificate means the verification will succeed even if an
-        attacker has replaced the signature and public key for signing.
-
-        If the certificate wasn&#39;t created and signed on the same occasion
-        as the validity check, you should always provide a public key for
-        verificiation.
-
-        Returns:
-            bool: If the certificate signature is valid
-        &#34;&#34;&#34;
-
-        if ca_pubkey is None:
-            ca_pubkey = self.signature_pubkey.value
-
-        cert_data = self.get_signable_data()
-        signature = self.signature.value
-
-        return ca_pubkey.verify(cert_data, signature)
-
-    def to_bytes(self) -&gt; bytes:
-        &#34;&#34;&#34;
-        Export the signed certificate in byte-format
+        Args:
+            public_key (PublicKey, optional): The public key to use for verification
+            raise_on_error (bool, default False): Raise an exception if the certificate is invalid
 
         Raises:
-            _EX.NotSignedException: The certificate has not been signed yet
-
-        Returns:
-            bytes: The certificate bytes
+            _EX.InvalidSignatureException: The signature is invalid
         &#34;&#34;&#34;
-        if self.signature.is_signed is True:
-            return self.get_signable_data() + bytes(self.signature)
+        if not public_key:
+            public_key = self.get(&#34;ca_pubkey&#34;)
 
-        raise _EX.NotSignedException(&#34;The certificate has not been signed&#34;)
+        try:
+            public_key.verify(self.get_signable(), self.footer.get(&#34;signature&#34;))
+        except _EX.InvalidSignatureException as exception:
+            if raise_on_error:
+                raise exception
+            return False
 
-    def to_string(
-        self, comment: Union[str, bytes] = None, encoding: str = &#34;utf-8&#34;
-    ) -&gt; str:
-        &#34;&#34;&#34;
-        Export the signed certificate to a string, ready to be written to file
+        return True
+
+    def to_string(self, comment: str = &#34;&#34;, encoding: str = &#34;utf-8&#34;):
+        &#34;&#34;&#34;Export the certificate to a string
 
         Args:
-            comment (Union[str, bytes], optional): Comment to add to the string. Defaults to None.
-            encoding (str, optional): Encoding to use for the string. Defaults to &#39;utf-8&#39;.
+            comment (str, optional): Comment to append to the certificate. Defaults to &#34;&#34;.
+            encoding (str, optional): Which encoding to use for the string. Defaults to &#34;utf-8&#34;.
 
         Returns:
-            str: Certificate string
+            str: The certificate data, base64-encoded and in string format
         &#34;&#34;&#34;
-        return (
-            self.header[&#34;pubkey_type&#34;].value.encode(encoding)
-            + b&#34; &#34;
-            + b64encode(
-                self.to_bytes(),
-            )
-            + b&#34; &#34;
-            + (comment if comment else b&#34;&#34;)
-        ).decode(&#34;utf-8&#34;)
+        return concat_to_string(
+            self.header.get(&#34;pubkey_type&#34;),
+            &#34; &#34;,
+            b64encode(bytes(self)),
+            &#34; &#34;,
+            comment if comment else &#34;&#34;,
+            encoding=encoding,
+        )
 
-    def to_file(
-        self, path: str, comment: Union[str, bytes] = None, encoding: str = &#34;utf-8&#34;
-    ):
-        &#34;&#34;&#34;
-        Saves the certificate to a file
+    def to_file(self, filename: str, encoding: str = &#34;utf-8&#34;):
+        &#34;&#34;&#34;Export certificate to file
 
         Args:
-            path (str): The path of the file to save to
-            comment (Union[str, bytes], optional): Comment to add to the certificate end.
-                                                   Defaults to None.
-            encoding (str, optional): Encoding for the file. Defaults to &#39;utf-8&#39;.
+            filename (str): The filename to write to
+            encoding (str, optional): The encoding to use for the file/string. Defaults to &#34;utf-8&#34;.
         &#34;&#34;&#34;
-        with open(path, &#34;w&#34;, encoding=encoding) as file:
-            file.write(self.to_string(comment, encoding))</code></pre>
+        with open(filename, &#34;w&#34;, encoding=encoding) as file:
+            file.write(self.to_string())</code></pre>
 </details>
 <h3>Subclasses</h3>
 <ul class="hlist">
@@ -1521,25 +2239,91 @@ or the from_public_key classmethod</p></div>
 <li><a title="sshkey_tools.cert.Ed25519Certificate" href="#sshkey_tools.cert.Ed25519Certificate">Ed25519Certificate</a></li>
 <li><a title="sshkey_tools.cert.RsaCertificate" href="#sshkey_tools.cert.RsaCertificate">RsaCertificate</a></li>
 </ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="sshkey_tools.cert.SSHCertificate.DEFAULT_KEY_TYPE"><code class="name">var <span class="ident">DEFAULT_KEY_TYPE</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
 <h3>Static methods</h3>
 <dl>
+<dt id="sshkey_tools.cert.SSHCertificate.create"><code class="name flex">
+<span>def <span class="ident">create</span></span>(<span>subject_pubkey: <a title="sshkey_tools.keys.PublicKey" href="keys.html#sshkey_tools.keys.PublicKey">PublicKey</a> = None, ca_privkey: <a title="sshkey_tools.keys.PrivateKey" href="keys.html#sshkey_tools.keys.PrivateKey">PrivateKey</a> = None, fields: <a title="sshkey_tools.cert.CertificateFields" href="#sshkey_tools.cert.CertificateFields">CertificateFields</a> = sshkey_tools.cert.CertificateFields, header: <a title="sshkey_tools.cert.CertificateHeader" href="#sshkey_tools.cert.CertificateHeader">CertificateHeader</a> = sshkey_tools.cert.CertificateHeader, footer: <a title="sshkey_tools.cert.CertificateFooter" href="#sshkey_tools.cert.CertificateFooter">CertificateFooter</a> = sshkey_tools.cert.CertificateFooter) ‑> <a title="sshkey_tools.cert.SSHCertificate" href="#sshkey_tools.cert.SSHCertificate">SSHCertificate</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Creates a new certificate from the given parameters.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>subject_pubkey</code></strong> :&ensp;<code>PublicKey</code>, optional</dt>
+<dd>The subject public key. Defaults to None.</dd>
+<dt><strong><code>ca_privkey</code></strong> :&ensp;<code>PrivateKey</code>, optional</dt>
+<dd>The CA private key. Defaults to None.</dd>
+<dt><strong><code>fields</code></strong> :&ensp;<code><a title="sshkey_tools.cert.CertificateFields" href="#sshkey_tools.cert.CertificateFields">CertificateFields</a></code>, optional</dt>
+<dd>The CertificateFields object containing the
+body fields. Defaults to blank CertificateFields.</dd>
+<dt><strong><code>header</code></strong> :&ensp;<code><a title="sshkey_tools.cert.CertificateHeader" href="#sshkey_tools.cert.CertificateHeader">CertificateHeader</a></code>, optional</dt>
+<dd>The certificate header.
+Defaults to new CertificateHeader.</dd>
+<dt><strong><code>footer</code></strong> :&ensp;<code><a title="sshkey_tools.cert.CertificateFooter" href="#sshkey_tools.cert.CertificateFooter">CertificateFooter</a></code>, optional</dt>
+<dd>The certificate footer.
+Defaults to new CertificateFooter.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="sshkey_tools.cert.SSHCertificate" href="#sshkey_tools.cert.SSHCertificate">SSHCertificate</a></code></dt>
+<dd>A SSHCertificate subclass depending on the type of subject_pubkey</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+def create(
+    cls,
+    subject_pubkey: PublicKey = None,
+    ca_privkey: PrivateKey = None,
+    fields: CertificateFields = CertificateFields,
+    header: CertificateHeader = CertificateHeader,
+    footer: CertificateFooter = CertificateFooter,
+) -&gt; &#34;SSHCertificate&#34;:
+    &#34;&#34;&#34;
+    Creates a new certificate from the given parameters.
+
+    Args:
+        subject_pubkey (PublicKey, optional): The subject public key. Defaults to None.
+        ca_privkey (PrivateKey, optional): The CA private key. Defaults to None.
+        fields (CertificateFields, optional): The CertificateFields object containing the
+            body fields. Defaults to blank CertificateFields.
+        header (CertificateHeader, optional): The certificate header.
+            Defaults to new CertificateHeader.
+        footer (CertificateFooter, optional): The certificate footer.
+            Defaults to new CertificateFooter.
+
+    Returns:
+        SSHCertificate: A SSHCertificate subclass depending on the type of subject_pubkey
+    &#34;&#34;&#34;
+    cert_class = subject_pubkey.__class__.__name__.replace(
+        &#34;PublicKey&#34;, &#34;Certificate&#34;
+    )
+    return globals()[cert_class](
+        subject_pubkey=subject_pubkey,
+        ca_privkey=ca_privkey,
+        fields=fields,
+        header=header,
+        footer=footer,
+    )</code></pre>
+</details>
+</dd>
 <dt id="sshkey_tools.cert.SSHCertificate.decode"><code class="name flex">
-<span>def <span class="ident">decode</span></span>(<span>cert_bytes: bytes, pubkey_class: <a title="sshkey_tools.fields.PublicKeyField" href="fields.html#sshkey_tools.fields.PublicKeyField">PublicKeyField</a> = None) ‑> <a title="sshkey_tools.cert.SSHCertificate" href="#sshkey_tools.cert.SSHCertificate">SSHCertificate</a></span>
+<span>def <span class="ident">decode</span></span>(<span>data: bytes) ‑> <a title="sshkey_tools.cert.SSHCertificate" href="#sshkey_tools.cert.SSHCertificate">SSHCertificate</a></span>
 </code></dt>
 <dd>
 <div class="desc"><p>Decode an existing certificate and import it into a new object</p>
 <h2 id="args">Args</h2>
 <dl>
-<dt><strong><code>cert_bytes</code></strong> :&ensp;<code>bytes</code></dt>
+<dt><strong><code>data</code></strong> :&ensp;<code>bytes</code></dt>
 <dd>The certificate bytes, base64 decoded middle part of the certificate</dd>
-<dt><strong><code>pubkey_field</code></strong> :&ensp;<code>_FIELD.PublicKeyField</code></dt>
-<dd>Instance of the PublicKeyField class, only needs
-to be set if it can't be detected automatically</dd>
-</dl>
-<h2 id="raises">Raises</h2>
-<dl>
-<dt><code>_EX.InvalidCertificateFormatException</code></dt>
-<dd>Invalid or unknown certificate format</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
@@ -1550,67 +2334,22 @@ to be set if it can't be detected automatically</dd>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@staticmethod
-def decode(
-    cert_bytes: bytes, pubkey_class: _FIELD.PublicKeyField = None
-) -&gt; &#34;SSHCertificate&#34;:
+<pre><code class="python">@classmethod
+def decode(cls, data: bytes) -&gt; &#34;SSHCertificate&#34;:
     &#34;&#34;&#34;
     Decode an existing certificate and import it into a new object
 
     Args:
-        cert_bytes (bytes): The certificate bytes, base64 decoded middle part of the certificate
-        pubkey_field (_FIELD.PublicKeyField): Instance of the PublicKeyField class, only needs
-            to be set if it can&#39;t be detected automatically
-
-    Raises:
-        _EX.InvalidCertificateFormatException: Invalid or unknown certificate format
+        data (bytes): The certificate bytes, base64 decoded middle part of the certificate
 
     Returns:
         SSHCertificate: SSHCertificate child class
     &#34;&#34;&#34;
-    if pubkey_class is None:
-        cert_type = _FIELD.StringField.decode(cert_bytes)[0].encode(&#34;utf-8&#34;)
-        pubkey_class = CERT_TYPES.get(cert_type, False)
+    cert_header, data = CertificateHeader.decode(data)
+    cert_fields, data = CertificateFields.decode(data)
+    cert_footer, data = CertificateFooter.decode(data)
 
-    if pubkey_class is False:
-        raise _EX.InvalidCertificateFormatException(
-            &#34;Could not determine certificate type, please use one &#34;
-            + &#34;of the specific classes or specify the pubkey_class&#34;
-        )
-
-    decode_fields = join_dicts(
-        {
-            &#34;pubkey_type&#34;: _FIELD.PubkeyTypeField,
-            &#34;nonce&#34;: _FIELD.NonceField,
-            &#34;public_key&#34;: pubkey_class,
-        },
-        CERTIFICATE_FIELDS,
-        {
-            &#34;reserved&#34;: _FIELD.ReservedField,
-            &#34;ca_pubkey&#34;: _FIELD.CAPublicKeyField,
-            &#34;signature&#34;: _FIELD.SignatureField,
-        },
-    )
-
-    cert = {}
-
-    for item in decode_fields.keys():
-        cert[item], cert_bytes = decode_fields[item].from_decode(cert_bytes)
-
-    if cert_bytes != b&#34;&#34;:
-        raise _EX.InvalidCertificateFormatException(
-            &#34;The certificate has additional data after everything has been extracted&#34;
-        )
-
-    pubkey_type = cert[&#34;pubkey_type&#34;].value
-    if isinstance(pubkey_type, bytes):
-        pubkey_type = pubkey_type.decode(&#34;utf-8&#34;)
-
-    cert_type = CERT_TYPES[pubkey_type]
-    cert.pop(&#34;reserved&#34;)
-    return globals()[cert_type[0]](
-        subject_pubkey=cert[&#34;public_key&#34;].value, decoded=cert
-    )</code></pre>
+    return cls(header=cert_header, fields=cert_fields, footer=cert_footer)</code></pre>
 </details>
 </dd>
 <dt id="sshkey_tools.cert.SSHCertificate.from_bytes"><code class="name flex">
@@ -1681,44 +2420,8 @@ def from_file(cls, path: str, encoding: str = &#34;utf-8&#34;):
     Returns:
         SSHCertificate: SSHCertificate child class
     &#34;&#34;&#34;
-    return cls.from_string(open(path, &#34;r&#34;, encoding=encoding).read())</code></pre>
-</details>
-</dd>
-<dt id="sshkey_tools.cert.SSHCertificate.from_public_class"><code class="name flex">
-<span>def <span class="ident">from_public_class</span></span>(<span>public_key: <a title="sshkey_tools.keys.PublicKey" href="keys.html#sshkey_tools.keys.PublicKey">PublicKey</a>, ca_privkey: <a title="sshkey_tools.keys.PrivateKey" href="keys.html#sshkey_tools.keys.PrivateKey">PrivateKey</a> = None, **kwargs) ‑> <a title="sshkey_tools.cert.SSHCertificate" href="#sshkey_tools.cert.SSHCertificate">SSHCertificate</a></span>
-</code></dt>
-<dd>
-<div class="desc"><p>Creates a new certificate from a supplied public key</p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>public_key</code></strong> :&ensp;<code>PublicKey</code></dt>
-<dd>The public key for which to create a certificate</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<dl>
-<dt><code><a title="sshkey_tools.cert.SSHCertificate" href="#sshkey_tools.cert.SSHCertificate">SSHCertificate</a></code></dt>
-<dd>SSHCertificate child class</dd>
-</dl></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@classmethod
-def from_public_class(
-    cls, public_key: PublicKey, ca_privkey: PrivateKey = None, **kwargs
-) -&gt; &#34;SSHCertificate&#34;:
-    &#34;&#34;&#34;
-    Creates a new certificate from a supplied public key
-
-    Args:
-        public_key (PublicKey): The public key for which to create a certificate
-
-    Returns:
-        SSHCertificate: SSHCertificate child class
-    &#34;&#34;&#34;
-    return globals()[
-        public_key.__class__.__name__.replace(&#34;PublicKey&#34;, &#34;Certificate&#34;)
-    ](public_key, ca_privkey, **kwargs)</code></pre>
+    with open(path, &#34;r&#34;, encoding=encoding) as file:
+        return cls.from_string(file.read())</code></pre>
 </details>
 </dd>
 <dt id="sshkey_tools.cert.SSHCertificate.from_string"><code class="name flex">
@@ -1756,8 +2459,7 @@ def from_string(cls, cert_str: Union[str, bytes], encoding: str = &#34;utf-8&#34
     Returns:
         SSHCertificate: SSHCertificate child class
     &#34;&#34;&#34;
-    if isinstance(cert_str, str):
-        cert_str = cert_str.encode(encoding)
+    cert_str = ensure_bytestring(cert_str, encoding)
 
     certificate = b64decode(cert_str.split(b&#34; &#34;)[1])
     return cls.from_bytes(cert_bytes=certificate)</code></pre>
@@ -1770,18 +2472,16 @@ def from_string(cls, cert_str: Union[str, bytes], encoding: str = &#34;utf-8&#34
 <span>def <span class="ident">can_sign</span></span>(<span>self) ‑> bool</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Determine if the certificate is ready to be signed</p>
+<div class="desc"><p>Check if the certificate can be signed in its current state.</p>
 <h2 id="raises">Raises</h2>
 <dl>
-<dt><code>&hellip;</code></dt>
-<dd>Exception from the respective field with error</dd>
-<dt><code>_EX.NoPrivateKeyException</code></dt>
-<dd>Private key is missing from class</dd>
+<dt><code>_EX.SignatureNotPossibleException</code></dt>
+<dd>Exception if the certificate cannot be signed</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
 <dt><code>bool</code></dt>
-<dd>True/False if the certificate can be signed</dd>
+<dd>True if the certificate can be signed</dd>
 </dl></div>
 <details class="source">
 <summary>
@@ -1789,386 +2489,337 @@ def from_string(cls, cert_str: Union[str, bytes], encoding: str = &#34;utf-8&#34
 </summary>
 <pre><code class="python">def can_sign(self) -&gt; bool:
     &#34;&#34;&#34;
-    Determine if the certificate is ready to be signed
+    Check if the certificate can be signed in its current state.
 
     Raises:
-        ...: Exception from the respective field with error
-        _EX.NoPrivateKeyException: Private key is missing from class
+        _EX.SignatureNotPossibleException: Exception if the certificate cannot be signed
 
     Returns:
-        bool: True/False if the certificate can be signed
+        bool: True if the certificate can be signed
     &#34;&#34;&#34;
-    exceptions = []
-    for field in self.fields.values():
-        try:
-            valid = field.validate()
-        except TypeError:
-            valid = _EX.SignatureNotPossibleException(
-                f&#34;The field {field} is missing a value&#34;
-            )
-        finally:
-            if isinstance(valid, Exception):
-                exceptions.append(valid)
+    valid_header = self.header.validate()
+    valid_fields = self.fields.validate()
+    check_keys = (
+        True
+        if isinstance(self.get(&#34;ca_pubkey&#34;), PublicKey)
+        and isinstance(self.footer.signature.private_key, PrivateKey)
+        else [
+            _EX.SignatureNotPossibleException(&#34;No CA Public/Private key is loaded&#34;)
+        ]
+    )
 
-    if (
-        getattr(self, &#34;signature&#34;, False) is False
-        or getattr(self, &#34;signature_pubkey&#34;, False) is False
-    ):
-        exceptions.append(
-            _EX.SignatureNotPossibleException(&#34;No CA private key is set&#34;)
+    if (valid_header, valid_fields, check_keys) != (True, True, True):
+        exceptions = []
+        exceptions += valid_header if not isinstance(valid_header, bool) else []
+        exceptions += valid_fields if not isinstance(valid_fields, bool) else []
+        exceptions += check_keys if not isinstance(check_keys, bool) else []
+        raise _EX.SignatureNotPossibleException(
+            &#34;\n&#34;.join([str(e) for e in exceptions])
         )
 
-    if len(exceptions) &gt; 0:
-        raise _EX.SignatureNotPossibleException(exceptions)
-
-    if self.signature.can_sign() is True:
-        return True
-
-    raise _EX.SignatureNotPossibleException(
-        &#34;The certificate cannot be signed, the CA private key is not loaded&#34;
-    )</code></pre>
+    return True</code></pre>
 </details>
 </dd>
-<dt id="sshkey_tools.cert.SSHCertificate.get_signable_data"><code class="name flex">
-<span>def <span class="ident">get_signable_data</span></span>(<span>self) ‑> bytes</span>
+<dt id="sshkey_tools.cert.SSHCertificate.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>self, field: str)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Gets the signable byte string from the certificate fields</p>
-<h2 id="returns">Returns</h2>
-<dl>
-<dt><code>bytes</code></dt>
-<dd>The data in the certificate which is signed</dd>
-</dl></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_signable_data(self) -&gt; bytes:
-    &#34;&#34;&#34;
-    Gets the signable byte string from the certificate fields
-
-    Returns:
-        bytes: The data in the certificate which is signed
-    &#34;&#34;&#34;
-    return (
-        b&#34;&#34;.join(
-            [
-                bytes(x)
-                for x in tuple(self.header.values()) + tuple(self.fields.values())
-            ]
-        )
-        + bytes(_FIELD.ReservedField())
-        + bytes(self.signature_pubkey)
-    )</code></pre>
-</details>
-</dd>
-<dt id="sshkey_tools.cert.SSHCertificate.set_ca"><code class="name flex">
-<span>def <span class="ident">set_ca</span></span>(<span>self, ca_privkey: <a title="sshkey_tools.keys.PrivateKey" href="keys.html#sshkey_tools.keys.PrivateKey">PrivateKey</a>)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Set the CA Private Key for signing the certificate</p>
+<div class="desc"><p>Fetch a field from any of the sections of the certificate.</p>
 <h2 id="args">Args</h2>
 <dl>
-<dt><strong><code>ca_privkey</code></strong> :&ensp;<code>PrivateKey</code></dt>
-<dd>The CA private key</dd>
-</dl></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def set_ca(self, ca_privkey: PrivateKey):
-    &#34;&#34;&#34;
-    Set the CA Private Key for signing the certificate
-
-    Args:
-        ca_privkey (PrivateKey): The CA private key
-    &#34;&#34;&#34;
-    self.signature = _FIELD.SignatureField.from_object(ca_privkey)
-    self.signature_pubkey = _FIELD.CAPublicKeyField.from_object(
-        ca_privkey.public_key
-    )</code></pre>
-</details>
-</dd>
-<dt id="sshkey_tools.cert.SSHCertificate.set_opt"><code class="name flex">
-<span>def <span class="ident">set_opt</span></span>(<span>self, key: str, value)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Add information to a field in the certificate</p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>key</code></strong> :&ensp;<code>str</code></dt>
-<dd>The key to set</dd>
-<dt><strong><code>value</code></strong> :&ensp;<code>mixed</code></dt>
-<dd>The new value for the field</dd>
+<dt><strong><code>field</code></strong> :&ensp;<code>str</code></dt>
+<dd>The field name to fetch</dd>
 </dl>
 <h2 id="raises">Raises</h2>
 <dl>
 <dt><code>_EX.InvalidCertificateFieldException</code></dt>
-<dd>Invalid field</dd>
-</dl></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def set_opt(self, key: str, value):
-    &#34;&#34;&#34;
-    Add information to a field in the certificate
-
-    Args:
-        key (str): The key to set
-        value (mixed): The new value for the field
-
-    Raises:
-        _EX.InvalidCertificateFieldException: Invalid field
-    &#34;&#34;&#34;
-    if key not in self.fields:
-        raise _EX.InvalidCertificateFieldException(
-            f&#34;{key} is not a valid certificate field&#34;
-        )
-
-    try:
-        if self.fields[key].value not in [None, False, &#34;&#34;, [], ()]:
-            self.fields[key].value = value
-    except AttributeError:
-        self.fields[key] = self.fields[key](value)</code></pre>
-</details>
-</dd>
-<dt id="sshkey_tools.cert.SSHCertificate.set_opts"><code class="name flex">
-<span>def <span class="ident">set_opts</span></span>(<span>self, **kwargs)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Set multiple options at once</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def set_opts(self, **kwargs):
-    &#34;&#34;&#34;
-    Set multiple options at once
-    &#34;&#34;&#34;
-    for key, value in kwargs.items():
-        self.set_opt(key, value)</code></pre>
-</details>
-</dd>
-<dt id="sshkey_tools.cert.SSHCertificate.set_type"><code class="name flex">
-<span>def <span class="ident">set_type</span></span>(<span>self, pubkey_type: str)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Set the type of the public key if not already set automatically
-The child classes will set this automatically</p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>pubkey_type</code></strong> :&ensp;<code>str</code></dt>
-<dd>Public key type, e.g. ssh-rsa-cert-v01@openssh.com</dd>
-</dl></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def set_type(self, pubkey_type: str):
-    &#34;&#34;&#34;
-    Set the type of the public key if not already set automatically
-    The child classes will set this automatically
-
-    Args:
-        pubkey_type (str): Public key type, e.g. ssh-rsa-cert-v01@openssh.com
-    &#34;&#34;&#34;
-    if not getattr(self.header[&#34;pubkey_type&#34;], &#34;value&#34;, False):
-        self.header[&#34;pubkey_type&#34;] = self.header[&#34;pubkey_type&#34;](pubkey_type)</code></pre>
-</details>
-</dd>
-<dt id="sshkey_tools.cert.SSHCertificate.sign"><code class="name flex">
-<span>def <span class="ident">sign</span></span>(<span>self, **signing_args)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Sign the certificate</p>
-<h2 id="returns">Returns</h2>
-<dl>
-<dt><code><a title="sshkey_tools.cert.SSHCertificate" href="#sshkey_tools.cert.SSHCertificate">SSHCertificate</a></code></dt>
-<dd>The signed certificate class</dd>
-</dl></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def sign(self, **signing_args):
-    &#34;&#34;&#34;
-    Sign the certificate
-
-    Returns:
-        SSHCertificate: The signed certificate class
-    &#34;&#34;&#34;
-    if self.can_sign():
-        self.signature.sign(data=self.get_signable_data(), **signing_args)
-
-    return self</code></pre>
-</details>
-</dd>
-<dt id="sshkey_tools.cert.SSHCertificate.to_bytes"><code class="name flex">
-<span>def <span class="ident">to_bytes</span></span>(<span>self) ‑> bytes</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Export the signed certificate in byte-format</p>
-<h2 id="raises">Raises</h2>
-<dl>
-<dt><code>_EX.NotSignedException</code></dt>
-<dd>The certificate has not been signed yet</dd>
+<dd>Invalid field name provided</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code>bytes</code></dt>
-<dd>The certificate bytes</dd>
+<dt><code>mixed</code></dt>
+<dd>The certificate field contents</dd>
 </dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def to_bytes(self) -&gt; bytes:
+<pre><code class="python">def get(self, field: str):
     &#34;&#34;&#34;
-    Export the signed certificate in byte-format
+    Fetch a field from any of the sections of the certificate.
+
+    Args:
+        field (str): The field name to fetch
 
     Raises:
-        _EX.NotSignedException: The certificate has not been signed yet
+        _EX.InvalidCertificateFieldException: Invalid field name provided
 
     Returns:
-        bytes: The certificate bytes
+        mixed: The certificate field contents
     &#34;&#34;&#34;
-    if self.signature.is_signed is True:
-        return self.get_signable_data() + bytes(self.signature)
+    if field in (
+        self.header.getattrs() + self.fields.getattrs() + self.footer.getattrs()
+    ):
+        return (
+            self.fields.get(field, False)
+            or self.header.get(field, False)
+            or self.footer.get(field, False)
+        )
 
-    raise _EX.NotSignedException(&#34;The certificate has not been signed&#34;)</code></pre>
+    raise _EX.InvalidCertificateFieldException(f&#34;Unknown field {field}&#34;)</code></pre>
+</details>
+</dd>
+<dt id="sshkey_tools.cert.SSHCertificate.get_signable"><code class="name flex">
+<span>def <span class="ident">get_signable</span></span>(<span>self) ‑> bytes</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Retrieves the signable data for the certificate in byte form</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_signable(self) -&gt; bytes:
+    &#34;&#34;&#34;
+    Retrieves the signable data for the certificate in byte form
+    &#34;&#34;&#34;
+    return concat_to_bytestring(
+        bytes(self.header), bytes(self.fields), bytes(self.footer)
+    )</code></pre>
+</details>
+</dd>
+<dt id="sshkey_tools.cert.SSHCertificate.replace_ca"><code class="name flex">
+<span>def <span class="ident">replace_ca</span></span>(<span>self, ca_privkey: <a title="sshkey_tools.keys.PrivateKey" href="keys.html#sshkey_tools.keys.PrivateKey">PrivateKey</a>)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Replace the certificate authority private key with a new one.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>ca_privkey</code></strong> :&ensp;<code>PrivateKey</code></dt>
+<dd>The new CA private key</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def replace_ca(self, ca_privkey: PrivateKey):
+    &#34;&#34;&#34;
+    Replace the certificate authority private key with a new one.
+
+    Args:
+        ca_privkey (PrivateKey): The new CA private key
+    &#34;&#34;&#34;
+    self.footer.ca_pubkey = ca_privkey.public_key
+    self.footer.replace_field(
+        &#34;signature&#34;, _FIELD.SignatureField.from_object(ca_privkey)
+    )</code></pre>
+</details>
+</dd>
+<dt id="sshkey_tools.cert.SSHCertificate.set"><code class="name flex">
+<span>def <span class="ident">set</span></span>(<span>self, field: str, value) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Set a field in any of the sections of the certificate.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>field</code></strong> :&ensp;<code>str</code></dt>
+<dd>The field name to set</dd>
+<dt><strong><code>value</code></strong> :&ensp;<code>mixed</code></dt>
+<dd>The value to set the field to</dd>
+</dl>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>_EX.InvalidCertificateFieldException</code></dt>
+<dd>Invalid field name provided</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>mixed</code></dt>
+<dd>The certificate field contents</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def set(self, field: str, value) -&gt; None:
+    &#34;&#34;&#34;
+    Set a field in any of the sections of the certificate.
+
+    Args:
+        field (str): The field name to set
+        value (mixed): The value to set the field to
+
+    Raises:
+        _EX.InvalidCertificateFieldException: Invalid field name provided
+
+    Returns:
+        mixed: The certificate field contents
+    &#34;&#34;&#34;
+    if self.fields.get(field, False):
+        setattr(self.fields, field, value)
+        return
+
+    if self.header.get(field, False):
+        setattr(self.header, field, value)
+        return
+
+    if self.footer.get(field, False):
+        setattr(self.footer, field, value)
+        return
+
+    raise _EX.InvalidCertificateFieldException(f&#34;Unknown field {field}&#34;)</code></pre>
+</details>
+</dd>
+<dt id="sshkey_tools.cert.SSHCertificate.sign"><code class="name flex">
+<span>def <span class="ident">sign</span></span>(<span>self) ‑> bool</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Sign the certificate</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>_EX.NotSignedException</code></dt>
+<dd>The certificate could not be signed</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>bool</code></dt>
+<dd>Whether successful</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sign(self) -&gt; bool:
+    &#34;&#34;&#34;Sign the certificate
+
+    Raises:
+        _EX.NotSignedException: The certificate could not be signed
+
+    Returns:
+        bool: Whether successful
+    &#34;&#34;&#34;
+    if self.can_sign():
+        self.footer.signature.sign(data=self.get_signable())
+
+        return True
+    raise _EX.NotSignedException(&#34;There was an error while signing the certificate&#34;)</code></pre>
 </details>
 </dd>
 <dt id="sshkey_tools.cert.SSHCertificate.to_file"><code class="name flex">
-<span>def <span class="ident">to_file</span></span>(<span>self, path: str, comment: Union[str, bytes] = None, encoding: str = 'utf-8')</span>
+<span>def <span class="ident">to_file</span></span>(<span>self, filename: str, encoding: str = 'utf-8')</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Saves the certificate to a file</p>
+<div class="desc"><p>Export certificate to file</p>
 <h2 id="args">Args</h2>
 <dl>
-<dt><strong><code>path</code></strong> :&ensp;<code>str</code></dt>
-<dd>The path of the file to save to</dd>
-<dt><strong><code>comment</code></strong> :&ensp;<code>Union[str, bytes]</code>, optional</dt>
-<dd>Comment to add to the certificate end.
-Defaults to None.</dd>
+<dt><strong><code>filename</code></strong> :&ensp;<code>str</code></dt>
+<dd>The filename to write to</dd>
 <dt><strong><code>encoding</code></strong> :&ensp;<code>str</code>, optional</dt>
-<dd>Encoding for the file. Defaults to 'utf-8'.</dd>
+<dd>The encoding to use for the file/string. Defaults to "utf-8".</dd>
 </dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def to_file(
-    self, path: str, comment: Union[str, bytes] = None, encoding: str = &#34;utf-8&#34;
-):
-    &#34;&#34;&#34;
-    Saves the certificate to a file
+<pre><code class="python">def to_file(self, filename: str, encoding: str = &#34;utf-8&#34;):
+    &#34;&#34;&#34;Export certificate to file
 
     Args:
-        path (str): The path of the file to save to
-        comment (Union[str, bytes], optional): Comment to add to the certificate end.
-                                               Defaults to None.
-        encoding (str, optional): Encoding for the file. Defaults to &#39;utf-8&#39;.
+        filename (str): The filename to write to
+        encoding (str, optional): The encoding to use for the file/string. Defaults to &#34;utf-8&#34;.
     &#34;&#34;&#34;
-    with open(path, &#34;w&#34;, encoding=encoding) as file:
-        file.write(self.to_string(comment, encoding))</code></pre>
+    with open(filename, &#34;w&#34;, encoding=encoding) as file:
+        file.write(self.to_string())</code></pre>
 </details>
 </dd>
 <dt id="sshkey_tools.cert.SSHCertificate.to_string"><code class="name flex">
-<span>def <span class="ident">to_string</span></span>(<span>self, comment: Union[str, bytes] = None, encoding: str = 'utf-8') ‑> str</span>
+<span>def <span class="ident">to_string</span></span>(<span>self, comment: str = '', encoding: str = 'utf-8')</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Export the signed certificate to a string, ready to be written to file</p>
+<div class="desc"><p>Export the certificate to a string</p>
 <h2 id="args">Args</h2>
 <dl>
-<dt><strong><code>comment</code></strong> :&ensp;<code>Union[str, bytes]</code>, optional</dt>
-<dd>Comment to add to the string. Defaults to None.</dd>
+<dt><strong><code>comment</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>Comment to append to the certificate. Defaults to "".</dd>
 <dt><strong><code>encoding</code></strong> :&ensp;<code>str</code>, optional</dt>
-<dd>Encoding to use for the string. Defaults to 'utf-8'.</dd>
+<dd>Which encoding to use for the string. Defaults to "utf-8".</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
 <dt><code>str</code></dt>
-<dd>Certificate string</dd>
+<dd>The certificate data, base64-encoded and in string format</dd>
 </dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def to_string(
-    self, comment: Union[str, bytes] = None, encoding: str = &#34;utf-8&#34;
-) -&gt; str:
-    &#34;&#34;&#34;
-    Export the signed certificate to a string, ready to be written to file
+<pre><code class="python">def to_string(self, comment: str = &#34;&#34;, encoding: str = &#34;utf-8&#34;):
+    &#34;&#34;&#34;Export the certificate to a string
 
     Args:
-        comment (Union[str, bytes], optional): Comment to add to the string. Defaults to None.
-        encoding (str, optional): Encoding to use for the string. Defaults to &#39;utf-8&#39;.
+        comment (str, optional): Comment to append to the certificate. Defaults to &#34;&#34;.
+        encoding (str, optional): Which encoding to use for the string. Defaults to &#34;utf-8&#34;.
 
     Returns:
-        str: Certificate string
+        str: The certificate data, base64-encoded and in string format
     &#34;&#34;&#34;
-    return (
-        self.header[&#34;pubkey_type&#34;].value.encode(encoding)
-        + b&#34; &#34;
-        + b64encode(
-            self.to_bytes(),
-        )
-        + b&#34; &#34;
-        + (comment if comment else b&#34;&#34;)
-    ).decode(&#34;utf-8&#34;)</code></pre>
+    return concat_to_string(
+        self.header.get(&#34;pubkey_type&#34;),
+        &#34; &#34;,
+        b64encode(bytes(self)),
+        &#34; &#34;,
+        comment if comment else &#34;&#34;,
+        encoding=encoding,
+    )</code></pre>
 </details>
 </dd>
 <dt id="sshkey_tools.cert.SSHCertificate.verify"><code class="name flex">
-<span>def <span class="ident">verify</span></span>(<span>self, ca_pubkey: <a title="sshkey_tools.keys.PublicKey" href="keys.html#sshkey_tools.keys.PublicKey">PublicKey</a> = None) ‑> bool</span>
+<span>def <span class="ident">verify</span></span>(<span>self, public_key: <a title="sshkey_tools.keys.PublicKey" href="keys.html#sshkey_tools.keys.PublicKey">PublicKey</a> = None, raise_on_error: bool = False) ‑> bool</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Verifies a signature against a given public key.</p>
-<p>If no public key is provided, the signature is checked against
-the public/private key provided to the class on creation
-or decoding.</p>
-<p>Not providing the public key for the CA with an imported
-certificate means the verification will succeed even if an
-attacker has replaced the signature and public key for signing.</p>
-<p>If the certificate wasn't created and signed on the same occasion
-as the validity check, you should always provide a public key for
-verificiation.</p>
-<h2 id="returns">Returns</h2>
+<div class="desc"><p>Verify the signature on the certificate to make sure the data is not corrupted,
+and that the signature comes from the given public key or the key included in the
+certificate (insecure, useful for testing only)</p>
+<h2 id="args">Args</h2>
 <dl>
-<dt><code>bool</code></dt>
-<dd>If the certificate signature is valid</dd>
+<dt><strong><code>public_key</code></strong> :&ensp;<code>PublicKey</code>, optional</dt>
+<dd>The public key to use for verification</dd>
+<dt><strong><code>raise_on_error</code></strong> :&ensp;<code>bool</code>, default <code>False</code></dt>
+<dd>Raise an exception if the certificate is invalid</dd>
+</dl>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>_EX.InvalidSignatureException</code></dt>
+<dd>The signature is invalid</dd>
 </dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def verify(self, ca_pubkey: PublicKey = None) -&gt; bool:
+<pre><code class="python">def verify(
+    self, public_key: PublicKey = None, raise_on_error: bool = False
+) -&gt; bool:
+    &#34;&#34;&#34;Verify the signature on the certificate to make sure the data is not corrupted,
+       and that the signature comes from the given public key or the key included in the
+       certificate (insecure, useful for testing only)
+
+    Args:
+        public_key (PublicKey, optional): The public key to use for verification
+        raise_on_error (bool, default False): Raise an exception if the certificate is invalid
+
+    Raises:
+        _EX.InvalidSignatureException: The signature is invalid
     &#34;&#34;&#34;
-    Verifies a signature against a given public key.
+    if not public_key:
+        public_key = self.get(&#34;ca_pubkey&#34;)
 
-    If no public key is provided, the signature is checked against
-    the public/private key provided to the class on creation
-    or decoding.
+    try:
+        public_key.verify(self.get_signable(), self.footer.get(&#34;signature&#34;))
+    except _EX.InvalidSignatureException as exception:
+        if raise_on_error:
+            raise exception
+        return False
 
-    Not providing the public key for the CA with an imported
-    certificate means the verification will succeed even if an
-    attacker has replaced the signature and public key for signing.
-
-    If the certificate wasn&#39;t created and signed on the same occasion
-    as the validity check, you should always provide a public key for
-    verificiation.
-
-    Returns:
-        bool: If the certificate signature is valid
-    &#34;&#34;&#34;
-
-    if ca_pubkey is None:
-        ca_pubkey = self.signature_pubkey.value
-
-    cert_data = self.get_signable_data()
-    signature = self.signature.value
-
-    return ca_pubkey.verify(cert_data, signature)</code></pre>
+    return True</code></pre>
 </details>
 </dd>
 </dl>
@@ -2190,45 +2841,87 @@ verificiation.</p>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
+<h4><code><a title="sshkey_tools.cert.CertificateFields" href="#sshkey_tools.cert.CertificateFields">CertificateFields</a></code></h4>
+<ul class="two-column">
+<li><code><a title="sshkey_tools.cert.CertificateFields.DECODE_ORDER" href="#sshkey_tools.cert.CertificateFields.DECODE_ORDER">DECODE_ORDER</a></code></li>
+<li><code><a title="sshkey_tools.cert.CertificateFields.cert_type" href="#sshkey_tools.cert.CertificateFields.cert_type">cert_type</a></code></li>
+<li><code><a title="sshkey_tools.cert.CertificateFields.critical_options" href="#sshkey_tools.cert.CertificateFields.critical_options">critical_options</a></code></li>
+<li><code><a title="sshkey_tools.cert.CertificateFields.extensions" href="#sshkey_tools.cert.CertificateFields.extensions">extensions</a></code></li>
+<li><code><a title="sshkey_tools.cert.CertificateFields.key_id" href="#sshkey_tools.cert.CertificateFields.key_id">key_id</a></code></li>
+<li><code><a title="sshkey_tools.cert.CertificateFields.principals" href="#sshkey_tools.cert.CertificateFields.principals">principals</a></code></li>
+<li><code><a title="sshkey_tools.cert.CertificateFields.serial" href="#sshkey_tools.cert.CertificateFields.serial">serial</a></code></li>
+<li><code><a title="sshkey_tools.cert.CertificateFields.valid_after" href="#sshkey_tools.cert.CertificateFields.valid_after">valid_after</a></code></li>
+<li><code><a title="sshkey_tools.cert.CertificateFields.valid_before" href="#sshkey_tools.cert.CertificateFields.valid_before">valid_before</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="sshkey_tools.cert.CertificateFooter" href="#sshkey_tools.cert.CertificateFooter">CertificateFooter</a></code></h4>
+<ul class="">
+<li><code><a title="sshkey_tools.cert.CertificateFooter.DECODE_ORDER" href="#sshkey_tools.cert.CertificateFooter.DECODE_ORDER">DECODE_ORDER</a></code></li>
+<li><code><a title="sshkey_tools.cert.CertificateFooter.ca_pubkey" href="#sshkey_tools.cert.CertificateFooter.ca_pubkey">ca_pubkey</a></code></li>
+<li><code><a title="sshkey_tools.cert.CertificateFooter.reserved" href="#sshkey_tools.cert.CertificateFooter.reserved">reserved</a></code></li>
+<li><code><a title="sshkey_tools.cert.CertificateFooter.signature" href="#sshkey_tools.cert.CertificateFooter.signature">signature</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="sshkey_tools.cert.CertificateHeader" href="#sshkey_tools.cert.CertificateHeader">CertificateHeader</a></code></h4>
+<ul class="">
+<li><code><a title="sshkey_tools.cert.CertificateHeader.DECODE_ORDER" href="#sshkey_tools.cert.CertificateHeader.DECODE_ORDER">DECODE_ORDER</a></code></li>
+<li><code><a title="sshkey_tools.cert.CertificateHeader.nonce" href="#sshkey_tools.cert.CertificateHeader.nonce">nonce</a></code></li>
+<li><code><a title="sshkey_tools.cert.CertificateHeader.pubkey_type" href="#sshkey_tools.cert.CertificateHeader.pubkey_type">pubkey_type</a></code></li>
+<li><code><a title="sshkey_tools.cert.CertificateHeader.public_key" href="#sshkey_tools.cert.CertificateHeader.public_key">public_key</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="sshkey_tools.cert.DsaCertificate" href="#sshkey_tools.cert.DsaCertificate">DsaCertificate</a></code></h4>
 <ul class="">
-<li><code><a title="sshkey_tools.cert.DsaCertificate.decode" href="#sshkey_tools.cert.DsaCertificate.decode">decode</a></code></li>
+<li><code><a title="sshkey_tools.cert.DsaCertificate.DEFAULT_KEY_TYPE" href="#sshkey_tools.cert.DsaCertificate.DEFAULT_KEY_TYPE">DEFAULT_KEY_TYPE</a></code></li>
 </ul>
 </li>
 <li>
 <h4><code><a title="sshkey_tools.cert.EcdsaCertificate" href="#sshkey_tools.cert.EcdsaCertificate">EcdsaCertificate</a></code></h4>
 <ul class="">
-<li><code><a title="sshkey_tools.cert.EcdsaCertificate.decode" href="#sshkey_tools.cert.EcdsaCertificate.decode">decode</a></code></li>
+<li><code><a title="sshkey_tools.cert.EcdsaCertificate.DEFAULT_KEY_TYPE" href="#sshkey_tools.cert.EcdsaCertificate.DEFAULT_KEY_TYPE">DEFAULT_KEY_TYPE</a></code></li>
 </ul>
 </li>
 <li>
 <h4><code><a title="sshkey_tools.cert.Ed25519Certificate" href="#sshkey_tools.cert.Ed25519Certificate">Ed25519Certificate</a></code></h4>
 <ul class="">
-<li><code><a title="sshkey_tools.cert.Ed25519Certificate.decode" href="#sshkey_tools.cert.Ed25519Certificate.decode">decode</a></code></li>
+<li><code><a title="sshkey_tools.cert.Ed25519Certificate.DEFAULT_KEY_TYPE" href="#sshkey_tools.cert.Ed25519Certificate.DEFAULT_KEY_TYPE">DEFAULT_KEY_TYPE</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="sshkey_tools.cert.Fieldset" href="#sshkey_tools.cert.Fieldset">Fieldset</a></code></h4>
+<ul class="two-column">
+<li><code><a title="sshkey_tools.cert.Fieldset.DECODE_ORDER" href="#sshkey_tools.cert.Fieldset.DECODE_ORDER">DECODE_ORDER</a></code></li>
+<li><code><a title="sshkey_tools.cert.Fieldset.decode" href="#sshkey_tools.cert.Fieldset.decode">decode</a></code></li>
+<li><code><a title="sshkey_tools.cert.Fieldset.get" href="#sshkey_tools.cert.Fieldset.get">get</a></code></li>
+<li><code><a title="sshkey_tools.cert.Fieldset.getattrs" href="#sshkey_tools.cert.Fieldset.getattrs">getattrs</a></code></li>
+<li><code><a title="sshkey_tools.cert.Fieldset.replace_field" href="#sshkey_tools.cert.Fieldset.replace_field">replace_field</a></code></li>
+<li><code><a title="sshkey_tools.cert.Fieldset.validate" href="#sshkey_tools.cert.Fieldset.validate">validate</a></code></li>
 </ul>
 </li>
 <li>
 <h4><code><a title="sshkey_tools.cert.RsaCertificate" href="#sshkey_tools.cert.RsaCertificate">RsaCertificate</a></code></h4>
 <ul class="">
-<li><code><a title="sshkey_tools.cert.RsaCertificate.decode" href="#sshkey_tools.cert.RsaCertificate.decode">decode</a></code></li>
+<li><code><a title="sshkey_tools.cert.RsaCertificate.DEFAULT_KEY_TYPE" href="#sshkey_tools.cert.RsaCertificate.DEFAULT_KEY_TYPE">DEFAULT_KEY_TYPE</a></code></li>
 </ul>
 </li>
 <li>
 <h4><code><a title="sshkey_tools.cert.SSHCertificate" href="#sshkey_tools.cert.SSHCertificate">SSHCertificate</a></code></h4>
 <ul class="two-column">
+<li><code><a title="sshkey_tools.cert.SSHCertificate.DEFAULT_KEY_TYPE" href="#sshkey_tools.cert.SSHCertificate.DEFAULT_KEY_TYPE">DEFAULT_KEY_TYPE</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.can_sign" href="#sshkey_tools.cert.SSHCertificate.can_sign">can_sign</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.create" href="#sshkey_tools.cert.SSHCertificate.create">create</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.decode" href="#sshkey_tools.cert.SSHCertificate.decode">decode</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.from_bytes" href="#sshkey_tools.cert.SSHCertificate.from_bytes">from_bytes</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.from_file" href="#sshkey_tools.cert.SSHCertificate.from_file">from_file</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.from_public_class" href="#sshkey_tools.cert.SSHCertificate.from_public_class">from_public_class</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.from_string" href="#sshkey_tools.cert.SSHCertificate.from_string">from_string</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.get_signable_data" href="#sshkey_tools.cert.SSHCertificate.get_signable_data">get_signable_data</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.set_ca" href="#sshkey_tools.cert.SSHCertificate.set_ca">set_ca</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.set_opt" href="#sshkey_tools.cert.SSHCertificate.set_opt">set_opt</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.set_opts" href="#sshkey_tools.cert.SSHCertificate.set_opts">set_opts</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.set_type" href="#sshkey_tools.cert.SSHCertificate.set_type">set_type</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.get" href="#sshkey_tools.cert.SSHCertificate.get">get</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.get_signable" href="#sshkey_tools.cert.SSHCertificate.get_signable">get_signable</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.replace_ca" href="#sshkey_tools.cert.SSHCertificate.replace_ca">replace_ca</a></code></li>
+<li><code><a title="sshkey_tools.cert.SSHCertificate.set" href="#sshkey_tools.cert.SSHCertificate.set">set</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.sign" href="#sshkey_tools.cert.SSHCertificate.sign">sign</a></code></li>
-<li><code><a title="sshkey_tools.cert.SSHCertificate.to_bytes" href="#sshkey_tools.cert.SSHCertificate.to_bytes">to_bytes</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.to_file" href="#sshkey_tools.cert.SSHCertificate.to_file">to_file</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.to_string" href="#sshkey_tools.cert.SSHCertificate.to_string">to_string</a></code></li>
 <li><code><a title="sshkey_tools.cert.SSHCertificate.verify" href="#sshkey_tools.cert.SSHCertificate.verify">verify</a></code></li>
