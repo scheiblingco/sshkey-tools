@@ -117,7 +117,7 @@ class PublicKey:
     """
 
     def __init__(
-        self, key: PrivkeyClasses = None, comment: Union[str, bytes] = None, **kwargs
+        self, key: PrivkeyClasses = None, comment: Union[str, bytes] = "", **kwargs
     ) -> None:
         self.key = key
         self.comment = comment
