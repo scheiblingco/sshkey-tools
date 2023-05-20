@@ -469,7 +469,7 @@ class DateTimeField(Integer64Field):
 
         if isinstance(value, str):
             if value == "forever":
-                return Integer64Field.encode(MAX_INT64)
+                return Integer64Field.encode(MAX_INT64 - 1)
 
             value = int(datetime.now() + str_to_timedelta(value))
 
