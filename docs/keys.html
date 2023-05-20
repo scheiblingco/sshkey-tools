@@ -146,7 +146,7 @@ class PublicKey:
     &#34;&#34;&#34;
 
     def __init__(
-        self, key: PrivkeyClasses = None, comment: Union[str, bytes] = None, **kwargs
+        self, key: PrivkeyClasses = None, comment: Union[str, bytes] = &#34;&#34;, **kwargs
     ) -&gt; None:
         self.key = key
         self.comment = comment
@@ -2867,7 +2867,7 @@ Defaults to None.</dd>
 </dd>
 <dt id="sshkey_tools.keys.PublicKey"><code class="flex name class">
 <span>class <span class="ident">PublicKey</span></span>
-<span>(</span><span>key: Union[cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey, cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey, cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey, cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey] = None, comment: Union[str, bytes] = None, **kwargs)</span>
+<span>(</span><span>key: Union[cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey, cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey, cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey, cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey] = None, comment: Union[str, bytes] = '', **kwargs)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Class for handling SSH public keys</p></div>
@@ -2881,7 +2881,7 @@ Defaults to None.</dd>
     &#34;&#34;&#34;
 
     def __init__(
-        self, key: PrivkeyClasses = None, comment: Union[str, bytes] = None, **kwargs
+        self, key: PrivkeyClasses = None, comment: Union[str, bytes] = &#34;&#34;, **kwargs
     ) -&gt; None:
         self.key = key
         self.comment = comment

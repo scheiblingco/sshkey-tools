@@ -24,48 +24,6 @@
 <section id="section-intro">
 <h1 id="sshkey-tools">sshkey-tools</h1>
 <p>Python package for managing OpenSSH keypairs and certificates (<a href="https://github.com/openssh/openssh-portable/blob/master/PROTOCOL.certkeys">protocol.CERTKEYS</a>). Supported functionality includes:</p>
-<div class="toc">
-<ul>
-<li><a href="#sshkey-tools">sshkey-tools</a></li>
-<li><a href="#features">Features</a><ul>
-<li><a href="#ssh-keys">SSH Keys</a></li>
-<li><a href="#openssh-certificates">OpenSSH Certificates</a></li>
-</ul>
-</li>
-<li><a href="#roadmap">Roadmap</a></li>
-<li><a href="#installation">Installation</a><ul>
-<li><a href="#with-pip">With pip</a></li>
-<li><a href="#from-source">From source</a></li>
-</ul>
-</li>
-<li><a href="#documentation">Documentation</a><ul>
-<li><a href="#ssh-keypairs-generating-loading-exporting">SSH Keypairs (generating, loading, exporting)</a></li>
-<li><a href="#ssh-key-signatures">SSH Key Signatures</a></li>
-<li><a href="#openssh-certificates_1">OpenSSH Certificates</a><ul>
-<li><a href="#introduction">Introduction</a></li>
-<li><a href="#structure">Structure</a></li>
-<li><a href="#certificate-header">Certificate Header</a></li>
-<li><a href="#certificate-fields">Certificate Fields</a><ul>
-<li><a href="#critical-options">Critical Options</a></li>
-<li><a href="#extensions">Extensions</a></li>
-</ul>
-</li>
-<li><a href="#certificate-body">Certificate Body</a></li>
-</ul>
-</li>
-<li><a href="#creating-signing-and-verifying-certificates">Creating, signing and verifying certificates</a></li>
-<li><a href="#loading-re-creating-and-verifying-existing-certificates">Loading, re-creating and verifying existing certificates</a></li>
-<li><a href="#changelog">Changelog</a><ul>
-<li><a href="#09">0.9</a></li>
-<li><a href="#082">0.8.2</a></li>
-<li><a href="#081">0.8.1</a></li>
-<li><a href="#08">0.8</a></li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-</div>
 <h1 id="features">Features</h1>
 <h3 id="ssh-keys">SSH Keys</h3>
 <ul>
@@ -292,7 +250,7 @@ SH_CERT_TYPE_USER certificates. As a special case, a zero-length "valid principa
 <td>Timestamp</td>
 <td>valid_before</td>
 <td>datetime.now()+timedelta(hours=8) or 1658322031</td>
-<td>Timestamp for the end of the validity period for the certificate. Needs to be larger than valid_after</td>
+<td>Timestamp for the end of the validity period for the certificate. Needs to be larger than valid_after, can be a string (ex. 2d, 2w, 1h4m, 99d) or forever (MAX_INT64)</td>
 </tr>
 <tr>
 <td>Critical Options</td>

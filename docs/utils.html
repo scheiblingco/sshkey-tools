@@ -32,11 +32,14 @@ Utilities for handling keys and certificates
 &#34;&#34;&#34;
 import hashlib as hl
 import sys
+import datetime
+import pytimeparse2
 from base64 import b64encode
 from random import randint
 from secrets import randbits
 from typing import Dict, List, Union
 from uuid import uuid4
+
 
 NoneType = type(None)
 
@@ -269,7 +272,6 @@ def join_dicts(*dicts) -&gt; dict:
     return_dict = {}
 
     if py_version[0] == 3 and py_version[1] &gt; 9:
-
         for add_dict in dicts:
             return_dict = return_dict | add_dict
 
@@ -278,7 +280,58 @@ def join_dicts(*dicts) -&gt; dict:
     for add_dict in dicts:
         return_dict = {**return_dict, **add_dict}
 
-    return return_dict</code></pre>
+    return return_dict
+
+
+def str_to_timedelta(str_delta: str) -&gt; datetime.timedelta:
+    &#34;&#34;&#34;Uses the package pytimeparse2 by wroberts/onegreyonewhite
+        to convert a string into a timedelta object.
+        Examples:
+            - 32m
+            - 2h32m
+            - 3d2h32m
+            - 1w3d2h32m
+            - 1w 3d 2h 32m
+            - 1 w 3 d 2 h 32 m
+            - 4:13
+            - 4:13:02
+            - 4:13:02.266
+            - 2:04:13:02.266
+            - 2 days, 4:13:02 (uptime format)
+            - 2 days, 4:13:02.266
+            - 5hr34m56s
+            - 5 hours, 34 minutes, 56 seconds
+            - 5 hrs, 34 mins, 56 secs
+            - 2 days, 5 hours, 34 minutes, 56 seconds
+            - 1.2 m
+            - 1.2 min
+            - 1.2 mins
+            - 1.2 minute
+            - 1.2 minutes
+            - 172 hours
+            - 172 hr
+            - 172 h
+            - 172 hrs
+            - 172 hour
+            - 1.24 days
+            - 5 d
+            - 5 day
+            - 5 days
+            - 5.6 wk
+            - 5.6 week
+            - 5.6 weeks
+
+    Args:
+        str_delta (str): The time delta string to convert
+
+    Returns:
+        datetime.timedelta: The time delta object
+    &#34;&#34;&#34;
+    try:
+        parsed = pytimeparse2.parse(str_delta, as_timedelta=True, raise_exception=True)
+        return parsed
+    except Exception as e:
+        raise ValueError(f&#34;Could not parse time delta string {str_delta} : {e}&#34;) from e</code></pre>
 </details>
 </section>
 <section>
@@ -567,7 +620,6 @@ In case of duplicate keys, the latest one wins.</p>
     return_dict = {}
 
     if py_version[0] == 3 and py_version[1] &gt; 9:
-
         for add_dict in dicts:
             return_dict = return_dict | add_dict
 
@@ -788,6 +840,111 @@ Equivalent to paramiko.util.deflate_long()</p>
     )</code></pre>
 </details>
 </dd>
+<dt id="sshkey_tools.utils.str_to_timedelta"><code class="name flex">
+<span>def <span class="ident">str_to_timedelta</span></span>(<span>str_delta: str) ‑> datetime.timedelta</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Uses the package pytimeparse2 by wroberts/onegreyonewhite
+to convert a string into a timedelta object.
+Examples:
+- 32m
+- 2h32m
+- 3d2h32m
+- 1w3d2h32m
+- 1w 3d 2h 32m
+- 1 w 3 d 2 h 32 m
+- 4:13
+- 4:13:02
+- 4:13:02.266
+- 2:04:13:02.266
+- 2 days, 4:13:02 (uptime format)
+- 2 days, 4:13:02.266
+- 5hr34m56s
+- 5 hours, 34 minutes, 56 seconds
+- 5 hrs, 34 mins, 56 secs
+- 2 days, 5 hours, 34 minutes, 56 seconds
+- 1.2 m
+- 1.2 min
+- 1.2 mins
+- 1.2 minute
+- 1.2 minutes
+- 172 hours
+- 172 hr
+- 172 h
+- 172 hrs
+- 172 hour
+- 1.24 days
+- 5 d
+- 5 day
+- 5 days
+- 5.6 wk
+- 5.6 week
+- 5.6 weeks</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>str_delta</code></strong> :&ensp;<code>str</code></dt>
+<dd>The time delta string to convert</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>datetime.timedelta</code></dt>
+<dd>The time delta object</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def str_to_timedelta(str_delta: str) -&gt; datetime.timedelta:
+    &#34;&#34;&#34;Uses the package pytimeparse2 by wroberts/onegreyonewhite
+        to convert a string into a timedelta object.
+        Examples:
+            - 32m
+            - 2h32m
+            - 3d2h32m
+            - 1w3d2h32m
+            - 1w 3d 2h 32m
+            - 1 w 3 d 2 h 32 m
+            - 4:13
+            - 4:13:02
+            - 4:13:02.266
+            - 2:04:13:02.266
+            - 2 days, 4:13:02 (uptime format)
+            - 2 days, 4:13:02.266
+            - 5hr34m56s
+            - 5 hours, 34 minutes, 56 seconds
+            - 5 hrs, 34 mins, 56 secs
+            - 2 days, 5 hours, 34 minutes, 56 seconds
+            - 1.2 m
+            - 1.2 min
+            - 1.2 mins
+            - 1.2 minute
+            - 1.2 minutes
+            - 172 hours
+            - 172 hr
+            - 172 h
+            - 172 hrs
+            - 172 hour
+            - 1.24 days
+            - 5 d
+            - 5 day
+            - 5 days
+            - 5.6 wk
+            - 5.6 week
+            - 5.6 weeks
+
+    Args:
+        str_delta (str): The time delta string to convert
+
+    Returns:
+        datetime.timedelta: The time delta object
+    &#34;&#34;&#34;
+    try:
+        parsed = pytimeparse2.parse(str_delta, as_timedelta=True, raise_exception=True)
+        return parsed
+    except Exception as e:
+        raise ValueError(f&#34;Could not parse time delta string {str_delta} : {e}&#34;) from e</code></pre>
+</details>
+</dd>
 </dl>
 </section>
 <section>
@@ -819,6 +976,7 @@ Equivalent to paramiko.util.deflate_long()</p>
 <li><code><a title="sshkey_tools.utils.random_serial" href="#sshkey_tools.utils.random_serial">random_serial</a></code></li>
 <li><code><a title="sshkey_tools.utils.sha256_fingerprint" href="#sshkey_tools.utils.sha256_fingerprint">sha256_fingerprint</a></code></li>
 <li><code><a title="sshkey_tools.utils.sha512_fingerprint" href="#sshkey_tools.utils.sha512_fingerprint">sha512_fingerprint</a></code></li>
+<li><code><a title="sshkey_tools.utils.str_to_timedelta" href="#sshkey_tools.utils.str_to_timedelta">str_to_timedelta</a></code></li>
 </ul>
 </li>
 </ul>
