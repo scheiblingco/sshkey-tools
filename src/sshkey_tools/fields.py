@@ -37,6 +37,7 @@ from .utils import (
     long_to_bytes,
     random_keyid,
     random_serial,
+    str_to_timedelta,
 )
 
 NoneType = type(None)
@@ -440,20 +441,37 @@ class DateTimeField(Integer64Field):
     The value is saved as a 64-bit integer (unix timestamp)
     """
 
-    DATA_TYPE = (datetime, int)
+    DATA_TYPE = (datetime, int, str)
     DEFAULT = datetime.now
 
     @classmethod
-    def encode(cls, value: Union[datetime, int]) -> bytes:
-        """Encodes a datetime object to a byte string
+    def encode(cls, value: Union[datetime, int, str]) -> bytes:
+        """Encodes a datetime object, integer or time string to a byte string
+           Time strings are parsed with pytimeparse2, for example:
+            32m
+            2h32m
+            3d2h32m
+            1w3d2h32m
+            1w 3d 2h 32m
+            1 w 3 d 2 h 32 m
+            4:13
+            4:13:02
+            4:13:02.266
+            forever (Returns as MAX_INT64)
 
         Args:
-            value (datetime): Datetime object
+            value (datetime, int, str): Datetime object
 
         Returns:
             bytes: Packed byte string containing datetime timestamp
         """
         cls.__validate_type__(value, True)
+
+        if isinstance(value, str):
+            if value == "forever":
+                return Integer64Field.encode(MAX_INT64)
+
+            value = int(datetime.now() + str_to_timedelta(value))
 
         if isinstance(value, datetime):
             value = int(value.timestamp())
@@ -725,8 +743,8 @@ class PubkeyTypeField(StringField):
 
         if ensure_string(self.value) not in self.ALLOWED_VALUES:
             return _EX.InvalidFieldDataException(
-                "Expected one of the following values: " +
-                NEWLINE.join(self.ALLOWED_VALUES)
+                "Expected one of the following values: "
+                + NEWLINE.join(self.ALLOWED_VALUES)
             )
 
         return True

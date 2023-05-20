@@ -3,11 +3,14 @@ Utilities for handling keys and certificates
 """
 import hashlib as hl
 import sys
+import datetime
+import pytimeparse2
 from base64 import b64encode
 from random import randint
 from secrets import randbits
 from typing import Dict, List, Union
 from uuid import uuid4
+
 
 NoneType = type(None)
 
@@ -240,7 +243,6 @@ def join_dicts(*dicts) -> dict:
     return_dict = {}
 
     if py_version[0] == 3 and py_version[1] > 9:
-
         for add_dict in dicts:
             return_dict = return_dict | add_dict
 
@@ -250,3 +252,54 @@ def join_dicts(*dicts) -> dict:
         return_dict = {**return_dict, **add_dict}
 
     return return_dict
+
+
+def str_to_timedelta(str_delta: str) -> datetime.timedelta:
+    """Uses the package pytimeparse2 by wroberts/onegreyonewhite
+        to convert a string into a timedelta object.
+        Examples:
+            - 32m
+            - 2h32m
+            - 3d2h32m
+            - 1w3d2h32m
+            - 1w 3d 2h 32m
+            - 1 w 3 d 2 h 32 m
+            - 4:13
+            - 4:13:02
+            - 4:13:02.266
+            - 2:04:13:02.266
+            - 2 days, 4:13:02 (uptime format)
+            - 2 days, 4:13:02.266
+            - 5hr34m56s
+            - 5 hours, 34 minutes, 56 seconds
+            - 5 hrs, 34 mins, 56 secs
+            - 2 days, 5 hours, 34 minutes, 56 seconds
+            - 1.2 m
+            - 1.2 min
+            - 1.2 mins
+            - 1.2 minute
+            - 1.2 minutes
+            - 172 hours
+            - 172 hr
+            - 172 h
+            - 172 hrs
+            - 172 hour
+            - 1.24 days
+            - 5 d
+            - 5 day
+            - 5 days
+            - 5.6 wk
+            - 5.6 week
+            - 5.6 weeks
+
+    Args:
+        str_delta (str): The time delta string to convert
+
+    Returns:
+        datetime.timedelta: The time delta object
+    """
+    try:
+        parsed = pytimeparse2.parse(str_delta, as_timedelta=True, raise_exception=True)
+        return parsed
+    except Exception as e:
+        raise ValueError(f"Could not parse time delta string {str_delta} : {e}") from e

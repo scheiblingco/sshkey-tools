@@ -230,6 +230,7 @@ class SSHCertificate:
     """
 
     DEFAULT_KEY_TYPE = "none@openssh.com"
+
     # pylint: disable=too-many-arguments
     def __init__(
         self,

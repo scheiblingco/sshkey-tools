@@ -3,3 +3,4 @@ cryptography
 bcrypt
 enum34
 PrettyTable
+pytimeparse2
