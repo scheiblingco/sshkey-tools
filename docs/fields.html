@@ -66,6 +66,7 @@ from .utils import (
     long_to_bytes,
     random_keyid,
     random_serial,
+    str_to_timedelta,
 )
 
 NoneType = type(None)
@@ -469,20 +470,37 @@ class DateTimeField(Integer64Field):
     The value is saved as a 64-bit integer (unix timestamp)
     &#34;&#34;&#34;
 
-    DATA_TYPE = (datetime, int)
+    DATA_TYPE = (datetime, int, str)
     DEFAULT = datetime.now
 
     @classmethod
-    def encode(cls, value: Union[datetime, int]) -&gt; bytes:
-        &#34;&#34;&#34;Encodes a datetime object to a byte string
+    def encode(cls, value: Union[datetime, int, str]) -&gt; bytes:
+        &#34;&#34;&#34;Encodes a datetime object, integer or time string to a byte string
+           Time strings are parsed with pytimeparse2, for example:
+            32m
+            2h32m
+            3d2h32m
+            1w3d2h32m
+            1w 3d 2h 32m
+            1 w 3 d 2 h 32 m
+            4:13
+            4:13:02
+            4:13:02.266
+            forever (Returns as MAX_INT64)
 
         Args:
-            value (datetime): Datetime object
+            value (datetime, int, str): Datetime object
 
         Returns:
             bytes: Packed byte string containing datetime timestamp
         &#34;&#34;&#34;
         cls.__validate_type__(value, True)
+
+        if isinstance(value, str):
+            if value == &#34;forever&#34;:
+                return Integer64Field.encode(MAX_INT64)
+
+            value = int(datetime.now() + str_to_timedelta(value))
 
         if isinstance(value, datetime):
             value = int(value.timestamp())
@@ -754,8 +772,8 @@ class PubkeyTypeField(StringField):
 
         if ensure_string(self.value) not in self.ALLOWED_VALUES:
             return _EX.InvalidFieldDataException(
-                &#34;Expected one of the following values: &#34; +
-                NEWLINE.join(self.ALLOWED_VALUES)
+                &#34;Expected one of the following values: &#34;
+                + NEWLINE.join(self.ALLOWED_VALUES)
             )
 
         return True
@@ -2847,20 +2865,37 @@ The value is saved as a 64-bit integer (unix timestamp)</p></div>
     The value is saved as a 64-bit integer (unix timestamp)
     &#34;&#34;&#34;
 
-    DATA_TYPE = (datetime, int)
+    DATA_TYPE = (datetime, int, str)
     DEFAULT = datetime.now
 
     @classmethod
-    def encode(cls, value: Union[datetime, int]) -&gt; bytes:
-        &#34;&#34;&#34;Encodes a datetime object to a byte string
+    def encode(cls, value: Union[datetime, int, str]) -&gt; bytes:
+        &#34;&#34;&#34;Encodes a datetime object, integer or time string to a byte string
+           Time strings are parsed with pytimeparse2, for example:
+            32m
+            2h32m
+            3d2h32m
+            1w3d2h32m
+            1w 3d 2h 32m
+            1 w 3 d 2 h 32 m
+            4:13
+            4:13:02
+            4:13:02.266
+            forever (Returns as MAX_INT64)
 
         Args:
-            value (datetime): Datetime object
+            value (datetime, int, str): Datetime object
 
         Returns:
             bytes: Packed byte string containing datetime timestamp
         &#34;&#34;&#34;
         cls.__validate_type__(value, True)
+
+        if isinstance(value, str):
+            if value == &#34;forever&#34;:
+                return Integer64Field.encode(MAX_INT64)
+
+            value = int(datetime.now() + str_to_timedelta(value))
 
         if isinstance(value, datetime):
             value = int(value.timestamp())
@@ -2944,13 +2979,24 @@ def decode(data: bytes) -&gt; datetime:
 </details>
 </dd>
 <dt id="sshkey_tools.fields.DateTimeField.encode"><code class="name flex">
-<span>def <span class="ident">encode</span></span>(<span>value: Union[datetime.datetime, int]) ‑> bytes</span>
+<span>def <span class="ident">encode</span></span>(<span>value: Union[datetime.datetime, int, str]) ‑> bytes</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Encodes a datetime object to a byte string</p>
+<div class="desc"><p>Encodes a datetime object, integer or time string to a byte string
+Time strings are parsed with pytimeparse2, for example:
+32m
+2h32m
+3d2h32m
+1w3d2h32m
+1w 3d 2h 32m
+1 w 3 d 2 h 32 m
+4:13
+4:13:02
+4:13:02.266
+forever (Returns as MAX_INT64)</p>
 <h2 id="args">Args</h2>
 <dl>
-<dt><strong><code>value</code></strong> :&ensp;<code>datetime</code></dt>
+<dt><strong><code>value</code></strong> :&ensp;<code>datetime, int, str</code></dt>
 <dd>Datetime object</dd>
 </dl>
 <h2 id="returns">Returns</h2>
@@ -2963,16 +3009,33 @@ def decode(data: bytes) -&gt; datetime:
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@classmethod
-def encode(cls, value: Union[datetime, int]) -&gt; bytes:
-    &#34;&#34;&#34;Encodes a datetime object to a byte string
+def encode(cls, value: Union[datetime, int, str]) -&gt; bytes:
+    &#34;&#34;&#34;Encodes a datetime object, integer or time string to a byte string
+       Time strings are parsed with pytimeparse2, for example:
+        32m
+        2h32m
+        3d2h32m
+        1w3d2h32m
+        1w 3d 2h 32m
+        1 w 3 d 2 h 32 m
+        4:13
+        4:13:02
+        4:13:02.266
+        forever (Returns as MAX_INT64)
 
     Args:
-        value (datetime): Datetime object
+        value (datetime, int, str): Datetime object
 
     Returns:
         bytes: Packed byte string containing datetime timestamp
     &#34;&#34;&#34;
     cls.__validate_type__(value, True)
+
+    if isinstance(value, str):
+        if value == &#34;forever&#34;:
+            return Integer64Field.encode(MAX_INT64)
+
+        value = int(datetime.now() + str_to_timedelta(value))
 
     if isinstance(value, datetime):
         value = int(value.timestamp())
@@ -5513,8 +5576,8 @@ public key type the certificate is created for, e.g.
 
         if ensure_string(self.value) not in self.ALLOWED_VALUES:
             return _EX.InvalidFieldDataException(
-                &#34;Expected one of the following values: &#34; +
-                NEWLINE.join(self.ALLOWED_VALUES)
+                &#34;Expected one of the following values: &#34;
+                + NEWLINE.join(self.ALLOWED_VALUES)
             )
 
         return True</code></pre>

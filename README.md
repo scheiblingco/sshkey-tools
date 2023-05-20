@@ -2,8 +2,6 @@
 
 Python package for managing OpenSSH keypairs and certificates ([protocol.CERTKEYS](https://github.com/openssh/openssh-portable/blob/master/PROTOCOL.certkeys)). Supported functionality includes:
 
-[TOC]
-
 # Features
 ### SSH Keys
 - Supports RSA, DSA, ECDSA and ED25519 keys
@@ -168,7 +166,7 @@ The original OpenSSH certificate format is a block of parameters, encoded and pa
 |Key ID|string(variable)|key_id|someuser@somehost|Free-form text field that is filled in by the CA at the time of signing; the intention is that the contents of this field are used to identify the identity principal in log messages.|
 |Valid Principals|List(string(variable))|principals|['some-user', 'some-group', production-webservers']|These principals list the names for which this certificate is valid hostnames for SSH_CERT_TYPE_HOST certificates and usernames for  SH_CERT_TYPE_USER certificates. As a special case, a zero-length "valid principals" field means the certificate is valid for any principal of the specified type.|
 |Valid After|Timestamp|valid_after|datetime.now()|Timestamp for the start of the validity period for the certificate|
-|Valid Before|Timestamp|valid_before|datetime.now()+timedelta(hours=8) or 1658322031|Timestamp for the end of the validity period for the certificate. Needs to be larger than valid_after|
+|Valid Before|Timestamp|valid_before|datetime.now()+timedelta(hours=8) or 1658322031|Timestamp for the end of the validity period for the certificate. Needs to be larger than valid_after, can be a string (ex. 2d, 2w, 1h4m, 99d) or forever (MAX_INT64)|
 |Critical Options|Dict(string, string)|critical_options|[]|Zero or more of the available critical options (see below)|
 |Extensions|Dict(string, string)/List/Tuple/Set|extensions|[]|Zero or more of the available extensions (see below)|
 
