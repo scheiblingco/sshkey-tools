@@ -1,11 +1,7 @@
-click
-cryptography
-bcrypt
-enum34
+-r requirements.txt
 paramiko
 coverage
 black
 pytest-cov
 faker
 cprint
-PrettyTable
