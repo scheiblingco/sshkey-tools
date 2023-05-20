@@ -4,12 +4,14 @@ Utilities for handling keys and certificates
 import hashlib as hl
 import sys
 import datetime
-import pytimeparse2
+
 from base64 import b64encode
 from random import randint
 from secrets import randbits
 from typing import Dict, List, Union
 from uuid import uuid4
+
+from pytimeparse2 import parse as time_parse
 
 
 NoneType = type(None)
@@ -254,7 +256,7 @@ def join_dicts(*dicts) -> dict:
     return return_dict
 
 
-def str_to_timedelta(str_delta: str) -> datetime.timedelta:
+def str_to_time_delta(str_delta: str) -> datetime.timedelta:
     """Uses the package pytimeparse2 by wroberts/onegreyonewhite
         to convert a string into a timedelta object.
         Examples:
@@ -299,7 +301,7 @@ def str_to_timedelta(str_delta: str) -> datetime.timedelta:
         datetime.timedelta: The time delta object
     """
     try:
-        parsed = pytimeparse2.parse(str_delta, as_timedelta=True, raise_exception=True)
+        parsed = time_parse(str_delta, as_timedelta=True, raise_exception=True)
         return parsed
-    except Exception as e:
-        raise ValueError(f"Could not parse time delta string {str_delta} : {e}") from e
+    except Exception as ex:
+        raise ValueError(f"Could not parse time delta string {str_delta} : {ex}") from ex
