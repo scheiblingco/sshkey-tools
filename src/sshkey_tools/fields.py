@@ -37,7 +37,7 @@ from .utils import (
     long_to_bytes,
     random_keyid,
     random_serial,
-    str_to_timedelta,
+    str_to_time_delta,
 )
 
 NoneType = type(None)
@@ -139,7 +139,7 @@ class CertificateField:
         """
         Validates if the field is set when required
         """
-        if self.DEFAULT == self.value is None:
+        if self.DEFAULT and self.value is None:
             return _EX.InvalidFieldDataException(
                 f"{self.get_name()} is a required field"
             )
@@ -471,7 +471,7 @@ class DateTimeField(Integer64Field):
             if value == "forever":
                 return Integer64Field.encode(MAX_INT64 - 1)
 
-            value = int(datetime.now() + str_to_timedelta(value))
+            value = int(datetime.now() + str_to_time_delta(value))
 
         if isinstance(value, datetime):
             value = int(value.timestamp())
