@@ -28,7 +28,7 @@ jobs:
 
       - name: Run tests
         run: |
-          pylint src/sshkey_tools --exit-zero | pylint-json2html -o report.html
+          pylint src/sshkey_tools | tee | pylint-json2html -o report.html
 
       - name: Upload report
         uses: actions/upload-artifact@v1

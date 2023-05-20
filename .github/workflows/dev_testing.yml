@@ -3,10 +3,10 @@ on:
         paths-ignore:
             - "docs/**"
             - "*.md"
-    pull_request:
-        paths-ignore:
-            - "docs/**"
-            - "*.md"
+    # pull_request:
+    #     paths-ignore:
+    #         - "docs/**"
+    #         - "*.md"
 jobs:
   testing:
     runs-on: ${{ matrix.os }}
