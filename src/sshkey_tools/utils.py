@@ -304,4 +304,6 @@ def str_to_time_delta(str_delta: str) -> datetime.timedelta:
         parsed = time_parse(str_delta, as_timedelta=True, raise_exception=True)
         return parsed
     except Exception as ex:
-        raise ValueError(f"Could not parse time delta string {str_delta} : {ex}") from ex
+        raise ValueError(
+            f"Could not parse time delta string {str_delta} : {ex}"
+        ) from ex

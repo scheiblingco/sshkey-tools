@@ -265,7 +265,7 @@ class BytestringField(CertificateField):
     DEFAULT = b""
 
     @classmethod
-    def encode(cls, value: bytes, encoding: str = 'utf-8') -> bytes:
+    def encode(cls, value: bytes, encoding: str = "utf-8") -> bytes:
         """
         Encodes a string or bytestring into a packed byte string
 
@@ -293,7 +293,7 @@ class BytestringField(CertificateField):
                                   string and remainder of the data
         """
         length = unpack(">I", data[:4])[0] + 4
-        
+
         if encoding is not None:
             return ensure_string(data[4:length], encoding), data[length:]
 
@@ -335,6 +335,7 @@ class StringField(BytestringField):
                                   string and remainder of the data
         """
         return BytestringField.decode(data, encoding)
+
 
 class Integer32Field(CertificateField):
     """
