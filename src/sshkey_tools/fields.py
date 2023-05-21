@@ -265,22 +265,23 @@ class BytestringField(CertificateField):
     DEFAULT = b""
 
     @classmethod
-    def encode(cls, value: bytes) -> bytes:
+    def encode(cls, value: bytes, encoding: str = 'utf-8') -> bytes:
         """
         Encodes a string or bytestring into a packed byte string
 
         Args:
             value (Union[str, bytes]): The string/bytestring to encode
-            encoding (str): The encoding to user for the string
+            encoding (str): The optional encoding, not used when passing
+                            a byte value.
 
         Returns:
             bytes: Packed byte string containing the source data
         """
         cls.__validate_type__(value, True)
-        return pack(">I", len(value)) + ensure_bytestring(value)
+        return pack(">I", len(value)) + ensure_bytestring(value, encoding)
 
     @staticmethod
-    def decode(data: bytes) -> Tuple[bytes, bytes]:
+    def decode(data: bytes, encoding: str = None) -> Tuple[bytes, bytes]:
         """
         Unpacks the next string from a packed byte string
 
@@ -292,6 +293,10 @@ class BytestringField(CertificateField):
                                   string and remainder of the data
         """
         length = unpack(">I", data[:4])[0] + 4
+        
+        if encoding is not None:
+            return ensure_string(data[4:length], encoding), data[length:]
+
         return ensure_bytestring(data[4:length]), data[length:]
 
 
@@ -315,8 +320,7 @@ class StringField(BytestringField):
         Returns:
             bytes: Packed byte string containing the source data
         """
-        cls.__validate_type__(value, True)
-        return BytestringField.encode(ensure_bytestring(value, encoding))
+        return super().encode(value, encoding)
 
     @staticmethod
     def decode(data: bytes, encoding: str = "utf-8") -> Tuple[str, bytes]:
@@ -330,10 +334,7 @@ class StringField(BytestringField):
             tuple(bytes, bytes):  The next block of bytes from the packed byte
                                   string and remainder of the data
         """
-        value, data = BytestringField.decode(data)
-
-        return value.decode(encoding), data
-
+        return BytestringField.decode(data, encoding)
 
 class Integer32Field(CertificateField):
     """
@@ -750,7 +751,7 @@ class PubkeyTypeField(StringField):
         return True
 
 
-class NonceField(StringField):
+class NonceField(BytestringField):
     """
     Contains the nonce for the certificate, randomly generated
     this protects the integrity of the private key, especially
