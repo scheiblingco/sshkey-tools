@@ -22,11 +22,7 @@ Python package for managing OpenSSH keypairs and certificates ([protocol.CERTKEY
 - Export certificates to file, string or bytes
 
 # Roadmap
-- [x] Rewrite certificate field functionality for simpler usage
-- [ ] Re-add functionality for changing RSA hash method
-- [ ] Add CLI functionality
-- [ ] Convert to/from putty format (keys only)
-
+See issues for planned features and fixes
 
 # Installation
 
@@ -48,6 +44,13 @@ pip3 install ./
 
 # Documentation
 You can find the full documentation at [scheiblingco.github.io/sshkey-tools/](https://scheiblingco.github.io/sshkey-tools/)
+
+## Building the documentation
+```bash
+pdoc3 src/sshkey_tools/ -o docs --html
+cp -rf docs/sshkey_tools/* docs/
+rm -rf docs/sshkey_tools
+```
 
 ## SSH Keypairs (generating, loading, exporting)
 ```python
@@ -308,6 +311,10 @@ certificate.sign()
 ```
 
 ## Changelog
+### 0.9.1
+- Updated documentation
+- Fix for bug where exception would occur when trying to export a key without a comment set
+
 ### 0.9
 - Adjustments to certificate field handling for easier usage/syntax autocompletion
 - Updated testing

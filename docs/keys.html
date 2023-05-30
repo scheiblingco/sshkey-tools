@@ -55,7 +55,7 @@ from cryptography.hazmat.primitives.asymmetric import padding as _PADDING
 from cryptography.hazmat.primitives.asymmetric import rsa as _RSA
 
 from . import exceptions as _EX
-from .utils import ensure_bytestring, ensure_string
+from .utils import ensure_bytestring, ensure_string, nullsafe_getattr
 from .utils import md5_fingerprint as _FP_MD5
 from .utils import sha256_fingerprint as _FP_SHA256
 from .utils import sha512_fingerprint as _FP_SHA512
@@ -158,12 +158,15 @@ class PublicKey:
             _SERIALIZATION.Encoding.OpenSSH,
             _SERIALIZATION.PublicFormat.OpenSSH,
         ]
+        
+        # Ensure comment is not None
+        self.comment = nullsafe_getattr(self, &#34;comment&#34;, &#34;&#34;)
 
     @classmethod
     def from_class(
         cls,
         key_class: PubkeyClasses,
-        comment: Union[str, bytes] = None,
+        comment: Union[str, bytes] = &#34;&#34;,
         key_type: Union[str, bytes] = None,
     ) -&gt; &#34;PublicKey&#34;:
         &#34;&#34;&#34;
@@ -295,7 +298,7 @@ class PublicKey:
         return &#34; &#34;.join(
             [
                 ensure_string(self.serialize(), encoding),
-                ensure_string(getattr(self, &#34;comment&#34;, &#34;&#34;), encoding),
+                ensure_string(nullsafe_getattr(self, &#34;comment&#34;, &#34;&#34;), encoding),
             ]
         )
 
@@ -2893,12 +2896,15 @@ Defaults to None.</dd>
             _SERIALIZATION.Encoding.OpenSSH,
             _SERIALIZATION.PublicFormat.OpenSSH,
         ]
+        
+        # Ensure comment is not None
+        self.comment = nullsafe_getattr(self, &#34;comment&#34;, &#34;&#34;)
 
     @classmethod
     def from_class(
         cls,
         key_class: PubkeyClasses,
-        comment: Union[str, bytes] = None,
+        comment: Union[str, bytes] = &#34;&#34;,
         key_type: Union[str, bytes] = None,
     ) -&gt; &#34;PublicKey&#34;:
         &#34;&#34;&#34;
@@ -3030,7 +3036,7 @@ Defaults to None.</dd>
         return &#34; &#34;.join(
             [
                 ensure_string(self.serialize(), encoding),
-                ensure_string(getattr(self, &#34;comment&#34;, &#34;&#34;), encoding),
+                ensure_string(nullsafe_getattr(self, &#34;comment&#34;, &#34;&#34;), encoding),
             ]
         )
 
@@ -3104,7 +3110,7 @@ def from_bytes(cls, data: bytes) -&gt; &#34;PublicKey&#34;:
 </details>
 </dd>
 <dt id="sshkey_tools.keys.PublicKey.from_class"><code class="name flex">
-<span>def <span class="ident">from_class</span></span>(<span>key_class: Union[cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey, cryptography.hazmat.primitives.asymmetric.dsa.DSAPublicKey, cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey, cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PublicKey], comment: Union[str, bytes] = None, key_type: Union[str, bytes] = None) ‑> <a title="sshkey_tools.keys.PublicKey" href="#sshkey_tools.keys.PublicKey">PublicKey</a></span>
+<span>def <span class="ident">from_class</span></span>(<span>key_class: Union[cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey, cryptography.hazmat.primitives.asymmetric.dsa.DSAPublicKey, cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey, cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PublicKey], comment: Union[str, bytes] = '', key_type: Union[str, bytes] = None) ‑> <a title="sshkey_tools.keys.PublicKey" href="#sshkey_tools.keys.PublicKey">PublicKey</a></span>
 </code></dt>
 <dd>
 <div class="desc"><p>Creates a new SSH Public key from a cryptography class</p>
@@ -3135,7 +3141,7 @@ def from_bytes(cls, data: bytes) -&gt; &#34;PublicKey&#34;:
 def from_class(
     cls,
     key_class: PubkeyClasses,
-    comment: Union[str, bytes] = None,
+    comment: Union[str, bytes] = &#34;&#34;,
     key_type: Union[str, bytes] = None,
 ) -&gt; &#34;PublicKey&#34;:
     &#34;&#34;&#34;
@@ -3380,7 +3386,7 @@ def from_string(
     return &#34; &#34;.join(
         [
             ensure_string(self.serialize(), encoding),
-            ensure_string(getattr(self, &#34;comment&#34;, &#34;&#34;), encoding),
+            ensure_string(nullsafe_getattr(self, &#34;comment&#34;, &#34;&#34;), encoding),
         ]
     )</code></pre>
 </details>

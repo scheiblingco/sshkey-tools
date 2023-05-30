@@ -495,8 +495,12 @@ class SSHCertificate:
             bytes(self.header), bytes(self.fields), bytes(self.footer)
         )
 
-    def sign(self) -> bool:
+    def sign(self, **kwargs) -> bool:
         """Sign the certificate
+
+        Args:
+            **kwargs: Arguments to pass to the signature signing method
+                      ex. hash_alg for RSA signatures
 
         Raises:
             _EX.NotSignedException: The certificate could not be signed
@@ -505,7 +509,7 @@ class SSHCertificate:
             bool: Whether successful
         """
         if self.can_sign():
-            self.footer.signature.sign(data=self.get_signable())
+            self.footer.signature.sign(data=self.get_signable(), **kwargs)
 
             return True
         raise _EX.NotSignedException("There was an error while signing the certificate")
