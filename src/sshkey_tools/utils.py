@@ -246,8 +246,9 @@ def nullsafe_getattr(obj, attr: str, default):
     att = getattr(obj, attr, default)
     if att is None:
         att = default
-    
+
     return att
+
 
 def join_dicts(*dicts) -> dict:
     """
