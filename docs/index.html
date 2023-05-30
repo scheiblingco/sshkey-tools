@@ -46,12 +46,7 @@
 <li>Export certificates to file, string or bytes</li>
 </ul>
 <h1 id="roadmap">Roadmap</h1>
-<ul>
-<li>[x] Rewrite certificate field functionality for simpler usage</li>
-<li>[ ] Re-add functionality for changing RSA hash method</li>
-<li>[ ] Add CLI functionality</li>
-<li>[ ] Convert to/from putty format (keys only)</li>
-</ul>
+<p>See issues for planned features and fixes</p>
 <h1 id="installation">Installation</h1>
 <h2 id="with-pip">With pip</h2>
 <pre><code class="language-bash">pip3 install sshkey-tools
@@ -481,6 +476,11 @@ certificate.sign()
 
 </code></pre>
 <h2 id="changelog">Changelog</h2>
+<h3 id="091">0.9.1</h3>
+<ul>
+<li>Updated documentation</li>
+<li>Fix for bug where exception would occur when trying to export a key without a comment set</li>
+</ul>
 <h3 id="09">0.9</h3>
 <ul>
 <li>Adjustments to certificate field handling for easier usage/syntax autocompletion</li>
@@ -585,6 +585,7 @@ certificate.sign()
 <li><a href="#creating-signing-and-verifying-certificates">Creating, signing and verifying certificates</a></li>
 <li><a href="#loading-re-creating-and-verifying-existing-certificates">Loading, re-creating and verifying existing certificates</a></li>
 <li><a href="#changelog">Changelog</a><ul>
+<li><a href="#091">0.9.1</a></li>
 <li><a href="#09">0.9</a></li>
 <li><a href="#082">0.8.2</a></li>
 <li><a href="#081">0.8.1</a></li>

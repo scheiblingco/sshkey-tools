@@ -540,8 +540,12 @@ class SSHCertificate:
             bytes(self.header), bytes(self.fields), bytes(self.footer)
         )
 
-    def sign(self) -&gt; bool:
+    def sign(self, **kwargs) -&gt; bool:
         &#34;&#34;&#34;Sign the certificate
+
+        Args:
+            **kwargs: Arguments to pass to the signature signing method
+                      ex. hash_alg for RSA signatures
 
         Raises:
             _EX.NotSignedException: The certificate could not be signed
@@ -550,7 +554,7 @@ class SSHCertificate:
             bool: Whether successful
         &#34;&#34;&#34;
         if self.can_sign():
-            self.footer.signature.sign(data=self.get_signable())
+            self.footer.signature.sign(data=self.get_signable(), **kwargs)
 
             return True
         raise _EX.NotSignedException(&#34;There was an error while signing the certificate&#34;)
@@ -2164,8 +2168,12 @@ or the from_public_key classmethod</p></div>
             bytes(self.header), bytes(self.fields), bytes(self.footer)
         )
 
-    def sign(self) -&gt; bool:
+    def sign(self, **kwargs) -&gt; bool:
         &#34;&#34;&#34;Sign the certificate
+
+        Args:
+            **kwargs: Arguments to pass to the signature signing method
+                      ex. hash_alg for RSA signatures
 
         Raises:
             _EX.NotSignedException: The certificate could not be signed
@@ -2174,7 +2182,7 @@ or the from_public_key classmethod</p></div>
             bool: Whether successful
         &#34;&#34;&#34;
         if self.can_sign():
-            self.footer.signature.sign(data=self.get_signable())
+            self.footer.signature.sign(data=self.get_signable(), **kwargs)
 
             return True
         raise _EX.NotSignedException(&#34;There was an error while signing the certificate&#34;)
@@ -2672,10 +2680,16 @@ def from_string(cls, cert_str: Union[str, bytes], encoding: str = &#34;utf-8&#34
 </details>
 </dd>
 <dt id="sshkey_tools.cert.SSHCertificate.sign"><code class="name flex">
-<span>def <span class="ident">sign</span></span>(<span>self) ‑> bool</span>
+<span>def <span class="ident">sign</span></span>(<span>self, **kwargs) ‑> bool</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Sign the certificate</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>**kwargs</code></strong></dt>
+<dd>Arguments to pass to the signature signing method
+ex. hash_alg for RSA signatures</dd>
+</dl>
 <h2 id="raises">Raises</h2>
 <dl>
 <dt><code>_EX.NotSignedException</code></dt>
@@ -2690,8 +2704,12 @@ def from_string(cls, cert_str: Union[str, bytes], encoding: str = &#34;utf-8&#34
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def sign(self) -&gt; bool:
+<pre><code class="python">def sign(self, **kwargs) -&gt; bool:
     &#34;&#34;&#34;Sign the certificate
+
+    Args:
+        **kwargs: Arguments to pass to the signature signing method
+                  ex. hash_alg for RSA signatures
 
     Raises:
         _EX.NotSignedException: The certificate could not be signed
@@ -2700,7 +2718,7 @@ def from_string(cls, cert_str: Union[str, bytes], encoding: str = &#34;utf-8&#34
         bool: Whether successful
     &#34;&#34;&#34;
     if self.can_sign():
-        self.footer.signature.sign(data=self.get_signable())
+        self.footer.signature.sign(data=self.get_signable(), **kwargs)
 
         return True
     raise _EX.NotSignedException(&#34;There was an error while signing the certificate&#34;)</code></pre>
