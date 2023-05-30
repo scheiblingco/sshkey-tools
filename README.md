@@ -2,9 +2,20 @@
 
 Python package for managing OpenSSH keypairs and certificates ([protocol.CERTKEYS](https://github.com/openssh/openssh-portable/blob/master/PROTOCOL.certkeys)). Supported functionality includes:
 
+# Notice
+The DSA algorithm is considered deprecated and will be removed in a future version. If possible, use RSA, [(ECDSA)](https://billatnapier.medium.com/ecdsa-weakness-where-nonces-are-reused-2be63856a01a) or ED25519 as a first-hand choice.
+
+Notice from OpenSSH:
+```
+OpenSSH 7.0 and greater similarly disable the ssh-dss (DSA) public key algorithm. It too is weak and we recommend against its use. It can be re-enabled using the HostKeyAlgorithms configuration option: sshd_config(5) HostKeyAlgorithms
+```
+
+[ECDSA has some flaws](https://billatnapier.medium.com/ecdsa-weakness-where-nonces-are-reused-2be63856a01a), especially when using short nonces or re-using nonces, it can still be used but exercise some caution in regards to nonces/re-signing identical data multiple times.
+
+
 # Features
 ### SSH Keys
-- Supports RSA, DSA, ECDSA and ED25519 keys
+- Supports RSA, DSA (Note: Deprecated), ECDSA and ED25519 keys
 - Import existing keys from file, string, byte data or [pyca/cryptography](https://github.com/pyca/cryptography) class
 - Generate new keys
 - Get public key from private keys
@@ -22,11 +33,7 @@ Python package for managing OpenSSH keypairs and certificates ([protocol.CERTKEY
 - Export certificates to file, string or bytes
 
 # Roadmap
-- [x] Rewrite certificate field functionality for simpler usage
-- [ ] Re-add functionality for changing RSA hash method
-- [ ] Add CLI functionality
-- [ ] Convert to/from putty format (keys only)
-
+See issues for planned features and fixes
 
 # Installation
 
@@ -48,6 +55,13 @@ pip3 install ./
 
 # Documentation
 You can find the full documentation at [scheiblingco.github.io/sshkey-tools/](https://scheiblingco.github.io/sshkey-tools/)
+
+## Building the documentation
+```bash
+pdoc3 src/sshkey_tools/ -o docs --html
+cp -rf docs/sshkey_tools/* docs/
+rm -rf docs/sshkey_tools
+```
 
 ## SSH Keypairs (generating, loading, exporting)
 ```python
@@ -124,6 +138,7 @@ b"\0xc\0a\........"
 The loaded private key objects can be used to sign bytestrings, and the public keys can be used to verify signatures on those
 ```python
 from sshkey_tools.keys import RsaPrivateKey, RsaPublicKey
+from sshkey_tools.fields import RsaAlgs
 
 signable_data = b'This is a message that will be signed'
 
@@ -132,6 +147,10 @@ pubkey = RsaPrivateKey.public_key
 
 # Sign the data
 signature = privkey.sign(signable_data)
+
+# When using an RSA key for the signature, you can specify the hashing algorithm
+# The default algorithm is SHA512
+signature = privkey.sign(signable_data, RsaAlgs.SHA512)
 
 # Verify the signature (Throws exception if invalid)
 pubkey.verify(signable_data, signature)
@@ -308,6 +327,10 @@ certificate.sign()
 ```
 
 ## Changelog
+### 0.9.1
+- Updated documentation
+- Fix for bug where exception would occur when trying to export a key without a comment set
+
 ### 0.9
 - Adjustments to certificate field handling for easier usage/syntax autocompletion
 - Updated testing

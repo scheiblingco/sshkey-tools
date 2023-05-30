@@ -33,12 +33,14 @@ Utilities for handling keys and certificates
 import hashlib as hl
 import sys
 import datetime
-import pytimeparse2
+
 from base64 import b64encode
 from random import randint
 from secrets import randbits
 from typing import Dict, List, Union
 from uuid import uuid4
+
+from pytimeparse2 import parse as time_parse
 
 
 NoneType = type(None)
@@ -260,6 +262,22 @@ def sha512_fingerprint(data: bytes, prefix: bool = True) -&gt; str:
     )
 
 
+def nullsafe_getattr(obj, attr: str, default):
+    &#34;&#34;&#34;
+    Null-safe getattr, ensuring the result is not None.
+    If the result is None, the default value is returned instead.
+
+    Args:
+        obj: The object
+        attr: The attribute to get
+        default: The default value
+    &#34;&#34;&#34;
+    att = getattr(obj, attr, default)
+    if att is None:
+        att = default
+    
+    return att
+
 def join_dicts(*dicts) -&gt; dict:
     &#34;&#34;&#34;
     Joins two or more dictionaries together.
@@ -283,7 +301,7 @@ def join_dicts(*dicts) -&gt; dict:
     return return_dict
 
 
-def str_to_timedelta(str_delta: str) -&gt; datetime.timedelta:
+def str_to_time_delta(str_delta: str) -&gt; datetime.timedelta:
     &#34;&#34;&#34;Uses the package pytimeparse2 by wroberts/onegreyonewhite
         to convert a string into a timedelta object.
         Examples:
@@ -328,10 +346,12 @@ def str_to_timedelta(str_delta: str) -&gt; datetime.timedelta:
         datetime.timedelta: The time delta object
     &#34;&#34;&#34;
     try:
-        parsed = pytimeparse2.parse(str_delta, as_timedelta=True, raise_exception=True)
+        parsed = time_parse(str_delta, as_timedelta=True, raise_exception=True)
         return parsed
-    except Exception as e:
-        raise ValueError(f&#34;Could not parse time delta string {str_delta} : {e}&#34;) from e</code></pre>
+    except Exception as ex:
+        raise ValueError(
+            f&#34;Could not parse time delta string {str_delta} : {ex}&#34;
+        ) from ex</code></pre>
 </details>
 </section>
 <section>
@@ -718,6 +738,42 @@ Equivalent to paramiko.util.deflate_long()</p>
     )</code></pre>
 </details>
 </dd>
+<dt id="sshkey_tools.utils.nullsafe_getattr"><code class="name flex">
+<span>def <span class="ident">nullsafe_getattr</span></span>(<span>obj, attr: str, default)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Null-safe getattr, ensuring the result is not None.
+If the result is None, the default value is returned instead.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>obj</code></strong></dt>
+<dd>The object</dd>
+<dt><strong><code>attr</code></strong></dt>
+<dd>The attribute to get</dd>
+<dt><strong><code>default</code></strong></dt>
+<dd>The default value</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def nullsafe_getattr(obj, attr: str, default):
+    &#34;&#34;&#34;
+    Null-safe getattr, ensuring the result is not None.
+    If the result is None, the default value is returned instead.
+
+    Args:
+        obj: The object
+        attr: The attribute to get
+        default: The default value
+    &#34;&#34;&#34;
+    att = getattr(obj, attr, default)
+    if att is None:
+        att = default
+    
+    return att</code></pre>
+</details>
+</dd>
 <dt id="sshkey_tools.utils.random_keyid"><code class="name flex">
 <span>def <span class="ident">random_keyid</span></span>(<span>) ‑> str</span>
 </code></dt>
@@ -840,8 +896,8 @@ Equivalent to paramiko.util.deflate_long()</p>
     )</code></pre>
 </details>
 </dd>
-<dt id="sshkey_tools.utils.str_to_timedelta"><code class="name flex">
-<span>def <span class="ident">str_to_timedelta</span></span>(<span>str_delta: str) ‑> datetime.timedelta</span>
+<dt id="sshkey_tools.utils.str_to_time_delta"><code class="name flex">
+<span>def <span class="ident">str_to_time_delta</span></span>(<span>str_delta: str) ‑> datetime.timedelta</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Uses the package pytimeparse2 by wroberts/onegreyonewhite
@@ -894,7 +950,7 @@ Examples:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def str_to_timedelta(str_delta: str) -&gt; datetime.timedelta:
+<pre><code class="python">def str_to_time_delta(str_delta: str) -&gt; datetime.timedelta:
     &#34;&#34;&#34;Uses the package pytimeparse2 by wroberts/onegreyonewhite
         to convert a string into a timedelta object.
         Examples:
@@ -939,10 +995,12 @@ Examples:
         datetime.timedelta: The time delta object
     &#34;&#34;&#34;
     try:
-        parsed = pytimeparse2.parse(str_delta, as_timedelta=True, raise_exception=True)
+        parsed = time_parse(str_delta, as_timedelta=True, raise_exception=True)
         return parsed
-    except Exception as e:
-        raise ValueError(f&#34;Could not parse time delta string {str_delta} : {e}&#34;) from e</code></pre>
+    except Exception as ex:
+        raise ValueError(
+            f&#34;Could not parse time delta string {str_delta} : {ex}&#34;
+        ) from ex</code></pre>
 </details>
 </dd>
 </dl>
@@ -972,11 +1030,12 @@ Examples:
 <li><code><a title="sshkey_tools.utils.join_dicts" href="#sshkey_tools.utils.join_dicts">join_dicts</a></code></li>
 <li><code><a title="sshkey_tools.utils.long_to_bytes" href="#sshkey_tools.utils.long_to_bytes">long_to_bytes</a></code></li>
 <li><code><a title="sshkey_tools.utils.md5_fingerprint" href="#sshkey_tools.utils.md5_fingerprint">md5_fingerprint</a></code></li>
+<li><code><a title="sshkey_tools.utils.nullsafe_getattr" href="#sshkey_tools.utils.nullsafe_getattr">nullsafe_getattr</a></code></li>
 <li><code><a title="sshkey_tools.utils.random_keyid" href="#sshkey_tools.utils.random_keyid">random_keyid</a></code></li>
 <li><code><a title="sshkey_tools.utils.random_serial" href="#sshkey_tools.utils.random_serial">random_serial</a></code></li>
 <li><code><a title="sshkey_tools.utils.sha256_fingerprint" href="#sshkey_tools.utils.sha256_fingerprint">sha256_fingerprint</a></code></li>
 <li><code><a title="sshkey_tools.utils.sha512_fingerprint" href="#sshkey_tools.utils.sha512_fingerprint">sha512_fingerprint</a></code></li>
-<li><code><a title="sshkey_tools.utils.str_to_timedelta" href="#sshkey_tools.utils.str_to_timedelta">str_to_timedelta</a></code></li>
+<li><code><a title="sshkey_tools.utils.str_to_time_delta" href="#sshkey_tools.utils.str_to_time_delta">str_to_time_delta</a></code></li>
 </ul>
 </li>
 </ul>

@@ -66,7 +66,7 @@ from .utils import (
     long_to_bytes,
     random_keyid,
     random_serial,
-    str_to_timedelta,
+    str_to_time_delta,
 )
 
 NoneType = type(None)
@@ -168,7 +168,7 @@ class CertificateField:
         &#34;&#34;&#34;
         Validates if the field is set when required
         &#34;&#34;&#34;
-        if self.DEFAULT == self.value is None:
+        if self.DEFAULT and self.value is None:
             return _EX.InvalidFieldDataException(
                 f&#34;{self.get_name()} is a required field&#34;
             )
@@ -294,22 +294,23 @@ class BytestringField(CertificateField):
     DEFAULT = b&#34;&#34;
 
     @classmethod
-    def encode(cls, value: bytes) -&gt; bytes:
+    def encode(cls, value: bytes, encoding: str = &#34;utf-8&#34;) -&gt; bytes:
         &#34;&#34;&#34;
         Encodes a string or bytestring into a packed byte string
 
         Args:
             value (Union[str, bytes]): The string/bytestring to encode
-            encoding (str): The encoding to user for the string
+            encoding (str): The optional encoding, not used when passing
+                            a byte value.
 
         Returns:
             bytes: Packed byte string containing the source data
         &#34;&#34;&#34;
         cls.__validate_type__(value, True)
-        return pack(&#34;&gt;I&#34;, len(value)) + ensure_bytestring(value)
+        return pack(&#34;&gt;I&#34;, len(value)) + ensure_bytestring(value, encoding)
 
     @staticmethod
-    def decode(data: bytes) -&gt; Tuple[bytes, bytes]:
+    def decode(data: bytes, encoding: str = None) -&gt; Tuple[bytes, bytes]:
         &#34;&#34;&#34;
         Unpacks the next string from a packed byte string
 
@@ -321,6 +322,10 @@ class BytestringField(CertificateField):
                                   string and remainder of the data
         &#34;&#34;&#34;
         length = unpack(&#34;&gt;I&#34;, data[:4])[0] + 4
+
+        if encoding is not None:
+            return ensure_string(data[4:length], encoding), data[length:]
+
         return ensure_bytestring(data[4:length]), data[length:]
 
 
@@ -344,8 +349,7 @@ class StringField(BytestringField):
         Returns:
             bytes: Packed byte string containing the source data
         &#34;&#34;&#34;
-        cls.__validate_type__(value, True)
-        return BytestringField.encode(ensure_bytestring(value, encoding))
+        return super().encode(value, encoding)
 
     @staticmethod
     def decode(data: bytes, encoding: str = &#34;utf-8&#34;) -&gt; Tuple[str, bytes]:
@@ -359,9 +363,7 @@ class StringField(BytestringField):
             tuple(bytes, bytes):  The next block of bytes from the packed byte
                                   string and remainder of the data
         &#34;&#34;&#34;
-        value, data = BytestringField.decode(data)
-
-        return value.decode(encoding), data
+        return BytestringField.decode(data, encoding)
 
 
 class Integer32Field(CertificateField):
@@ -498,9 +500,9 @@ class DateTimeField(Integer64Field):
 
         if isinstance(value, str):
             if value == &#34;forever&#34;:
-                return Integer64Field.encode(MAX_INT64)
+                return Integer64Field.encode(MAX_INT64 - 1)
 
-            value = int(datetime.now() + str_to_timedelta(value))
+            value = int((datetime.now() + str_to_time_delta(value)).timestamp())
 
         if isinstance(value, datetime):
             value = int(value.timestamp())
@@ -779,7 +781,7 @@ class PubkeyTypeField(StringField):
         return True
 
 
-class NonceField(StringField):
+class NonceField(BytestringField):
     &#34;&#34;&#34;
     Contains the nonce for the certificate, randomly generated
     this protects the integrity of the private key, especially
@@ -1321,8 +1323,11 @@ class SignatureField(CertificateField):
 
     def __table__(self) -&gt; tuple:
         msg = &#34;No signature&#34;
-        if self.is_signed:
+        if self.is_signed and self.private_key is not None:
             msg = f&#34;Signed with private key {self.private_key.get_fingerprint()}&#34;
+        
+        if self.is_signed and self.private_key is None:
+            msg = &#34;Signed with: See pubkey fingerprint above&#34;
 
         return (&#34;Signature&#34;, msg)
 
@@ -1379,7 +1384,7 @@ class SignatureField(CertificateField):
         &#34;&#34;&#34;
         return self.private_key is not None
 
-    def sign(self, data: bytes) -&gt; None:
+    def sign(self, data: bytes, **kwargs) -&gt; None:
         &#34;&#34;&#34;
         Placeholder signing function
         &#34;&#34;&#34;
@@ -1931,22 +1936,23 @@ def encode(cls, value: Union[int, bool]) -&gt; bytes:
     DEFAULT = b&#34;&#34;
 
     @classmethod
-    def encode(cls, value: bytes) -&gt; bytes:
+    def encode(cls, value: bytes, encoding: str = &#34;utf-8&#34;) -&gt; bytes:
         &#34;&#34;&#34;
         Encodes a string or bytestring into a packed byte string
 
         Args:
             value (Union[str, bytes]): The string/bytestring to encode
-            encoding (str): The encoding to user for the string
+            encoding (str): The optional encoding, not used when passing
+                            a byte value.
 
         Returns:
             bytes: Packed byte string containing the source data
         &#34;&#34;&#34;
         cls.__validate_type__(value, True)
-        return pack(&#34;&gt;I&#34;, len(value)) + ensure_bytestring(value)
+        return pack(&#34;&gt;I&#34;, len(value)) + ensure_bytestring(value, encoding)
 
     @staticmethod
-    def decode(data: bytes) -&gt; Tuple[bytes, bytes]:
+    def decode(data: bytes, encoding: str = None) -&gt; Tuple[bytes, bytes]:
         &#34;&#34;&#34;
         Unpacks the next string from a packed byte string
 
@@ -1958,6 +1964,10 @@ def encode(cls, value: Union[int, bool]) -&gt; bytes:
                                   string and remainder of the data
         &#34;&#34;&#34;
         length = unpack(&#34;&gt;I&#34;, data[:4])[0] + 4
+
+        if encoding is not None:
+            return ensure_string(data[4:length], encoding), data[length:]
+
         return ensure_bytestring(data[4:length]), data[length:]</code></pre>
 </details>
 <h3>Ancestors</h3>
@@ -1968,6 +1978,7 @@ def encode(cls, value: Union[int, bool]) -&gt; bytes:
 <ul class="hlist">
 <li><a title="sshkey_tools.fields.CAPublicKeyField" href="#sshkey_tools.fields.CAPublicKeyField">CAPublicKeyField</a></li>
 <li><a title="sshkey_tools.fields.MpIntegerField" href="#sshkey_tools.fields.MpIntegerField">MpIntegerField</a></li>
+<li><a title="sshkey_tools.fields.NonceField" href="#sshkey_tools.fields.NonceField">NonceField</a></li>
 <li><a title="sshkey_tools.fields.StringField" href="#sshkey_tools.fields.StringField">StringField</a></li>
 </ul>
 <h3>Class variables</h3>
@@ -1984,7 +1995,7 @@ def encode(cls, value: Union[int, bool]) -&gt; bytes:
 <h3>Static methods</h3>
 <dl>
 <dt id="sshkey_tools.fields.BytestringField.decode"><code class="name flex">
-<span>def <span class="ident">decode</span></span>(<span>data: bytes) ‑> Tuple[bytes, bytes]</span>
+<span>def <span class="ident">decode</span></span>(<span>data: bytes, encoding: str = None) ‑> Tuple[bytes, bytes]</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Unpacks the next string from a packed byte string</p>
@@ -2002,7 +2013,7 @@ string and remainder of the data</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@staticmethod
-def decode(data: bytes) -&gt; Tuple[bytes, bytes]:
+def decode(data: bytes, encoding: str = None) -&gt; Tuple[bytes, bytes]:
     &#34;&#34;&#34;
     Unpacks the next string from a packed byte string
 
@@ -2014,11 +2025,15 @@ def decode(data: bytes) -&gt; Tuple[bytes, bytes]:
                               string and remainder of the data
     &#34;&#34;&#34;
     length = unpack(&#34;&gt;I&#34;, data[:4])[0] + 4
+
+    if encoding is not None:
+        return ensure_string(data[4:length], encoding), data[length:]
+
     return ensure_bytestring(data[4:length]), data[length:]</code></pre>
 </details>
 </dd>
 <dt id="sshkey_tools.fields.BytestringField.encode"><code class="name flex">
-<span>def <span class="ident">encode</span></span>(<span>value: bytes) ‑> bytes</span>
+<span>def <span class="ident">encode</span></span>(<span>value: bytes, encoding: str = 'utf-8') ‑> bytes</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Encodes a string or bytestring into a packed byte string</p>
@@ -2027,7 +2042,8 @@ def decode(data: bytes) -&gt; Tuple[bytes, bytes]:
 <dt><strong><code>value</code></strong> :&ensp;<code>Union[str, bytes]</code></dt>
 <dd>The string/bytestring to encode</dd>
 <dt><strong><code>encoding</code></strong> :&ensp;<code>str</code></dt>
-<dd>The encoding to user for the string</dd>
+<dd>The optional encoding, not used when passing
+a byte value.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
@@ -2039,19 +2055,20 @@ def decode(data: bytes) -&gt; Tuple[bytes, bytes]:
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@classmethod
-def encode(cls, value: bytes) -&gt; bytes:
+def encode(cls, value: bytes, encoding: str = &#34;utf-8&#34;) -&gt; bytes:
     &#34;&#34;&#34;
     Encodes a string or bytestring into a packed byte string
 
     Args:
         value (Union[str, bytes]): The string/bytestring to encode
-        encoding (str): The encoding to user for the string
+        encoding (str): The optional encoding, not used when passing
+                        a byte value.
 
     Returns:
         bytes: Packed byte string containing the source data
     &#34;&#34;&#34;
     cls.__validate_type__(value, True)
-    return pack(&#34;&gt;I&#34;, len(value)) + ensure_bytestring(value)</code></pre>
+    return pack(&#34;&gt;I&#34;, len(value)) + ensure_bytestring(value, encoding)</code></pre>
 </details>
 </dd>
 </dl>
@@ -2367,7 +2384,7 @@ def from_object(cls, public_key: PublicKey) -&gt; &#34;CAPublicKeyField&#34;:
         &#34;&#34;&#34;
         Validates if the field is set when required
         &#34;&#34;&#34;
-        if self.DEFAULT == self.value is None:
+        if self.DEFAULT and self.value is None:
             return _EX.InvalidFieldDataException(
                 f&#34;{self.get_name()} is a required field&#34;
             )
@@ -2893,9 +2910,9 @@ The value is saved as a 64-bit integer (unix timestamp)</p></div>
 
         if isinstance(value, str):
             if value == &#34;forever&#34;:
-                return Integer64Field.encode(MAX_INT64)
+                return Integer64Field.encode(MAX_INT64 - 1)
 
-            value = int(datetime.now() + str_to_timedelta(value))
+            value = int((datetime.now() + str_to_time_delta(value)).timestamp())
 
         if isinstance(value, datetime):
             value = int(value.timestamp())
@@ -3033,9 +3050,9 @@ def encode(cls, value: Union[datetime, int, str]) -&gt; bytes:
 
     if isinstance(value, str):
         if value == &#34;forever&#34;:
-            return Integer64Field.encode(MAX_INT64)
+            return Integer64Field.encode(MAX_INT64 - 1)
 
-        value = int(datetime.now() + str_to_timedelta(value))
+        value = int((datetime.now() + str_to_time_delta(value)).timestamp())
 
     if isinstance(value, datetime):
         value = int(value.timestamp())
@@ -4761,7 +4778,7 @@ alphanumeric string</p></div>
 <li><code><b><a title="sshkey_tools.fields.StringField" href="#sshkey_tools.fields.StringField">StringField</a></b></code>:
 <ul class="hlist">
 <li><code><a title="sshkey_tools.fields.StringField.decode" href="#sshkey_tools.fields.BytestringField.decode">decode</a></code></li>
-<li><code><a title="sshkey_tools.fields.StringField.encode" href="#sshkey_tools.fields.BytestringField.encode">encode</a></code></li>
+<li><code><a title="sshkey_tools.fields.StringField.encode" href="#sshkey_tools.fields.StringField.encode">encode</a></code></li>
 <li><code><a title="sshkey_tools.fields.StringField.factory" href="#sshkey_tools.fields.CertificateField.factory">factory</a></code></li>
 <li><code><a title="sshkey_tools.fields.StringField.from_decode" href="#sshkey_tools.fields.CertificateField.from_decode">from_decode</a></code></li>
 <li><code><a title="sshkey_tools.fields.StringField.get_name" href="#sshkey_tools.fields.CertificateField.get_name">get_name</a></code></li>
@@ -5387,7 +5404,7 @@ for ecdsa.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class NonceField(StringField):
+<pre><code class="python">class NonceField(BytestringField):
     &#34;&#34;&#34;
     Contains the nonce for the certificate, randomly generated
     this protects the integrity of the private key, especially
@@ -5415,7 +5432,6 @@ for ecdsa.</p></div>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="sshkey_tools.fields.StringField" href="#sshkey_tools.fields.StringField">StringField</a></li>
 <li><a title="sshkey_tools.fields.BytestringField" href="#sshkey_tools.fields.BytestringField">BytestringField</a></li>
 <li><a title="sshkey_tools.fields.CertificateField" href="#sshkey_tools.fields.CertificateField">CertificateField</a></li>
 </ul>
@@ -5467,14 +5483,14 @@ Mainly important for ECDSA keys, but is used with all key/certificate types
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
-<li><code><b><a title="sshkey_tools.fields.StringField" href="#sshkey_tools.fields.StringField">StringField</a></b></code>:
+<li><code><b><a title="sshkey_tools.fields.BytestringField" href="#sshkey_tools.fields.BytestringField">BytestringField</a></b></code>:
 <ul class="hlist">
-<li><code><a title="sshkey_tools.fields.StringField.decode" href="#sshkey_tools.fields.BytestringField.decode">decode</a></code></li>
-<li><code><a title="sshkey_tools.fields.StringField.encode" href="#sshkey_tools.fields.BytestringField.encode">encode</a></code></li>
-<li><code><a title="sshkey_tools.fields.StringField.factory" href="#sshkey_tools.fields.CertificateField.factory">factory</a></code></li>
-<li><code><a title="sshkey_tools.fields.StringField.from_decode" href="#sshkey_tools.fields.CertificateField.from_decode">from_decode</a></code></li>
-<li><code><a title="sshkey_tools.fields.StringField.get_name" href="#sshkey_tools.fields.CertificateField.get_name">get_name</a></code></li>
-<li><code><a title="sshkey_tools.fields.StringField.validate" href="#sshkey_tools.fields.CertificateField.validate">validate</a></code></li>
+<li><code><a title="sshkey_tools.fields.BytestringField.decode" href="#sshkey_tools.fields.BytestringField.decode">decode</a></code></li>
+<li><code><a title="sshkey_tools.fields.BytestringField.encode" href="#sshkey_tools.fields.BytestringField.encode">encode</a></code></li>
+<li><code><a title="sshkey_tools.fields.BytestringField.factory" href="#sshkey_tools.fields.CertificateField.factory">factory</a></code></li>
+<li><code><a title="sshkey_tools.fields.BytestringField.from_decode" href="#sshkey_tools.fields.CertificateField.from_decode">from_decode</a></code></li>
+<li><code><a title="sshkey_tools.fields.BytestringField.get_name" href="#sshkey_tools.fields.CertificateField.get_name">get_name</a></code></li>
+<li><code><a title="sshkey_tools.fields.BytestringField.validate" href="#sshkey_tools.fields.CertificateField.validate">validate</a></code></li>
 </ul>
 </li>
 </ul>
@@ -5608,7 +5624,7 @@ public key type the certificate is created for, e.g.
 <li><code><b><a title="sshkey_tools.fields.StringField" href="#sshkey_tools.fields.StringField">StringField</a></b></code>:
 <ul class="hlist">
 <li><code><a title="sshkey_tools.fields.StringField.decode" href="#sshkey_tools.fields.BytestringField.decode">decode</a></code></li>
-<li><code><a title="sshkey_tools.fields.StringField.encode" href="#sshkey_tools.fields.BytestringField.encode">encode</a></code></li>
+<li><code><a title="sshkey_tools.fields.StringField.encode" href="#sshkey_tools.fields.StringField.encode">encode</a></code></li>
 <li><code><a title="sshkey_tools.fields.StringField.factory" href="#sshkey_tools.fields.CertificateField.factory">factory</a></code></li>
 <li><code><a title="sshkey_tools.fields.StringField.from_decode" href="#sshkey_tools.fields.CertificateField.from_decode">from_decode</a></code></li>
 <li><code><a title="sshkey_tools.fields.StringField.get_name" href="#sshkey_tools.fields.CertificateField.get_name">get_name</a></code></li>
@@ -5871,7 +5887,7 @@ errors defaults to 'strict'.</p></div>
 <li><code><b><a title="sshkey_tools.fields.StringField" href="#sshkey_tools.fields.StringField">StringField</a></b></code>:
 <ul class="hlist">
 <li><code><a title="sshkey_tools.fields.StringField.decode" href="#sshkey_tools.fields.BytestringField.decode">decode</a></code></li>
-<li><code><a title="sshkey_tools.fields.StringField.encode" href="#sshkey_tools.fields.BytestringField.encode">encode</a></code></li>
+<li><code><a title="sshkey_tools.fields.StringField.encode" href="#sshkey_tools.fields.StringField.encode">encode</a></code></li>
 <li><code><a title="sshkey_tools.fields.StringField.factory" href="#sshkey_tools.fields.CertificateField.factory">factory</a></code></li>
 <li><code><a title="sshkey_tools.fields.StringField.from_decode" href="#sshkey_tools.fields.CertificateField.from_decode">from_decode</a></code></li>
 <li><code><a title="sshkey_tools.fields.StringField.get_name" href="#sshkey_tools.fields.CertificateField.get_name">get_name</a></code></li>
@@ -6381,8 +6397,11 @@ maximum is (2**64)-1</p></div>
 
     def __table__(self) -&gt; tuple:
         msg = &#34;No signature&#34;
-        if self.is_signed:
+        if self.is_signed and self.private_key is not None:
             msg = f&#34;Signed with private key {self.private_key.get_fingerprint()}&#34;
+        
+        if self.is_signed and self.private_key is None:
+            msg = &#34;Signed with: See pubkey fingerprint above&#34;
 
         return (&#34;Signature&#34;, msg)
 
@@ -6439,7 +6458,7 @@ maximum is (2**64)-1</p></div>
         &#34;&#34;&#34;
         return self.private_key is not None
 
-    def sign(self, data: bytes) -&gt; None:
+    def sign(self, data: bytes, **kwargs) -&gt; None:
         &#34;&#34;&#34;
         Placeholder signing function
         &#34;&#34;&#34;
@@ -6599,7 +6618,7 @@ this private key</p></div>
 </details>
 </dd>
 <dt id="sshkey_tools.fields.SignatureField.sign"><code class="name flex">
-<span>def <span class="ident">sign</span></span>(<span>self, data: bytes) ‑> None</span>
+<span>def <span class="ident">sign</span></span>(<span>self, data: bytes, **kwargs) ‑> None</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Placeholder signing function</p></div>
@@ -6607,7 +6626,7 @@ this private key</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def sign(self, data: bytes) -&gt; None:
+<pre><code class="python">def sign(self, data: bytes, **kwargs) -&gt; None:
     &#34;&#34;&#34;
     Placeholder signing function
     &#34;&#34;&#34;
@@ -6658,8 +6677,7 @@ this private key</p></div>
         Returns:
             bytes: Packed byte string containing the source data
         &#34;&#34;&#34;
-        cls.__validate_type__(value, True)
-        return BytestringField.encode(ensure_bytestring(value, encoding))
+        return super().encode(value, encoding)
 
     @staticmethod
     def decode(data: bytes, encoding: str = &#34;utf-8&#34;) -&gt; Tuple[str, bytes]:
@@ -6673,9 +6691,7 @@ this private key</p></div>
             tuple(bytes, bytes):  The next block of bytes from the packed byte
                                   string and remainder of the data
         &#34;&#34;&#34;
-        value, data = BytestringField.decode(data)
-
-        return value.decode(encoding), data</code></pre>
+        return BytestringField.decode(data, encoding)</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -6685,7 +6701,6 @@ this private key</p></div>
 <h3>Subclasses</h3>
 <ul class="hlist">
 <li><a title="sshkey_tools.fields.KeyIdField" href="#sshkey_tools.fields.KeyIdField">KeyIdField</a></li>
-<li><a title="sshkey_tools.fields.NonceField" href="#sshkey_tools.fields.NonceField">NonceField</a></li>
 <li><a title="sshkey_tools.fields.PubkeyTypeField" href="#sshkey_tools.fields.PubkeyTypeField">PubkeyTypeField</a></li>
 <li><a title="sshkey_tools.fields.ReservedField" href="#sshkey_tools.fields.ReservedField">ReservedField</a></li>
 </ul>
@@ -6700,12 +6715,50 @@ this private key</p></div>
 <div class="desc"></div>
 </dd>
 </dl>
+<h3>Static methods</h3>
+<dl>
+<dt id="sshkey_tools.fields.StringField.encode"><code class="name flex">
+<span>def <span class="ident">encode</span></span>(<span>value: str, encoding: str = 'utf-8')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Encodes a string or bytestring into a packed byte string</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>value</code></strong> :&ensp;<code>Union[str, bytes]</code></dt>
+<dd>The string/bytestring to encode</dd>
+<dt><strong><code>encoding</code></strong> :&ensp;<code>str</code></dt>
+<dd>The encoding to user for the string</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>bytes</code></dt>
+<dd>Packed byte string containing the source data</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+def encode(cls, value: str, encoding: str = &#34;utf-8&#34;):
+    &#34;&#34;&#34;
+    Encodes a string or bytestring into a packed byte string
+
+    Args:
+        value (Union[str, bytes]): The string/bytestring to encode
+        encoding (str): The encoding to user for the string
+
+    Returns:
+        bytes: Packed byte string containing the source data
+    &#34;&#34;&#34;
+    return super().encode(value, encoding)</code></pre>
+</details>
+</dd>
+</dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
 <li><code><b><a title="sshkey_tools.fields.BytestringField" href="#sshkey_tools.fields.BytestringField">BytestringField</a></b></code>:
 <ul class="hlist">
 <li><code><a title="sshkey_tools.fields.BytestringField.decode" href="#sshkey_tools.fields.BytestringField.decode">decode</a></code></li>
-<li><code><a title="sshkey_tools.fields.BytestringField.encode" href="#sshkey_tools.fields.BytestringField.encode">encode</a></code></li>
 <li><code><a title="sshkey_tools.fields.BytestringField.factory" href="#sshkey_tools.fields.CertificateField.factory">factory</a></code></li>
 <li><code><a title="sshkey_tools.fields.BytestringField.from_decode" href="#sshkey_tools.fields.CertificateField.from_decode">from_decode</a></code></li>
 <li><code><a title="sshkey_tools.fields.BytestringField.get_name" href="#sshkey_tools.fields.CertificateField.get_name">get_name</a></code></li>
@@ -7124,6 +7177,7 @@ represented by a datetime object</p></div>
 <ul class="">
 <li><code><a title="sshkey_tools.fields.StringField.DATA_TYPE" href="#sshkey_tools.fields.StringField.DATA_TYPE">DATA_TYPE</a></code></li>
 <li><code><a title="sshkey_tools.fields.StringField.DEFAULT" href="#sshkey_tools.fields.StringField.DEFAULT">DEFAULT</a></code></li>
+<li><code><a title="sshkey_tools.fields.StringField.encode" href="#sshkey_tools.fields.StringField.encode">encode</a></code></li>
 </ul>
 </li>
 <li>

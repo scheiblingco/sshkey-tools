@@ -1294,8 +1294,11 @@ class SignatureField(CertificateField):
 
     def __table__(self) -> tuple:
         msg = "No signature"
-        if self.is_signed:
+        if self.is_signed and self.private_key is not None:
             msg = f"Signed with private key {self.private_key.get_fingerprint()}"
+
+        if self.is_signed and self.private_key is None:
+            msg = "Signed with: See pubkey fingerprint above"
 
         return ("Signature", msg)
 
@@ -1352,7 +1355,7 @@ class SignatureField(CertificateField):
         """
         return self.private_key is not None
 
-    def sign(self, data: bytes) -> None:
+    def sign(self, data: bytes, **kwargs) -> None:
         """
         Placeholder signing function
         """
