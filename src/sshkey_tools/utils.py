@@ -233,6 +233,22 @@ def sha512_fingerprint(data: bytes, prefix: bool = True) -> str:
     )
 
 
+def nullsafe_getattr(obj, attr: str, default):
+    """
+    Null-safe getattr, ensuring the result is not None.
+    If the result is None, the default value is returned instead.
+
+    Args:
+        obj: The object
+        attr: The attribute to get
+        default: The default value
+    """
+    att = getattr(obj, attr, default)
+    if att is None:
+        att = default
+    
+    return att
+
 def join_dicts(*dicts) -> dict:
     """
     Joins two or more dictionaries together.
