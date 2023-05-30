@@ -26,7 +26,7 @@ from cryptography.hazmat.primitives.asymmetric import padding as _PADDING
 from cryptography.hazmat.primitives.asymmetric import rsa as _RSA
 
 from . import exceptions as _EX
-from .utils import ensure_bytestring, ensure_string
+from .utils import ensure_bytestring, ensure_string, nullsafe_getattr
 from .utils import md5_fingerprint as _FP_MD5
 from .utils import sha256_fingerprint as _FP_SHA256
 from .utils import sha512_fingerprint as _FP_SHA512
@@ -129,12 +129,15 @@ class PublicKey:
             _SERIALIZATION.Encoding.OpenSSH,
             _SERIALIZATION.PublicFormat.OpenSSH,
         ]
+        
+        # Ensure comment is not None
+        self.comment = nullsafe_getattr(self, "comment", "")
 
     @classmethod
     def from_class(
         cls,
         key_class: PubkeyClasses,
-        comment: Union[str, bytes] = None,
+        comment: Union[str, bytes] = "",
         key_type: Union[str, bytes] = None,
     ) -> "PublicKey":
         """
@@ -266,7 +269,7 @@ class PublicKey:
         return " ".join(
             [
                 ensure_string(self.serialize(), encoding),
-                ensure_string(getattr(self, "comment", ""), encoding),
+                ensure_string(nullsafe_getattr(self, "comment", ""), encoding),
             ]
         )
 
