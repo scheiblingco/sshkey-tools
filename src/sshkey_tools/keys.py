@@ -129,7 +129,7 @@ class PublicKey:
             _SERIALIZATION.Encoding.OpenSSH,
             _SERIALIZATION.PublicFormat.OpenSSH,
         ]
-        
+
         # Ensure comment is not None
         self.comment = nullsafe_getattr(self, "comment", "")
 

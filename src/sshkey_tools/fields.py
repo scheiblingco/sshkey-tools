@@ -1296,7 +1296,7 @@ class SignatureField(CertificateField):
         msg = "No signature"
         if self.is_signed and self.private_key is not None:
             msg = f"Signed with private key {self.private_key.get_fingerprint()}"
-        
+
         if self.is_signed and self.private_key is None:
             msg = "Signed with: See pubkey fingerprint above"
 
