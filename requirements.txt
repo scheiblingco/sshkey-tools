@@ -1,5 +1,5 @@
 click
-cryptography
+cryptography<41.0.0
 bcrypt
 enum34
 PrettyTable
