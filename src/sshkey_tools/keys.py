@@ -1,6 +1,7 @@
 """
 Classes for handling SSH public/private keys
 """
+import warnings
 from base64 import b64decode
 from enum import Enum
 from struct import unpack
@@ -613,6 +614,11 @@ class DsaPublicKey(PublicKey):
             serialized=serialized,
         )
         self.parameters = key.parameters().parameter_numbers()
+        
+        warnings.warn(
+            "SSH DSA keys and certificates are deprecated and will be removed in version 0.10 of sshkey-tools",
+            stacklevel=2,
+        )
 
     @classmethod
     # pylint: disable=invalid-name
@@ -664,6 +670,11 @@ class DsaPrivateKey(PrivateKey):
             key=key,
             public_key=DsaPublicKey(key.public_key()),
             private_numbers=key.private_numbers(),
+        )
+        
+        warnings.warn(
+            "SSH DSA keys and certificates are deprecated and will be removed in version 0.10 of sshkey-tools",
+            stacklevel=2,
         )
 
     @classmethod
