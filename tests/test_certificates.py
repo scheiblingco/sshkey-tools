@@ -16,14 +16,13 @@ import src.sshkey_tools.exceptions as _EX
 import src.sshkey_tools.fields as _FIELD
 import src.sshkey_tools.keys as _KEY
 
-CERTIFICATE_TYPES = ["rsa", "dsa", "ecdsa", "ed25519"]
+CERTIFICATE_TYPES = ["rsa", "ecdsa", "ed25519"]
 
 
 class TestCertificateFields(unittest.TestCase):
     def setUp(self):
         self.faker = faker.Faker()
         self.rsa_key = _KEY.RsaPrivateKey.generate(1024)
-        self.dsa_key = _KEY.DsaPrivateKey.generate()
         self.ecdsa_key = _KEY.EcdsaPrivateKey.generate()
         self.ed25519_key = _KEY.Ed25519PrivateKey.generate()
 
@@ -233,10 +232,6 @@ class TestCertificateFields(unittest.TestCase):
                 b"\x00\x00\x00!rsa-sha2-512-cert-v01@openssh.com",
             ),
             (
-                "ssh-dss-cert-v01@openssh.com",
-                b"\x00\x00\x00\x1cssh-dss-cert-v01@openssh.com",
-            ),
-            (
                 "ecdsa-sha2-nistp256-cert-v01@openssh.com",
                 b"\x00\x00\x00(ecdsa-sha2-nistp256-cert-v01@openssh.com",
             ),
@@ -281,17 +276,14 @@ class TestCertificateFields(unittest.TestCase):
 
     def test_pubkey_class_assignment(self):
         rsa_field = _FIELD.PublicKeyField.from_object(self.rsa_key.public_key)
-        dsa_field = _FIELD.PublicKeyField.from_object(self.dsa_key.public_key)
         ecdsa_field = _FIELD.PublicKeyField.from_object(self.ecdsa_key.public_key)
         ed25519_field = _FIELD.PublicKeyField.from_object(self.ed25519_key.public_key)
 
         self.assertIsInstance(rsa_field, _FIELD.RsaPubkeyField)
-        self.assertIsInstance(dsa_field, _FIELD.DsaPubkeyField)
         self.assertIsInstance(ecdsa_field, _FIELD.EcdsaPubkeyField)
         self.assertIsInstance(ed25519_field, _FIELD.Ed25519PubkeyField)
 
         self.assertTrue(rsa_field.validate())
-        self.assertTrue(dsa_field.validate())
         self.assertTrue(ecdsa_field.validate())
         self.assertTrue(ed25519_field.validate())
 
@@ -315,9 +307,6 @@ class TestCertificateFields(unittest.TestCase):
 
     def test_rsa_pubkey_output(self):
         self.assertPubkeyOutput(_KEY.RsaPrivateKey, 1024)
-
-    def test_dsa_pubkey_output(self):
-        self.assertPubkeyOutput(_KEY.DsaPrivateKey)
 
     def test_ecdsa_pubkey_output(self):
         self.assertPubkeyOutput(_KEY.EcdsaPrivateKey)
@@ -551,12 +540,10 @@ class TestCertificates(unittest.TestCase):
         self.faker = faker.Faker()
 
         self.rsa_ca = _KEY.RsaPrivateKey.generate(1024)
-        self.dsa_ca = _KEY.DsaPrivateKey.generate()
         self.ecdsa_ca = _KEY.EcdsaPrivateKey.generate()
         self.ed25519_ca = _KEY.Ed25519PrivateKey.generate()
 
         self.rsa_user = _KEY.RsaPrivateKey.generate(1024).public_key
-        self.dsa_user = _KEY.DsaPrivateKey.generate().public_key
         self.ecdsa_user = _KEY.EcdsaPrivateKey.generate().public_key
         self.ed25519_user = _KEY.Ed25519PrivateKey.generate().public_key
 
@@ -581,12 +568,10 @@ class TestCertificates(unittest.TestCase):
 
     def test_cert_type_assignment(self):
         rsa_cert = _CERT.SSHCertificate.create(self.rsa_user)
-        dsa_cert = _CERT.SSHCertificate.create(self.dsa_user)
         ecdsa_cert = _CERT.SSHCertificate.create(self.ecdsa_user)
         ed25519_cert = _CERT.SSHCertificate.create(self.ed25519_user)
 
         self.assertIsInstance(rsa_cert, _CERT.RsaCertificate)
-        self.assertIsInstance(dsa_cert, _CERT.DsaCertificate)
         self.assertIsInstance(ecdsa_cert, _CERT.EcdsaCertificate)
         self.assertIsInstance(ed25519_cert, _CERT.Ed25519Certificate)
 

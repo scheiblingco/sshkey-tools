@@ -16,8 +16,6 @@ from cryptography.hazmat.primitives.asymmetric.utils import (
 
 from . import exceptions as _EX
 from .keys import (
-    DsaPrivateKey,
-    DsaPublicKey,
     EcdsaPrivateKey,
     EcdsaPublicKey,
     Ed25519PrivateKey,
@@ -53,21 +51,18 @@ ECDSA_CURVE_MAP = {
 
 SUBJECT_PUBKEY_MAP = {
     RsaPublicKey: "RsaPubkeyField",
-    DsaPublicKey: "DsaPubkeyField",
     EcdsaPublicKey: "EcdsaPubkeyField",
     Ed25519PublicKey: "Ed25519PubkeyField",
 }
 
 CA_SIGNATURE_MAP = {
     RsaPrivateKey: "RsaSignatureField",
-    DsaPrivateKey: "DsaSignatureField",
     EcdsaPrivateKey: "EcdsaSignatureField",
     Ed25519PrivateKey: "Ed25519SignatureField",
 }
 
 SIGNATURE_TYPE_MAP = {
     b"rsa": "RsaSignatureField",
-    b"dss": "DsaSignatureField",
     b"ecdsa": "EcdsaSignatureField",
     b"ed25519": "Ed25519SignatureField",
 }
@@ -727,7 +722,6 @@ class PubkeyTypeField(StringField):
         "ssh-rsa-cert-v01@openssh.com",
         "rsa-sha2-256-cert-v01@openssh.com",
         "rsa-sha2-512-cert-v01@openssh.com",
-        "ssh-dss-cert-v01@openssh.com",
         "ecdsa-sha2-nistp256-cert-v01@openssh.com",
         "ecdsa-sha2-nistp384-cert-v01@openssh.com",
         "ecdsa-sha2-nistp521-cert-v01@openssh.com",
@@ -867,11 +861,8 @@ class DsaPubkeyField(PublicKeyField):
     Holds the DSA Public Key for DSA Certificates
     """
 
-    DEFAULT = None
-    DATA_TYPE = DsaPublicKey
-
     @staticmethod
-    def decode(data: bytes) -> Tuple[DsaPublicKey, bytes]:
+    def decode(data: bytes):
         """
         Decode the certificate field from a byte string
         starting with the encoded public key
@@ -882,12 +873,7 @@ class DsaPubkeyField(PublicKeyField):
         Returns:
             Tuple[RsaPublicKey, bytes]: The PublicKey field and remainder of the data
         """
-        p, data = MpIntegerField.decode(data)
-        q, data = MpIntegerField.decode(data)
-        g, data = MpIntegerField.decode(data)
-        y, data = MpIntegerField.decode(data)
-
-        return DsaPublicKey.from_numbers(p=p, q=q, g=g, y=y), data
+        raise _EX.DeprecatedClassCalled("DSA is deprecated, use RSA or ECDSA instead")
 
 
 class EcdsaPubkeyField(PublicKeyField):
@@ -1469,16 +1455,13 @@ class DsaSignatureField(SignatureField):
     Creates and contains the DSA signature from an DSA Private Key
     """
 
-    DEFAULT = None
-    DATA_TYPE = bytes
-
-    def __init__(
-        self, private_key: DsaPrivateKey = None, signature: bytes = None
-    ) -> None:
-        super().__init__(private_key, signature)
+    def __init__(self, *args, **kwargs) -> None:
+        raise _EX.DeprecatedClassCalled(
+            "DSA signatures are deprecated and have been removed"
+        )
 
     @classmethod
-    def encode(cls, value: bytes):
+    def encode(cls, value = None):
         """
         Encodes the signature to a byte string
 
@@ -1488,62 +1471,15 @@ class DsaSignatureField(SignatureField):
         Returns:
             bytes: The encoded byte string
         """
-        cls.__validate_type__(value, True)
-
-        r, s = decode_dss_signature(value)
-
-        return BytestringField.encode(
-            StringField.encode("ssh-dss")
-            + BytestringField.encode(long_to_bytes(r, 20) + long_to_bytes(s, 20))
-        )
+        cls()
 
     @staticmethod
-    def decode(data: bytes) -> Tuple[bytes, bytes]:
-        """
-        Decodes a bytestring containing a signature
-
-        Args:
-            data (bytes): The bytestring starting with the Signature
-
-        Returns:
-            Tuple[ bytes, bytes ]: signature, remainder of the data
-        """
-        signature, data = BytestringField.decode(data)
-
-        signature = BytestringField.decode(BytestringField.decode(signature)[1])[0]
-        r = bytes_to_long(signature[:20])
-        s = bytes_to_long(signature[20:])
-
-        signature = encode_dss_signature(r, s)
-
-        return signature, data
+    def decode(data = None):
+       DsaSignatureField()
 
     @classmethod
-    def from_decode(cls, data: bytes) -> Tuple["DsaSignatureField", bytes]:
-        """
-        Creates a signature field class from the encoded signature
-
-        Args:
-            data (bytes): The bytestring starting with the Signature
-
-        Returns:
-            Tuple[ DsaSignatureField, bytes ]: signature, remainder of the data
-        """
-        signature, data = cls.decode(data)
-
-        return cls(private_key=None, signature=signature), data
-
-    # pylint: disable=unused-argument
-    def sign(self, data: bytes, **kwargs) -> None:
-        """
-        Signs the provided data with the provided private key
-
-        Args:
-            data (bytes): The data to be signed
-        """
-        self.value = self.private_key.sign(data)
-        self.is_signed = True
-
+    def from_decode(cls, data = None):
+        cls()
 
 class EcdsaSignatureField(SignatureField):
     """

@@ -107,3 +107,8 @@ class InvalidClassCallException(ValueError):
     """
     Raised when trying to instantiate a parent class
     """
+
+class DeprecatedClassCalled(ValueError):
+    """
+    Raised when trying to instantiate a deprecated class
+    """

@@ -2,15 +2,15 @@
 
 Python package for managing OpenSSH keypairs and certificates ([protocol.CERTKEYS](https://github.com/openssh/openssh-portable/blob/master/PROTOCOL.certkeys)). Supported functionality includes:
 
-# Notice
+## Notice
 The DSA algorithm has been deprecated and is removed in pyca/cryptography 41.x, meaning **version 0.9.* of this package will be the last to support DSA keys and certificates** for SSH. If there is any demand to reintroduce DSA support, please open an issue regarding this and we'll look into it. 
 
 For now, **0.9.* will be restricted to version <41.1 of the cryptography package** and **0.10 will have its DSA support removed**. We've introduced a deprecation notice in version 0.9.3.
 
-## Background
+### Background
 The DSA algorithm is considered deprecated and will be removed in a future version. If possible, use RSA, [(ECDSA)](https://billatnapier.medium.com/ecdsa-weakness-where-nonces-are-reused-2be63856a01a) or ED25519 as a first-hand choice.
 
-## Notice from OpenSSH:
+### Notice from OpenSSH:
 ```
 OpenSSH 7.0 and greater similarly disable the ssh-dss (DSA) public key algorithm. It too is weak and we recommend against its use. It can be re-enabled using the HostKeyAlgorithms configuration option: sshd_config(5) HostKeyAlgorithms
 ```
@@ -19,7 +19,7 @@ OpenSSH 7.0 and greater similarly disable the ssh-dss (DSA) public key algorithm
 
 # Features
 ### SSH Keys
-- Supports RSA, DSA (Note: Deprecated), ECDSA and ED25519 keys
+- Supports RSA, ECDSA and ED25519 keys
 - Import existing keys from file, string, byte data or [pyca/cryptography](https://github.com/pyca/cryptography) class
 - Generate new keys
 - Get public key from private keys
@@ -28,7 +28,7 @@ OpenSSH 7.0 and greater similarly disable the ssh-dss (DSA) public key algorithm
 - Generate fingerprint
 
 ### OpenSSH Certificates
-- Supports RSA, DSA, ECDSA and ED25519 certificates
+- Supports RSA, ECDSA and ED25519 certificates
 - Import existing certificates from file, string or bytes
 - Verify certificate signature against internal or separate public key
 - Create new certificates from CA private key and subject public key
@@ -72,7 +72,6 @@ rm -rf docs/sshkey_tools
 # Import the certificate classes
 from sshkey_tools.keys import (
     RsaPrivateKey,
-    DsaPrivateKey,
     EcdsaPrivateKey,
     Ed25519PrivateKey,
     EcdsaCurves
@@ -87,7 +86,8 @@ rsa_priv = RsaPrivateKey.generate()
 rsa_priv = RsaPrivateKey.generate(2048)
 
 # Generate DSA keys (since SSH only supports 1024-bit keys, this is the default)
-dsa_priv = DsaPrivateKey.generate()
+# DEPRECATED
+# dsa_priv = DsaPrivateKey.generate()
 
 # Generate ECDSA keys (The default curve is P521)
 ecdsa_priv = EcdsaPrivateKey.generate()
