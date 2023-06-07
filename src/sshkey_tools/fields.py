@@ -465,15 +465,28 @@ class DateTimeField(Integer64Field):
         cls.__validate_type__(value, True)
 
         if isinstance(value, str):
-            if value == "forever":
-                return Integer64Field.encode(MAX_INT64 - 1)
-
-            value = int((datetime.now() + str_to_time_delta(value)).timestamp())
+            value = cls.parse_string_value(value)
 
         if isinstance(value, datetime):
             value = int(value.timestamp())
 
         return Integer64Field.encode(value)
+
+    @staticmethod
+    def parse_string_value(value: str) -> int:
+        """
+        Parses a string value into an integer timestamp
+
+        Args:
+            value (str): String value to parse
+
+        Returns:
+            int: Integer timestamp
+        """
+        if value == "forever":
+            return MAX_INT64 - 1
+        
+        return int((datetime.now() + str_to_time_delta(value)).timestamp())
 
     @staticmethod
     def decode(data: bytes) -> datetime:
@@ -497,7 +510,12 @@ class DateTimeField(Integer64Field):
                 f"{self.get_name()} Could not validate value, invalid type"
             )
 
-        check = self.value if isinstance(self.value, int) else self.value.timestamp()
+        check = self.value
+        if isinstance(check, str):
+            check = self.parse_string_value(check)
+        
+        if isinstance(check, datetime):
+            check = int(check.timestamp())
 
         if check < MAX_INT64:
             return True
@@ -1025,7 +1043,7 @@ class ValidAfterField(DateTimeField):
     """
 
     DEFAULT = datetime.now()
-    DATA_TYPE = (datetime, int)
+    DATA_TYPE = (datetime, int, str)
 
 
 class ValidBeforeField(DateTimeField):
@@ -1035,7 +1053,7 @@ class ValidBeforeField(DateTimeField):
     """
 
     DEFAULT = datetime.now() + timedelta(minutes=10)
-    DATA_TYPE = (datetime, int)
+    DATA_TYPE = (datetime, int, str)
 
     def __validate_value__(self) -> Union[bool, Exception]:
         """
@@ -1050,13 +1068,16 @@ class ValidBeforeField(DateTimeField):
             )
 
         super().__validate_value__()
-        check = (
-            self.value
-            if isinstance(self.value, datetime)
-            else datetime.fromtimestamp(self.value)
-        )
-
-        if check < datetime.now():
+        
+        check = self.value
+        if isinstance(check, str):
+            check = self.parse_string_value(check)
+        
+        if isinstance(check, datetime):
+            check = int(check.timestamp())
+        
+        
+        if check < int(datetime.now().timstamp()):
             return _EX.InvalidCertificateFieldException(
                 "The certificate validity period is invalid"
                 + " (expected a future datetime object or timestamp)"
