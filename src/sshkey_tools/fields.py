@@ -1077,7 +1077,7 @@ class ValidBeforeField(DateTimeField):
             check = int(check.timestamp())
         
         
-        if check < int(datetime.now().timstamp()):
+        if check < int(datetime.now().timestamp()):
             return _EX.InvalidCertificateFieldException(
                 "The certificate validity period is invalid"
                 + " (expected a future datetime object or timestamp)"
