@@ -8,15 +8,12 @@ from struct import unpack
 from typing import Union
 
 from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.backends.openssl.dsa import _DSAPrivateKey, _DSAPublicKey
 from cryptography.hazmat.backends.openssl.ec import (
     _EllipticCurvePrivateKey,
     _EllipticCurvePublicKey,
 )
-from cryptography.hazmat.backends.openssl.ed25519 import (
-    _Ed25519PrivateKey,
-    _Ed25519PublicKey,
-)
+from cryptography.hazmat.bindings import _rust as _RustBinding
+
 from cryptography.hazmat.backends.openssl.rsa import _RSAPrivateKey, _RSAPublicKey
 from cryptography.hazmat.primitives import hashes as _HASHES
 from cryptography.hazmat.primitives import serialization as _SERIALIZATION
@@ -34,17 +31,15 @@ from .utils import sha512_fingerprint as _FP_SHA512
 
 PUBKEY_MAP = {
     _RSAPublicKey: "RsaPublicKey",
-    _DSAPublicKey: "DsaPublicKey",
     _EllipticCurvePublicKey: "EcdsaPublicKey",
-    _Ed25519PublicKey: "Ed25519PublicKey",
+    _RustBinding.openssl.ed25519.Ed25519PublicKey: "Ed25519PublicKey",
 }
 
 PRIVKEY_MAP = {
     _RSAPrivateKey: "RsaPrivateKey",
-    _DSAPrivateKey: "DsaPrivateKey",
     _EllipticCurvePrivateKey: "EcdsaPrivateKey",
     # trunk-ignore(gitleaks/generic-api-key)
-    _Ed25519PrivateKey: "Ed25519PrivateKey",
+    _RustBinding.openssl.ed25519.Ed25519PrivateKey: "Ed25519PrivateKey",
 }
 
 ECDSA_HASHES = {
@@ -599,87 +594,30 @@ class DsaPublicKey(PublicKey):
     Class for holding DSA public keys
     """
 
-    def __init__(
-        self,
-        key: _DSA.DSAPublicKey,
-        comment: Union[str, bytes] = None,
-        key_type: Union[str, bytes] = None,
-        serialized: bytes = None,
-    ):
-        super().__init__(
-            key=key,
-            comment=comment,
-            key_type=key_type,
-            public_numbers=key.public_numbers(),
-            serialized=serialized,
+    def __init__(self, key = None, comment = None, key_type = None, serialized = None):
+        raise _EX.DeprecatedClassCalled(
+            "SSH DSA keys and certificates are deprecated and are removed since version 0.10 of sshkey-tools",
         )
-        self.parameters = key.parameters().parameter_numbers()
-        
-        warnings.warn(
-            "SSH DSA keys and certificates are deprecated and will be removed in version 0.10 of sshkey-tools",
-            stacklevel=2,
-        )
-
+    
     @classmethod
     # pylint: disable=invalid-name
     def from_numbers(cls, p: int, q: int, g: int, y: int) -> "DsaPublicKey":
-        """
-        Create a DSA public key from public numbers and parameters
+        return cls()
 
-        Args:
-            p (int): P parameter, the prime modulus
-            q (int): Q parameter, the order of the subgroup
-            g (int): G parameter, the generator
-            y (int): The public number Y
-
-        Returns:
-            DsaPublicKey: An instance of DsaPublicKey
-        """
-        return cls(
-            key=_DSA.DSAPublicNumbers(
-                y=y, parameter_numbers=_DSA.DSAParameterNumbers(p=p, q=q, g=g)
-            ).public_key()
-        )
-
-    def verify(self, data: bytes, signature: bytes) -> None:
-        """
-        Verifies a signature
-
-        Args:
-            data (bytes): The data to verify
-            signature (bytes): The signature to verify
-
-        Raises:
-            Raises an sshkey_tools.exceptions.InvalidSignatureException if the signature is invalid
-        """
-        try:
-            return self.key.verify(signature, data, _HASHES.SHA1())
-        except InvalidSignature:
-            raise _EX.InvalidSignatureException(
-                "The signature is invalid for the given data"
-            ) from InvalidSignature
-
-
+    
 class DsaPrivateKey(PrivateKey):
     """
     Class for holding DSA private keys
     """
 
-    def __init__(self, key: _DSA.DSAPrivateKey):
-        super().__init__(
-            key=key,
-            public_key=DsaPublicKey(key.public_key()),
-            private_numbers=key.private_numbers(),
-        )
-        
-        warnings.warn(
-            "SSH DSA keys and certificates are deprecated and will be removed in version 0.10 of sshkey-tools",
-            stacklevel=2,
+    def __init__(self, key = None):
+        raise _EX.DeprecatedClassCalled(
+            "SSH DSA keys and certificates are deprecated and are removed since version 0.10 of sshkey-tools",
         )
 
     @classmethod
     # pylint: disable=invalid-name,too-many-arguments
-    def from_numbers(cls, p: int, q: int, g: int, y: int, x: int) -> "DsaPrivateKey":
+    def from_numbers(cls, p, q, g, y, x):
         """
         Creates a new DsaPrivateKey object from parameters and public/private numbers
 
@@ -693,15 +631,8 @@ class DsaPrivateKey(PrivateKey):
         Returns:
             _type_: _description_
         """
-        return cls(
-            key=_DSA.DSAPrivateNumbers(
-                public_numbers=_DSA.DSAPublicNumbers(
-                    y=y, parameter_numbers=_DSA.DSAParameterNumbers(p=p, q=q, g=g)
-                ),
-                x=x,
-            ).private_key()
-        )
-
+        return cls()
+    
     @classmethod
     def generate(cls) -> "DsaPrivateKey":
         """
@@ -711,20 +642,7 @@ class DsaPrivateKey(PrivateKey):
         Returns:
             DsaPrivateKey: An instance of DsaPrivateKey
         """
-        return cls.from_class(_DSA.generate_private_key(key_size=1024))
-
-    def sign(self, data: bytes):
-        """
-        Signs a block of data and returns the signature
-
-        Args:
-            data (bytes): Block of byte data to sign
-
-        Returns:
-            bytes: The signature bytes
-        """
-        return self.key.sign(data, _HASHES.SHA1())
-
+        return cls()
 
 class EcdsaPublicKey(PublicKey):
     """

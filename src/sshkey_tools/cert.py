@@ -24,7 +24,6 @@ CERT_TYPES = {
     "ssh-rsa-cert-v01@openssh.com": ("RsaCertificate", "RsaPubkeyField"),
     "rsa-sha2-256-cert-v01@openssh.com": ("RsaCertificate", "RsaPubkeyField"),
     "rsa-sha2-512-cert-v01@openssh.com": ("RsaCertificate", "RsaPubkeyField"),
-    "ssh-dss-cert-v01@openssh.com": ("DsaCertificate", "DsaPubkeyField"),
     "ecdsa-sha2-nistp256-cert-v01@openssh.com": (
         "EcdsaCertificate",
         "EcdsaPubkeyField",
@@ -579,14 +578,11 @@ class RsaCertificate(SSHCertificate):
 
 class DsaCertificate(SSHCertificate):
     """The DSA Certificate class (DEPRECATED)"""
-
-    DEFAULT_KEY_TYPE = "ssh-dss-cert-v01@openssh.com"
-    
-    def __post_init__(self):
-        """Display the deprecation notice"""
-        warnings.warn(
-            "SSH DSA keys and certificates are deprecated and will be removed in version 0.10 of sshkey-tools",
-            stacklevel=2,
+   
+    def __init__(self, *args, **kwargs):
+        """DEPRECATED CERTIFICATE CLASS"""
+        raise _EX.DeprecatedClassCalled(
+            "DSA certificates are deprecated and have been removed since version 0.10 of sshkey-tools"
         )
 
 
