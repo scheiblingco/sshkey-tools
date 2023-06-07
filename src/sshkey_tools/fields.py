@@ -486,6 +486,9 @@ class DateTimeField(Integer64Field):
         if value == "forever":
             return MAX_INT64 - 1
         
+        if value == "always":
+            return 1
+        
         return int((datetime.now() + str_to_time_delta(value)).timestamp())
 
     @staticmethod
