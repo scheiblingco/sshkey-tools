@@ -19,6 +19,7 @@ black = "*"
 pytest-cov = "*"
 faker = "*"
 cprint = "*"
+pylint = "*"
 
 [requires]
 python_version = "3.9"
