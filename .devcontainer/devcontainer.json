@@ -1,0 +1,13 @@
+{
+    "build": {
+        "dockerfile": "dev.Dockerfile"
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "scheiblingco.code-pypack",
+                "scheiblingco.code-cmd-repeat"
+            ]
+        }
+    }
+}
