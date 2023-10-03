@@ -27,7 +27,7 @@ jobs:
 
       - name: Run tests
         run: |
-          python3 -m pylint src/sshkey_tools | tee | pylint_report --output=report.html
+          python3 -m pylint src/sshkey_tools | tee | pylint_report -o report.html
 
       - name: Upload report
         uses: actions/upload-artifact@v1
