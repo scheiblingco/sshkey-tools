@@ -485,10 +485,10 @@ class DateTimeField(Integer64Field):
         """
         if value == "forever":
             return MAX_INT64 - 1
-        
+
         if value == "always":
             return 1
-        
+
         return int((datetime.now() + str_to_time_delta(value)).timestamp())
 
     @staticmethod
@@ -516,7 +516,7 @@ class DateTimeField(Integer64Field):
         check = self.value
         if isinstance(check, str):
             check = self.parse_string_value(check)
-        
+
         if isinstance(check, datetime):
             check = int(check.timestamp())
 
@@ -1071,15 +1071,14 @@ class ValidBeforeField(DateTimeField):
             )
 
         super().__validate_value__()
-        
+
         check = self.value
         if isinstance(check, str):
             check = self.parse_string_value(check)
-        
+
         if isinstance(check, datetime):
             check = int(check.timestamp())
-        
-        
+
         if check < int(datetime.now().timestamp()):
             return _EX.InvalidCertificateFieldException(
                 "The certificate validity period is invalid"
@@ -1479,13 +1478,14 @@ class DsaSignatureField(SignatureField):
     Creates and contains the DSA signature from an DSA Private Key
     """
 
+    # pylint: disable=super-init-not-called
     def __init__(self, *args, **kwargs) -> None:
         raise _EX.DeprecatedClassCalled(
             "DSA signatures are deprecated and have been removed"
         )
 
     @classmethod
-    def encode(cls, value = None):
+    def encode(cls, value=None):
         """
         Encodes the signature to a byte string
 
@@ -1498,12 +1498,13 @@ class DsaSignatureField(SignatureField):
         cls()
 
     @staticmethod
-    def decode(data = None):
-       DsaSignatureField()
+    def decode(data=None):
+        DsaSignatureField()
 
     @classmethod
-    def from_decode(cls, data = None):
+    def from_decode(cls, data=None):
         cls()
+
 
 class EcdsaSignatureField(SignatureField):
     """

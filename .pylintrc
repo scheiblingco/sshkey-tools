@@ -1,2 +1,6 @@
+[MASTER]
+load-plugins=pylint_report
+extension-pkg-allow-list=cryptography.hazmat.bindings._rust
+
 [REPORTS]
-output-format=json
+output-format=pylint_report.CustomJsonReporter

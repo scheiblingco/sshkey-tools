@@ -23,12 +23,11 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pylint pylint-report pylint-json2html
+          pip install -r requirements-test.txt
 
       - name: Run tests
         run: |
-          pylint src/sshkey_tools | tee | pylint-json2html -o report.html
+          python3 -m pylint src/sshkey_tools | tee | pylint_report --output=report.html
 
       - name: Upload report
         uses: actions/upload-artifact@v1
