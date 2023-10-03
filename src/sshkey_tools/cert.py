@@ -8,7 +8,6 @@ Raises:
     _EX.NoPrivateKeyException: The certificate contains no private key
     _EX.NotSignedException: The certificate is not signed and cannot be exported
 """
-import warnings
 from base64 import b64decode, b64encode
 from dataclasses import dataclass
 from typing import Tuple, Union
@@ -578,11 +577,13 @@ class RsaCertificate(SSHCertificate):
 
 class DsaCertificate(SSHCertificate):
     """The DSA Certificate class (DEPRECATED)"""
-   
+
+    # pylint: disable=super-init-not-called
     def __init__(self, *args, **kwargs):
         """DEPRECATED CERTIFICATE CLASS"""
         raise _EX.DeprecatedClassCalled(
-            "DSA certificates are deprecated and have been removed since version 0.10 of sshkey-tools"
+            "DSA certificates are deprecated and have been removed"
+            "since version 0.10 of sshkey-tools"
         )
 
 

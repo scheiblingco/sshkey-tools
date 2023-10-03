@@ -1,7 +1,6 @@
 """
 Classes for handling SSH public/private keys
 """
-import warnings
 from base64 import b64decode
 from enum import Enum
 from struct import unpack
@@ -594,29 +593,34 @@ class DsaPublicKey(PublicKey):
     Class for holding DSA public keys
     """
 
-    def __init__(self, key = None, comment = None, key_type = None, serialized = None):
+    # pylint: disable=super-init-not-called
+    def __init__(self, key=None, comment=None, key_type=None, serialized=None):
         raise _EX.DeprecatedClassCalled(
-            "SSH DSA keys and certificates are deprecated and are removed since version 0.10 of sshkey-tools",
+            "SSH DSA keys and certificates are deprecated "
+            "and are removed since version 0.10 of sshkey-tools",
         )
-    
+
     @classmethod
-    # pylint: disable=invalid-name
+    # pylint: disable=invalid-name,unused-argument
     def from_numbers(cls, p: int, q: int, g: int, y: int) -> "DsaPublicKey":
+        """Deprecated"""
         return cls()
 
-    
+
 class DsaPrivateKey(PrivateKey):
     """
     Class for holding DSA private keys
     """
 
-    def __init__(self, key = None):
+    # pylint: disable=super-init-not-called
+    def __init__(self, key=None):
         raise _EX.DeprecatedClassCalled(
-            "SSH DSA keys and certificates are deprecated and are removed since version 0.10 of sshkey-tools",
+            "SSH DSA keys and certificates are deprecated "
+            "and are removed since version 0.10 of sshkey-tools",
         )
 
     @classmethod
-    # pylint: disable=invalid-name,too-many-arguments
+    # pylint: disable=invalid-name,too-many-arguments,unused-argument
     def from_numbers(cls, p, q, g, y, x):
         """
         Creates a new DsaPrivateKey object from parameters and public/private numbers
@@ -632,7 +636,7 @@ class DsaPrivateKey(PrivateKey):
             _type_: _description_
         """
         return cls()
-    
+
     @classmethod
     def generate(cls) -> "DsaPrivateKey":
         """
@@ -643,6 +647,7 @@ class DsaPrivateKey(PrivateKey):
             DsaPrivateKey: An instance of DsaPrivateKey
         """
         return cls()
+
 
 class EcdsaPublicKey(PublicKey):
     """
