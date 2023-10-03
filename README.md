@@ -4,7 +4,7 @@
 ![Linting](https://github.com/scheiblingco/sshkey-tools/actions/workflows/linting.yml/badge.svg)
 ![Testing-Dev](https://github.com/scheiblingco/sshkey-tools/actions/workflows/dev_testing.yml/badge.svg)
 ![Testing-Build](https://github.com/scheiblingco/sshkey-tools/actions/workflows/deploy_testing.yml/badge.svg)
-![Build](https://github.com/scheiblingco/sshkey-tools/actions/workflows/linting.yml/publish.svg)
+![Build](https://github.com/scheiblingco/sshkey-tools/actions/workflows/publish.yml/badge.svg)
 [![CodeQL](https://github.com/scheiblingco/sshkey-tools/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/scheiblingco/sshkey-tools/actions/workflows/github-code-scanning/codeql)
 
 
