@@ -1,4 +1,13 @@
+![SSHKey Tools](./assets/sshkey-tools-plain.svg)
 # sshkey-tools
+[![PyPI version](https://badge.fury.io/py/sshkey-tools.svg)](https://badge.fury.io/py/sshkey-tools)
+![Linting](https://github.com/scheiblingco/sshkey-tools/actions/workflows/linting.yml/badge.svg)
+![Testing-Dev](https://github.com/scheiblingco/sshkey-tools/actions/workflows/dev_testing.yml/badge.svg)
+![Testing-Build](https://github.com/scheiblingco/sshkey-tools/actions/workflows/deploy_testing.yml/badge.svg)
+![Build](https://github.com/scheiblingco/sshkey-tools/actions/workflows/linting.yml/publish.svg)
+[![CodeQL](https://github.com/scheiblingco/sshkey-tools/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/scheiblingco/sshkey-tools/actions/workflows/github-code-scanning/codeql)
+
+
 
 Python package for managing OpenSSH keypairs and certificates ([protocol.CERTKEYS](https://github.com/openssh/openssh-portable/blob/master/PROTOCOL.certkeys)). Supported functionality includes:
 

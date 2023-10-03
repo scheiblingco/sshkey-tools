@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="130.81175mm"
+   height="62.958721mm"
+   viewBox="0 0 130.81175 62.958721"
+   version="1.1"
+   id="svg5"
+   sodipodi:docname="sshkey-tools-plain.svg"
+   inkscape:version="1.2.1 (9c6d41e410, 2022-07-14)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:zoom="0.9917874"
+     inkscape:cx="247.02875"
+     inkscape:cy="119.48125"
+     inkscape:window-width="1586"
+     inkscape:window-height="1920"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs2" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-25.8064,-100.88969)">
+    <rect
+       style="font-weight:bold;font-size:20.0775px;font-family:Comfortaa;-inkscape-font-specification:'Comfortaa Bold';text-align:center;letter-spacing:-0.0341549px;text-anchor:middle;fill:#0d4677;fill-opacity:1;stroke:none;stroke-width:3.4;stroke-dasharray:none;stroke-opacity:1;paint-order:fill markers stroke"
+       id="rect1306"
+       width="130.81175"
+       height="62.958721"
+       x="25.8064"
+       y="100.88969"
+       ry="8"
+       rx="8"
+       inkscape:export-filename="sshkey-tools.svg"
+       inkscape:export-xdpi="96"
+       inkscape:export-ydpi="96" />
+    <text
+       xml:space="preserve"
+       style="font-weight:bold;font-size:20.0775px;font-family:Comfortaa;-inkscape-font-specification:'Comfortaa Bold';text-align:center;letter-spacing:-0.0341549px;text-anchor:middle;fill:#ff7d34;fill-opacity:1;stroke-width:0.170738;paint-order:fill markers stroke"
+       x="59.797783"
+       y="130.83498"
+       id="text236"
+       transform="scale(0.95523584,1.0468619)"><tspan
+         sodipodi:role="line"
+         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:20.0775px;font-family:'Fira Code';-inkscape-font-specification:'Fira Code Bold';fill:#ff7d34;fill-opacity:1;stroke-width:0.170738"
+         x="59.780704"
+         y="130.83498"
+         id="tspan1004">&gt;_</tspan></text>
+    <circle
+       style="fill:none;stroke:#ff7d34;stroke-width:3.4;stroke-dasharray:none;stroke-opacity:1;paint-order:fill markers stroke"
+       id="path448"
+       cx="57.841934"
+       cy="132.36905"
+       r="20" />
+    <path
+       id="rect1064"
+       style="fill:#ff7d34;fill-opacity:1;stroke:none;stroke-width:4.48944;stroke-dasharray:none;stroke-opacity:1;paint-order:fill markers stroke"
+       d="m 78.979675,127.05323 c -0.630384,0 -1.137915,0.50753 -1.137915,1.13791 v 8.35608 c 0,0.63038 0.507531,1.13792 1.137915,1.13792 h 46.702575 v 11.03136 c 0,0.277 0.22323,0.50023 0.50023,0.50023 h 3.67161 c 0.277,0 0.50023,-0.22323 0.50023,-0.50023 v -11.03136 h 2.23087 v 7.90752 c 0,0.277 0.22323,0.50023 0.50023,0.50023 h 3.67161 c 0.277,0 0.50023,-0.22323 0.50023,-0.50023 v -7.90752 h 2.23087 v 14.83165 c 0,0.277 0.22271,0.49971 0.49971,0.49971 h 3.67213 c 0.27699,0 0.49971,-0.22271 0.49971,-0.49971 v -15.96957 -1.96267 -6.39341 c 0,-0.63038 -0.50702,-1.13791 -1.1374,-1.13791 z" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:7.86744px;font-family:'Fira Code';-inkscape-font-specification:'Fira Code Bold';text-align:center;text-anchor:middle;display:inline;fill:#373737;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:1.26374;stroke-dasharray:none;stroke-opacity:1;paint-order:fill markers stroke"
+       x="117.46992"
+       y="128.13712"
+       id="text1010-5"
+       transform="scale(0.9458728,1.0572246)"
+       inkscape:export-filename="sshkey-tools.png"
+       inkscape:export-xdpi="96"
+       inkscape:export-ydpi="96"><tspan
+         sodipodi:role="line"
+         id="tspan1008-3"
+         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-family:'Fira Code';-inkscape-font-specification:'Fira Code Bold';fill:#373737;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:1.26374"
+         x="117.46992"
+         y="128.13712">SSHKEY TOOLS</tspan></text>
+  </g>
+</svg>

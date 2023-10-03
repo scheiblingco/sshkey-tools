@@ -1,3 +1,4 @@
+name: "Release Tests"
 on:
   release:
     types: [created]
