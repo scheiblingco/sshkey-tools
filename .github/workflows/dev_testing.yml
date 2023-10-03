@@ -1,3 +1,4 @@
+name: "Development Tests"
 on:
     push:
         paths-ignore:
