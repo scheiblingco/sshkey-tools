@@ -67,6 +67,16 @@ SIGNATURE_TYPE_MAP = {
     b"ed25519": "Ed25519SignatureField",
 }
 
+PUBKEY_FIELD_TYPE_MAP = {
+    b"ssh-rsa": "RsaPubkeyField",
+    b"rsa-sha2-256": "RsaPubkeyField",
+    b"rsa-sha2-512": "RsaPubkeyField",
+    b"ecdsa-sha2-nistp256": "EcdsaPubkeyField",
+    b"ecdsa-sha2-nistp384": "EcdsaPubkeyField",
+    b"ecdsa-sha2-nistp521": "EcdsaPubkeyField",
+    b"ssh-ed25519": "Ed25519PubkeyField",
+}
+
 
 class CERT_TYPE(Enum):
     """
@@ -814,6 +824,27 @@ class PublicKeyField(CertificateField):
             ]
         )
 
+    @classmethod
+    def decode(cls, data: bytes) -> "PublicKeyField":
+        """
+        Decode from a packed pair of key type and key data
+
+        Args:
+            data (bytes): Packed key type and data
+
+        Raises:
+            _EX.InvalidKeyException: Invalid
+
+        Returns:
+            PublicKeyField: A public key field
+        """
+        pk_data, data = BytestringField.decode(data)
+        pk_type, pk_data = BytestringField.decode(pk_data)
+        
+        target_class = globals()[PUBKEY_FIELD_TYPE_MAP[pk_type]]
+        
+        return target_class.from_decode(pk_data)[0], data
+        
     @classmethod
     def encode(cls, value: PublicKey) -> bytes:
         """
@@ -1685,3 +1716,60 @@ class Ed25519SignatureField(SignatureField):
         """
         self.value = self.private_key.sign(data)
         self.is_signed = True
+
+
+class SshsigField(CertificateField):
+    """
+    SSH Signature magic preamble field (static b'SSHSIG')
+    """
+    DATA_TYPE = bytes
+    DEFAULT = b'SSHSIG'
+    @classmethod
+    def encode(cls, value: bytes) -> bytes:
+        """
+        Encodes the SSH Signature magic preamble field
+
+        Args:
+            value (bytes): The SSH Signature magic preamble field
+
+        Returns:
+            bytes: The SSH Signature magic preamble field
+        """
+        return b'SSHSIG'
+
+    @classmethod
+    def decode(cls, data: bytes) -> Tuple[bytes, bytes]:
+        """
+        Decodes the SSH Signature magic preamble field
+
+        Args:
+            data (bytes): The SSH Signature magic preamble field
+
+        Returns:
+            bytes: The SSH Signature magic preamble field
+        """
+        return data[:6], data[6:]
+
+    def __validate_value__(self) -> Union[bool, Exception]:
+        """
+        Validates the contents of the field
+        """
+        return True
+
+class SignatureVersionField(Integer32Field):
+    DATA_TYPE = int
+    DEFAULT = 1
+
+class SignatureNamespace(StringField):
+    DATA_TYPE = (str, bytes)
+    DEFAULT = ""
+    
+    def __validate_value__(self) -> Union[bool, Exception]:
+        if len(self.value) == 0:
+            return _EX.InvalidFieldDataException(
+                f"{self.get_name()} must be a non-empty string"
+            )
+
+class SignatureHashAlgorithmField(StringField):
+    DATA_TYPE = (str, bytes)
+    DEFAULT = ""

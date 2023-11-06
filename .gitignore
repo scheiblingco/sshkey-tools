@@ -149,3 +149,10 @@ test_certificate
 testing.py
 .idea
 core
+/id_rsa
+/id_rsa.pub
+/id_ecdsa*
+/id_dsa*
+/id_ed25519*
+hello.txt
+hello.txt.sig
