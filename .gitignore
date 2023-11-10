@@ -156,3 +156,5 @@ core
 /id_ed25519*
 hello.txt
 hello.txt.sig
+
+/testkeys

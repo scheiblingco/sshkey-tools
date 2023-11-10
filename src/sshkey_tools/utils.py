@@ -198,6 +198,29 @@ def md5_fingerprint(data: bytes, prefix: bool = True) -> str:
         a + b for a, b in zip(digest[::2], digest[1::2])
     )
 
+def sha256_hash(data: bytes) -> str:
+    """
+    Returns a SHA256 hash of the given data.
+
+    Args:
+        data (bytes): The data to hash
+
+    Returns:
+        str: The hash
+    """
+    return hl.sha256(data).digest()
+
+def sha512_hash(data: bytes) -> str:
+    """
+    Returns a SHA512 hash of the given data.
+
+    Args:
+        data (bytes): The data to hash
+
+    Returns:
+        str: The hash
+    """
+    return hl.sha512(data).digest()
 
 def sha256_fingerprint(data: bytes, prefix: bool = True) -> str:
     """

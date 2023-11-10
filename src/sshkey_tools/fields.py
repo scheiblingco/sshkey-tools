@@ -1712,7 +1712,7 @@ class Ed25519SignatureField(SignatureField):
         Args:
             data (bytes): The data to be signed
             hash_alg (RsaAlgs, optional): The RSA algorithm to use for hashing.
-                                           Defaults to RsaAlgs.SHA256.
+                                          Defaults to RsaAlgs.SHA256.
         """
         self.value = self.private_key.sign(data)
         self.is_signed = True
@@ -1759,8 +1759,23 @@ class SshsigField(CertificateField):
 class SignatureVersionField(Integer32Field):
     DATA_TYPE = int
     DEFAULT = 1
+    
+    def __validate_value__(self) -> Union[bool, Exception]:
+        """
+        Validates the contents of the field
+        """
+        if self.value != 1:
+            return _EX.InvalidCertificateFieldException(
+                "The certificate version is invalid"
+            )
 
-class SignatureNamespace(StringField):
+        return True
+
+class SignatureNamespaceField(StringField):
+    DATA_TYPE = (str, bytes)
+    DEFAULT = ""
+
+class SignatureNamespaceField(StringField):
     DATA_TYPE = (str, bytes)
     DEFAULT = ""
     
@@ -1769,7 +1784,17 @@ class SignatureNamespace(StringField):
             return _EX.InvalidFieldDataException(
                 f"{self.get_name()} must be a non-empty string"
             )
+        
+        return True
 
 class SignatureHashAlgorithmField(StringField):
     DATA_TYPE = (str, bytes)
-    DEFAULT = ""
+    DEFAULT = "sha512"
+    
+    def __validate_value__(self) -> Union[bool, Exception]:
+        if self.value not in ("sha256", "sha512"):
+            return _EX.InvalidFieldDataException(
+                f"{self.get_name()} must be one of 'sha256' or 'sha512'"
+            )
+        
+        return True
