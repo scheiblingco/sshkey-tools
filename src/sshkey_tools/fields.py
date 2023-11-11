@@ -1685,3 +1685,117 @@ class Ed25519SignatureField(SignatureField):
         """
         self.value = self.private_key.sign(data)
         self.is_signed = True
+
+PUBKEY_FIELD_TYPE_MAP = {
+    b"ssh-rsa": "RsaTypedPubkeyField",
+    b"rsa-sha2-256": "RsaTypedPubkeyField",
+    b"rsa-sha2-512": "RsaTypedPubkeyField",
+    b"ecdsa-sha2-nistp256": "EcdsaTypedPubkeyField",
+    b"ecdsa-sha2-nistp384": "EcdsaTypedPubkeyField",
+    b"ecdsa-sha2-nistp521": "EcdsaTypedPubkeyField",
+    b"ssh-ed25519": "Ed25519TypedPubkeyField",
+}
+
+class TypedPublicKeyField(PublicKeyField):
+    @classmethod
+    def decode(cls, data: bytes) -> "PublicKeyField":
+        """
+        Decode from a packed pair of key type and key data
+
+        Args:
+            data (bytes): Packed key type and data
+
+        Raises:
+            _EX.InvalidKeyException: Invalid
+
+        Returns:
+            PublicKeyField: A public key field
+        """
+        pk_data, data = BytestringField.decode(data)
+        pk_type, pk_data = BytestringField.decode(pk_data)
+        
+        target_class = globals()[PUBKEY_FIELD_TYPE_MAP[pk_type]]
+        
+        return target_class.from_decode(pk_data)[0], data
+
+
+class SshsigField(CertificateField):
+    """
+    SSH Signature magic preamble field (static b'SSHSIG')
+    """
+    DATA_TYPE = bytes
+    DEFAULT = b'SSHSIG'
+    @classmethod
+    def encode(cls, value: bytes) -> bytes:
+        """
+        Encodes the SSH Signature magic preamble field
+
+        Args:
+            value (bytes): The SSH Signature magic preamble field
+
+        Returns:
+            bytes: The SSH Signature magic preamble field
+        """
+        return b'SSHSIG'
+
+    @classmethod
+    def decode(cls, data: bytes) -> Tuple[bytes, bytes]:
+        """
+        Decodes the SSH Signature magic preamble field
+
+        Args:
+            data (bytes): The SSH Signature magic preamble field
+
+        Returns:
+            bytes: The SSH Signature magic preamble field
+        """
+        return data[:6], data[6:]
+
+    def __validate_value__(self) -> Union[bool, Exception]:
+        """
+        Validates the contents of the field
+        """
+        return True
+
+class SignatureVersionField(Integer32Field):
+    DATA_TYPE = int
+    DEFAULT = 1
+    
+    def __validate_value__(self) -> Union[bool, Exception]:
+        """
+        Validates the contents of the field
+        """
+        if self.value != 1:
+            return _EX.InvalidCertificateFieldException(
+                "The certificate version is invalid"
+            )
+
+        return True
+
+class SignatureNamespaceField(StringField):
+    DATA_TYPE = (str, bytes)
+    DEFAULT = ""
+
+class SignatureNamespaceField(StringField):
+    DATA_TYPE = (str, bytes)
+    DEFAULT = ""
+    
+    def __validate_value__(self) -> Union[bool, Exception]:
+        if len(self.value) == 0:
+            return _EX.InvalidFieldDataException(
+                f"{self.get_name()} must be a non-empty string"
+            )
+        
+        return True
+
+class SignatureHashAlgorithmField(StringField):
+    DATA_TYPE = (str, bytes)
+    DEFAULT = "sha512"
+    
+    def __validate_value__(self) -> Union[bool, Exception]:
+        if self.value not in ("sha256", "sha512"):
+            return _EX.InvalidFieldDataException(
+                f"{self.get_name()} must be one of 'sha256' or 'sha512'"
+            )
+        
+        return True
