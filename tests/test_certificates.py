@@ -11,6 +11,8 @@ import unittest
 
 import faker
 
+from datetime import datetime
+
 import src.sshkey_tools.cert as _CERT
 import src.sshkey_tools.exceptions as _EX
 import src.sshkey_tools.fields as _FIELD
@@ -46,7 +48,7 @@ class TestCertificateFields(unittest.TestCase):
             decode, bytestring = field_class.decode(bytestring)
             decoded.append(decode)
 
-        self.assertEqual(decoded, values)
+        self.assertEqual(values, decoded)
 
     def assertExpectedResponse(self, field_class, input, expected_output):
         self.assertEqual(field_class.encode(input), expected_output)
@@ -143,7 +145,7 @@ class TestCertificateFields(unittest.TestCase):
 
     def test_datetime_field(self):
         self.assertRandomResponse(
-            _FIELD.DateTimeField, random_function=lambda: self.faker.date_time()
+            _FIELD.DateTimeField, random_function=lambda: datetime.fromtimestamp(int(self.faker.date_time().timestamp()))
         )
 
     def test_invalid_datetime_field(self):
@@ -402,7 +404,7 @@ class TestCertificateFields(unittest.TestCase):
 
     def test_validity_start_field(self):
         self.assertRandomResponse(
-            _FIELD.ValidAfterField, random_function=lambda: self.faker.date_time()
+            _FIELD.ValidAfterField, random_function=lambda: datetime.fromtimestamp(int(self.faker.date_time().timestamp()))
         )
 
     def test_invalid_validity_start_field(self):
@@ -416,7 +418,7 @@ class TestCertificateFields(unittest.TestCase):
 
     def test_validity_end_field(self):
         self.assertRandomResponse(
-            _FIELD.ValidBeforeField, random_function=lambda: self.faker.date_time()
+            _FIELD.ValidBeforeField, random_function=lambda: datetime.fromtimestamp(int(self.faker.date_time().timestamp()))
         )
 
     def test_invalid_validity_end_field(self):
