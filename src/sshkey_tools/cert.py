@@ -97,7 +97,8 @@ class Fieldset:
         if field:
             if isinstance(field, type):
                 return field.DEFAULT
-            return field.value
+            if getattr(field, "value", False):
+                return field.value
         return field
 
     def getattrs(self) -> tuple:

@@ -53,16 +53,19 @@ class SSHSignature:
     """
     General class for SSH Signatures, used for loading and parsing.
     """
+    data: bytes = None
+    
     def __init__(
         self, signer_privkey: _KEY.PrivateKey = None,
         fields: SignatureFieldset = SignatureFieldset
     ):
         self.fields = fields() if isinstance(fields, type) else fields
         
-        if isinstance(signer_privkey, type) and signer_privkey is not None:
+        if signer_privkey is not None:
             self.fields.replace_field(
                 "signature", _FIELD.SignatureField.from_object(signer_privkey)
-            )        
+            )
+            self.fields.replace_field("public_key", signer_privkey.public_key)    
     
     @classmethod
     def from_file(cls, path: str, encoding: str = 'none') -> "SSHSignature":
@@ -137,7 +140,23 @@ class SSHSignature:
             )
         
         return bytes(self.fields) + _FIELD.StringField.encode(hash)
+    
+    def get_signable_file(self, path: str) -> bytes:
+        """
+        Loads the signable content from a file. 
+        Will be loaded as bytes without encoding.
 
+        Args:
+            path (str): Path to the file
+
+        Returns:
+            bytes: The signable data from the file
+        """
+        with open(path, 'rb') as f:
+            data = f.read()
+        
+        return self.get_signable(data)
+        
     def __str__(self) -> str:
         table = PrettyTable(["Field", "Value"])
 
@@ -163,14 +182,19 @@ class SSHSignature:
         self, data, public_key: _KEY.PublicKey = None, raise_on_error: bool = False
     ) -> bool:
         if not public_key:
-            public_key = self.get('public_key').value
+            public_key = self.fields.get('public_key', None)
             
         public_key.verify(
             self.get_signable(data),
             self.fields.signature.value
         ) 
-            
-            
-            
-        print()
+    
+    def sign(self, data: Union[str, bytes]):
+        signable = self.get_signable(data)      
+        self.fields.signature.sign(signable)
+    
+    def sign_file(self, path: str):
+        signable = self.get_signable_file(path)
+        self.fields.signature.sign(signable)
+
         
