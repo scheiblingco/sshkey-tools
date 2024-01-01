@@ -7,7 +7,7 @@
 # string    reserved
 # string    hash_algorithm
 # string    signature
-from base64 import b64decode
+from base64 import b64decode, b64encode
 from .cert import Fieldset, dataclass, Union
 from prettytable import PrettyTable
 from .utils import concat_to_bytestring, concat_to_string, ensure_bytestring
@@ -48,6 +48,32 @@ class SignatureFieldset(Fieldset):
             bytes(self.reserved),
             bytes(self.hash_algorithm)
         )
+    
+    def format_pubkey(self):
+        pubkey = self.public_key.value.to_string().split(' ')
+        
+        return _FIELD.StringField.encode(concat_to_bytestring(
+            pubkey[0],
+            ' ',
+            b64decode(pubkey[1]))
+        )
+        
+        
+        # return _FIELD.BytestringField.encode(concat_to_bytestring(
+        #     _FIELD.StringField.encode(pubkey[0]),
+        #     _FIELD.StringField.encode(b64decode(pubkey[1]))
+        # ))
+    
+    def bytes_out(self):
+        return concat_to_bytestring(
+            bytes(self.magic_preamble),
+            bytes(self.sig_version),
+            _FIELD.StringField.encode(self.public_key.value.raw_bytes()),
+            bytes(self.namespace),
+            bytes(self.reserved),
+            bytes(self.hash_algorithm),
+            bytes(self.signature)
+        )
 
 class SSHSignature:
     """
@@ -65,8 +91,11 @@ class SSHSignature:
             self.fields.replace_field(
                 "signature", _FIELD.SignatureField.from_object(signer_privkey)
             )
-            self.fields.replace_field("public_key", signer_privkey.public_key)    
+            self.fields.replace_field("public_key", _FIELD.PublicKeyField.from_object(signer_privkey.public_key))    
     
+        if issubclass(type(self.fields.public_key.value), type(self.fields.public_key)):
+            self.fields.public_key = self.fields.public_key.value
+
     @classmethod
     def from_file(cls, path: str, encoding: str = 'none') -> "SSHSignature":
         """
@@ -196,5 +225,17 @@ class SSHSignature:
     def sign_file(self, path: str):
         signable = self.get_signable_file(path)
         self.fields.signature.sign(signable)
-
+    
+    def to_string(self, data):
+        content = self.fields.bytes_out()
+        content = b64encode(content)
+        file_content = b"-----BEGIN SSH SIGNATURE-----\n"
+        file_content += b''.join([content[i:i+70] + b"\n" for i in range(0, len(content), 70)])
+        file_content += b"-----END SSH SIGNATURE-----"
         
+        return file_content
+    
+    def to_file(self, data, path: str):
+        with open(path, 'wb') as f:
+            f.write(self.to_string(data))
+            
