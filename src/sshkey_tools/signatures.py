@@ -226,7 +226,7 @@ class SSHSignature:
         signable = self.get_signable_file(path)
         self.fields.signature.sign(signable)
     
-    def to_string(self, data):
+    def to_string(self):
         content = self.fields.bytes_out()
         content = b64encode(content)
         file_content = b"-----BEGIN SSH SIGNATURE-----\n"
@@ -235,7 +235,7 @@ class SSHSignature:
         
         return file_content
     
-    def to_file(self, data, path: str):
+    def to_file(self, path: str):
         with open(path, 'wb') as f:
-            f.write(self.to_string(data))
+            f.write(self.to_string())
             

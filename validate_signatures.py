@@ -31,7 +31,7 @@ ed25519_signable = ed25519_sign.get_signable_file('testkeys/ed25519.txt')
 # ecdsa_pub.verify(ecdsa_signable, ecdsa_sign.fields.signature.value)
 # ecdsa_pub.to_file('testkeys/ecdsa.txt.sig2')
 rsa_pub.verify(rsa_signable, rsa_sign.fields.signature.value)
-rsa_sign.to_file(rsa_data, 'testkeys/rsa.txt.sig2')
+rsa_sign.to_file('testkeys/rsa.txt.sig2')
 # except:
     # print("RSA validation failed")
 
