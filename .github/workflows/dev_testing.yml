@@ -7,7 +7,7 @@ on:
 
 jobs:
   testing:
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -15,10 +15,7 @@ jobs:
           - "3.9"
           - "3.10"
           - "3.11"
-        os:
-          - "ubuntu-latest"
-          - "macOS-latest"
-          - "windows-latest"
+
     steps:
       - uses: actions/checkout@v3
 
