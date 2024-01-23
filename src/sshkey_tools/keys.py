@@ -7,13 +7,8 @@ from struct import unpack
 from typing import Union
 
 from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.backends.openssl.ec import (
-    _EllipticCurvePrivateKey,
-    _EllipticCurvePublicKey,
-)
 from cryptography.hazmat.bindings import _rust as _RustBinding
 
-from cryptography.hazmat.backends.openssl.rsa import _RSAPrivateKey, _RSAPublicKey
 from cryptography.hazmat.primitives import hashes as _HASHES
 from cryptography.hazmat.primitives import serialization as _SERIALIZATION
 from cryptography.hazmat.primitives.asymmetric import dsa as _DSA
@@ -29,14 +24,14 @@ from .utils import sha256_fingerprint as _FP_SHA256
 from .utils import sha512_fingerprint as _FP_SHA512
 
 PUBKEY_MAP = {
-    _RSAPublicKey: "RsaPublicKey",
-    _EllipticCurvePublicKey: "EcdsaPublicKey",
+    _RustBinding.openssl.rsa.RSAPublicKey: "RsaPublicKey",
+    _RustBinding.openssl.ec.ECPublicKey: "EcdsaPublicKey",
     _RustBinding.openssl.ed25519.Ed25519PublicKey: "Ed25519PublicKey",
 }
 
 PRIVKEY_MAP = {
-    _RSAPrivateKey: "RsaPrivateKey",
-    _EllipticCurvePrivateKey: "EcdsaPrivateKey",
+    _RustBinding.openssl.rsa.RSAPrivateKey: "RsaPrivateKey",
+    _RustBinding.openssl.ec.ECPrivateKey: "EcdsaPrivateKey",
     # trunk-ignore(gitleaks/generic-api-key)
     _RustBinding.openssl.ed25519.Ed25519PrivateKey: "Ed25519PrivateKey",
 }
@@ -780,7 +775,7 @@ class EcdsaPrivateKey(PrivateKey):
         Returns:
             EcdsaPrivateKey: An instance of EcdsaPrivateKey
         """
-        return cls.from_class(_ECDSA.generate_private_key(curve=curve.value))
+        return cls.from_class(_ECDSA.generate_private_key(curve=curve.value()))
 
     def sign(self, data: bytes):
         """
