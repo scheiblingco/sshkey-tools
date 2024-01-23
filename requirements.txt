@@ -1,6 +1,5 @@
-click>=7.1
-cryptography>=41.0
-bcrypt>=4.0
-enum34>=1.1
-PrettyTable>=3.1
-pytimeparse2>=1.4
+click~=8.1
+cryptography~=41.0.0
+bcrypt~=4.1
+PrettyTable~=3.9
+pytimeparse2~=1.1
