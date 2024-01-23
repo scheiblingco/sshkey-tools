@@ -7,3 +7,4 @@ faker
 cprint
 pylint
 pylint-report
+pipenv
