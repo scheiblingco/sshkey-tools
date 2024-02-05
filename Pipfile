@@ -5,7 +5,7 @@ name = "pypi"
 
 [packages]
 click = "~=8.1"
-cryptography = "~=41.0"
+cryptography = "~=42.0"
 bcrypt = "~=4.1"
 prettytable = "~=3.1"
 pytimeparse2 = "~=1.4"
