@@ -444,12 +444,12 @@
         },
         "faker": {
             "hashes": [
-                "sha256:9a510a31090cc47a7ef7d95c1da8126a891a9d076c7e26b01ad02e1bcf915c3e",
-                "sha256:a4e689e2f4e62474245364bbd82cec045dcbbf85a539ee742a515fb4e93a6dd5"
+                "sha256:0520a6b97e07c658b2798d7140971c1d5bc4bcd5013e7937fe075fd054aa320c",
+                "sha256:f07b64d27f67b62c7f0536a72f47813015b3b51cd4664918454011094321e464"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.8'",
-            "version": "==22.5.0"
+            "version": "==23.2.1"
         },
         "iniconfig": {
             "hashes": [
