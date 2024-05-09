@@ -5,6 +5,4 @@ black
 pytest-cov
 faker
 cprint
-pylint
-pylint-report
 pipenv
