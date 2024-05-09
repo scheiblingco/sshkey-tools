@@ -1,9 +1,10 @@
 name: "Development Tests"
 on:
-    push:
-        paths-ignore:
-            - "docs/**"
-            - "*.md"
+  push:
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+  workflow_dispatch:
 
 jobs:
   testing:
@@ -12,9 +13,9 @@ jobs:
       fail-fast: false
       matrix:
         python-version:
-          - "3.9"
           - "3.10"
           - "3.11"
+          - "3.12"
 
     steps:
       - uses: actions/checkout@v3
