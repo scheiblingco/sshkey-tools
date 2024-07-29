@@ -1,5 +1,5 @@
 click~=8.1
 cryptography~=42.0.7
 bcrypt~=4.1
-PrettyTable~=3.9
+PrettyTable~=3.10
 pytimeparse2~=1.1
