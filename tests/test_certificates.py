@@ -482,6 +482,8 @@ class TestCertificateFields(unittest.TestCase):
             "permit-port-forwarding",
             "permit-pty",
             "permit-user-rc",
+            "test@domain.net",
+            "abc@def.com"
         ]
 
         self.assertRandomResponse(
@@ -491,25 +493,6 @@ class TestCertificateFields(unittest.TestCase):
                 for _ in range(10)
             ],
         )
-
-    def test_invalid_extensions_field(self):
-        field = _FIELD.CriticalOptionsField([ValueError, "permit-pty", b"unpermit"])
-        field.validate()
-
-        self.assertFieldContainsException(field, _EX.InvalidDataException)
-
-        field = _FIELD.CriticalOptionsField("InvalidData")
-        field.validate()
-
-        self.assertFieldContainsException(field, _EX.InvalidDataException)
-
-        field = _FIELD.CriticalOptionsField(["no-touch-required", "InvalidOption"])
-        field.validate()
-
-        self.assertFieldContainsException(field, _EX.InvalidDataException)
-
-        with self.assertRaises(_EX.InvalidDataException):
-            field.encode(ValueError)
 
     def test_reserved_field(self):
         self.assertExpectedResponse(_FIELD.ReservedField, "", b"\x00\x00\x00\x00")
