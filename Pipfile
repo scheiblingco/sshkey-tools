@@ -6,8 +6,8 @@ name = "pypi"
 [packages]
 click = "~=8.1"
 cryptography = "~=43.0"
-bcrypt = "~=4.1"
-prettytable = "~=3.10"
+bcrypt = "~=4.2"
+prettytable = "~=3.11"
 pytimeparse2 = "~=1.4"
 
 [dev-packages]
