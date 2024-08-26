@@ -1178,13 +1178,6 @@ class ExtensionsField(KeyValueField):
                 f"{self.get_name()} Could not validate value, invalid type"
             )
 
-        for item in self.value:
-            if item not in self.ALLOWED_VALUES:
-                return _EX.InvalidDataException(
-                    f"Invalid extension '{item}'{NEWLINE}"
-                    + f"Allowed values are: {NEWLINE.join(self.ALLOWED_VALUES)}"
-                )
-
         return True
 
 
