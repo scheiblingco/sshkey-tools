@@ -41,7 +41,8 @@ jobs:
           coverage html
 
       - name: Upload report
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: code-coverage-report
           path: htmlcov
+          if-no-files-found: warn
