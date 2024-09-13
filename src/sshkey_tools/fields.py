@@ -1,6 +1,7 @@
 """
 Field types for SSH Certificates
 """
+
 # pylint: disable=invalid-name,too-many-lines,arguments-differ
 import re
 from base64 import b64encode

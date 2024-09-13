@@ -1,6 +1,7 @@
 """
 Classes for handling SSH public/private keys
 """
+
 from base64 import b64decode
 from enum import Enum
 from struct import unpack
@@ -562,6 +563,12 @@ class RsaPrivateKey(PrivateKey):
         Returns:
             RsaPrivateKey: Instance of RsaPrivateKey
         """
+
+        if key_size < 1024:
+            raise _EX.InvalidKeyFormatException(
+                "Key size must be at least 1024 bits for RSA keys"
+            )
+
         return cls.from_class(
             _RSA.generate_private_key(
                 public_exponent=public_exponent, key_size=key_size

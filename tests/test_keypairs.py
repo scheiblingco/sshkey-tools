@@ -142,7 +142,7 @@ class TestKeyGeneration(KeypairMethods):
         pass
 
     def test_rsa(self):
-        key_bits = [512, 1024, 2048, 4096, 8192]
+        key_bits = [1024, 2048, 4096, 8192]
 
         for bits in key_bits:
             key = RsaPrivateKey.generate(bits)
