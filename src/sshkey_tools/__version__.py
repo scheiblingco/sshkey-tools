@@ -1,4 +1,5 @@
 """Module information."""
+
 import os
 
 # The title and description of the package
