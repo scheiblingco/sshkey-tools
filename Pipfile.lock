@@ -503,12 +503,12 @@
         },
         "faker": {
             "hashes": [
-                "sha256:0d3c0399204aaf8205cc1750db443474ca0436f177126b2c27b798e8336cc74f",
-                "sha256:6a3a08be54c37e05f7943d7ba5211d252c1de737687a46ad6f29209d8d5db11f"
+                "sha256:4f7f133560b9d4d2a915581f4ba86f9a6a83421b89e911f36c4c96cff58135a5",
+                "sha256:93e8b70813f76d05d98951154681180cb795cfbcff3eced7680d963bcc0da2a9"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.8'",
-            "version": "==28.0.0"
+            "version": "==30.8.1"
         },
         "iniconfig": {
             "hashes": [
@@ -851,7 +851,7 @@
                 "sha256:04e5ca0351e0f3f85c6853954072df659d0d13fac324d0072316b67d7794700d",
                 "sha256:1a7ead55c7e559dd4dee8856e3a88b41225abfe1ce8df57b7c13915fe121ffb8"
             ],
-            "markers": "python_version < '3.11'",
+            "markers": "python_version >= '3.8'",
             "version": "==4.12.2"
         }
     }
