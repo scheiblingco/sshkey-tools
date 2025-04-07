@@ -494,7 +494,7 @@ class RsaPrivateKey(PrivateKey):
         )
 
     @classmethod
-    # pylint: disable=invalid-name,too-many-arguments
+    # pylint: disable=invalid-name,too-many-arguments,too-many-positional-arguments
     def from_numbers(
         cls,
         e: int,
@@ -622,7 +622,7 @@ class DsaPrivateKey(PrivateKey):
         )
 
     @classmethod
-    # pylint: disable=invalid-name,too-many-arguments,unused-argument
+    # pylint: disable=invalid-name,too-many-arguments,unused-argument,too-many-positional-arguments
     def from_numbers(cls, p, q, g, y, x):
         """
         Creates a new DsaPrivateKey object from parameters and public/private numbers
