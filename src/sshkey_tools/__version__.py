@@ -15,7 +15,7 @@ __version__ = os.getenv("RELEASE_NAME", "0.10.2-dev" + os.getenv("GITHUB_RUN_ID"
 # Author and license information
 __author__ = "Lars Scheibling"
 __author_email__ = "lars@scheibling.se"
-__license__ = "GnuPG 3.0"
+__license__ = "GPL-3.0-or-later"
 
 # URL to the project
 __url__ = f"https://github.com/scheiblingco/{__title__}"
