@@ -230,7 +230,7 @@ class SSHCertificate:
 
     DEFAULT_KEY_TYPE = "none@openssh.com"
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments, too-many-positional-arguments
     def __init__(
         self,
         subject_pubkey: PublicKey = None,
@@ -290,6 +290,7 @@ class SSHCertificate:
         return str(table)
 
     @classmethod
+    # pylint: disable=too-many-positional-arguments
     def create(
         cls,
         subject_pubkey: PublicKey = None,
