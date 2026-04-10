@@ -6,19 +6,17 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: pypi-release
     permissions:
       id-token: write
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Install uv
       uses: astral-sh/setup-uv@v5
       with:
         python-version: '3.11'
-
-    - name: Install dependencies
-      run: uv tool install pdoc3
 
     - name: Build and publish
       env:
@@ -26,9 +24,49 @@ jobs:
       run: |
         uv build
         uv publish
+    
+  pages:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+      
+    concurrency:
+      group: "pages"
+      cancel-in-progress: false
 
-    - name: Rebuild documentation
-      run: |
-        uvx pdoc --html src/sshkey_tools/ --force --output-dir docs
-        mv docs/sshkey_tools/* docs/
-        rm -r docs/sshkey_tools
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: uv tool install pdoc3
+
+
+      - name: Rebuild documentation
+        run: |
+          uvx pdoc --html src/sshkey_tools/ --force --output-dir docs
+          mv docs/sshkey_tools/* docs/
+          rm -r docs/sshkey_tools
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './docs'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
