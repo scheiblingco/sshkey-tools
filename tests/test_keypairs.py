@@ -5,6 +5,7 @@
 import os
 import shutil
 import unittest
+import subprocess
 
 from cryptography.hazmat.primitives.asymmetric import ec as _EC
 from cryptography.hazmat.primitives.asymmetric import ed25519 as _ED25519
@@ -38,16 +39,22 @@ class KeypairMethods(unittest.TestCase):
             shutil.rmtree(f"tests/{folder}")
             os.mkdir(f"tests/{folder}")
 
-        os.system(
-            f'ssh-keygen -t rsa -b 2048 -f tests/{folder}/rsa_key_sshkeygen -N "password" > /dev/null 2>&1'
+        subprocess.run(
+            ["ssh-keygen", "-t", "rsa", "-b", "2048", "-f", f"tests/{folder}/rsa_key_sshkeygen", "-N", "password"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
         )
-        os.system(
-            f'ssh-keygen -t ecdsa -b 256 -f tests/{folder}/ecdsa_key_sshkeygen -N "" > /dev/null 2>&1'
+        subprocess.run(
+            ["ssh-keygen", "-t", "ecdsa", "-b", "256", "-f", f"tests/{folder}/ecdsa_key_sshkeygen", "-N", ""],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
         )
-        os.system(
-            f'ssh-keygen -t ed25519 -f tests/{folder}/ed25519_key_sshkeygen -N "" > /dev/null 2>&1'
+        subprocess.run(
+            ["ssh-keygen", "-t", "ed25519", "-f", f"tests/{folder}/ed25519_key_sshkeygen", "-N", ""],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
         )
-
+        
     def setUp(self):
         self.generateClasses()
         self.generateFiles("KeypairMethods")
@@ -76,16 +83,11 @@ class KeypairMethods(unittest.TestCase):
         self.assertEqual(a.raw_bytes(), b.raw_bytes())
 
     def assertEqualKeyFingerprint(self, file_a, file_b):
+        fp_a = subprocess.run(["ssh-keygen", "-lf", file_a], capture_output=True, text=True)
+        fp_b = subprocess.run(["ssh-keygen", "-lf", file_b], capture_output=True, text=True)
+        
         self.assertEqual(
-            0,
-            os.system(
-                f"""bash -c "
-               diff \
-               <( ssh-keygen -lf {file_a}) \
-               <( ssh-keygen -lf {file_b}) \
-            "
-            """
-            ),
+            fp_a.stdout, fp_b.stdout
         )
 
 

@@ -8,6 +8,7 @@ import os
 import random
 import shutil
 import unittest
+import subprocess
 
 import faker
 
@@ -569,14 +570,21 @@ class TestCertificates(unittest.TestCase):
         )
 
         self.assertTrue(certificate.can_sign())
+        
+        
         certificate.sign()
         certificate.to_file(f"tests/certificates/{sub_type}_{ca_type}-cert.pub")
+        
+        createdCmd = subprocess.run(
+            ["ssh-keygen", "-Lf", f"tests/certificates/{sub_type}_{ca_type}-cert.pub"],
+            capture_output=True,
+            text=True
+        )
 
         self.assertEqual(
             0,
-            os.system(
-                f"ssh-keygen -Lf tests/certificates/{sub_type}_{ca_type}-cert.pub"
-            ),
+            createdCmd.returncode,
+            f"ssh-keygen failed to read the created certificate: {createdCmd.stderr}"
         )
 
         reloaded_cert = _CERT.SSHCertificate.from_file(

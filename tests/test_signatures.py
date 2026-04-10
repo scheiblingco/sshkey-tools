@@ -1,10 +1,11 @@
 # Test SSH signatures (SSHSIG format)
 # Tests for signature-specific fields, SSHSignature creation/parsing
 # Tests creating signatures with sshkey-tools and verifying with ssh-keygen, and vice versa
-
+import io
 import os
 import shutil
 import unittest
+import subprocess
 
 import src.sshkey_tools.exceptions as _EX
 import src.sshkey_tools.fields as _FIELD
@@ -183,17 +184,20 @@ class SignatureMethods(unittest.TestCase):
         with open(f"tests/{folder}/testdata.txt", "w") as f:
             f.write("This is test data for SSH signature testing.")
 
-        os.system(
-            f'ssh-keygen -t rsa -b 2048 -f tests/{folder}/rsa_key -N "" > /dev/null 2>&1'
+        subprocess.run(
+            ["ssh-keygen", "-t", "rsa", "-b", "2048", "-f", f"tests/{folder}/rsa_key", "-N", '']
         )
-        os.system(
-            f'ssh-keygen -t ecdsa -b 256 -f tests/{folder}/ecdsa_key -N "" > /dev/null 2>&1'
+        
+        subprocess.run(
+            ["ssh-keygen", "-t", "ecdsa", "-b", "256", "-f", f"tests/{folder}/ecdsa_key", "-N", '']
         )
-        os.system(
-            f'ssh-keygen -t ed25519 -f tests/{folder}/ed25519_key -N "" > /dev/null 2>&1'
+        
+        subprocess.run(
+            ["ssh-keygen", "-t", "ed25519", "-f", f"tests/{folder}/ed25519_key", "-N", '']
         )
-
+        
         for key_type in KEY_TYPES:
+            os.chmod(f"tests/{folder}/{key_type}_key", 0o600)
             with open(f"tests/{folder}/{key_type}_key.pub") as f:
                 pubkey = f.read().strip()
             with open(f"tests/{folder}/{key_type}_allowed_signers", "w") as f:
@@ -238,12 +242,23 @@ class TestSshkeyToolsSignaturesVerifiedBySshkeygen(SignatureMethods):
         data_path = f"tests/{self.folder}/{key_type}_{namespace}_{hash_alg}_data.txt"
         with open(data_path, "wb") as f:
             f.write(data)
-
-        result = os.system(
-            f"ssh-keygen -Y verify -f {allowed_signers_path} -I {PRINCIPAL} "
-            f"-n {namespace} -s {sig_path} < {data_path} > /dev/null 2>&1"
+        
+        
+        p = subprocess.Popen([
+                "ssh-keygen", "-Y", "verify", "-f", allowed_signers_path, "-I", PRINCIPAL,
+                "-n", namespace, "-s", sig_path
+            ],
+            stdout=subprocess.PIPE, 
+            stdin=subprocess.PIPE, 
+            stderr=subprocess.PIPE, 
+            text=True
         )
-        self.assertEqual(result, 0, f"ssh-keygen failed to verify {key_type} signature")
+        stdout_data = p.communicate(input=data.decode("utf-8"))
+        
+        self.assertNotStartsWith(
+            stdout_data[0],
+            'Could not verify signature'
+        )
 
     def test_rsa_sign_sha512(self):
         self.assertSignAndVerifyWithSshkeygen("rsa", "file", "sha512")
@@ -279,11 +294,14 @@ class TestSshkeyToolsSignaturesVerifiedBySshkeygen(SignatureMethods):
 
         allowed_signers_path = self.createSshkeyToolsAllowedSigners("ed25519_file_method", pubkey)
 
-        result = os.system(
-            f"ssh-keygen -Y verify -f {allowed_signers_path} -I {PRINCIPAL} "
-            f"-n file -s {sig_path} < tests/{self.folder}/testdata.txt > /dev/null 2>&1"
+        result = subprocess.run(
+            ["bash", "-c", 
+                f"ssh-keygen -Y verify -f {allowed_signers_path} -I {PRINCIPAL} "
+            f"-n file -s {sig_path} < tests/{self.folder}/testdata.txt",
+            ],
+            capture_output=True
         )
-        self.assertEqual(result, 0, "ssh-keygen failed to verify file-signed ed25519 signature")
+        self.assertEqual(result.returncode, 0, "ssh-keygen failed to verify file-signed ed25519 signature")
 
 
 class TestSshkeygenSignaturesParsedBySshkeyTools(SignatureMethods):
@@ -298,11 +316,11 @@ class TestSshkeygenSignaturesParsedBySshkeyTools(SignatureMethods):
         with open(data_path, "wb") as f:
             f.write(data)
 
-        ret = os.system(
-            f"ssh-keygen -Y sign -f tests/{self.folder}/{key_type}_key "
-            f"-n file {data_path} > /dev/null 2>&1"
+        ret = subprocess.run(
+            ["ssh-keygen", "-Y", "sign", "-f", f"tests/{self.folder}/{key_type}_key", "-n", "file", data_path],
+            capture_output=True
         )
-        self.assertEqual(ret, 0, f"ssh-keygen failed to sign {data_path}")
+        self.assertEqual(ret.returncode, 0, f"ssh-keygen failed to sign {data_path}")
 
         sig = _SIG.SSHSignature.from_file(sig_path)
 

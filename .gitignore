@@ -146,3 +146,4 @@ test_certificate
 testing.py
 .idea
 core
+tests/TestSignatures

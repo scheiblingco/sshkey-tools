@@ -36,7 +36,7 @@ class SignatureFieldset(Fieldset):
     sig_version: _FIELD.SignatureVersionField = _FIELD.SignatureVersionField.factory
     public_key: _FIELD.PublicKeyField = _FIELD.PublicKeyField.factory
     
-    namespace: _FIELD.SignatureNamespaceField = _FIELD.StringField.factory  
+    namespace: _FIELD.SignatureNamespaceField = _FIELD.SignatureNamespaceField.factory
     reserved: _FIELD.ReservedField = _FIELD.ReservedField.factory
     hash_algorithm: _FIELD.SignatureHashAlgorithmField = _FIELD.SignatureHashAlgorithmField.factory
     signature: _FIELD.SignatureField = _FIELD.SignatureField.factory
@@ -74,6 +74,57 @@ class SignatureFieldset(Fieldset):
             bytes(self.hash_algorithm),
             bytes(self.signature)
         )
+
+    @classmethod
+    def decode(cls, data: bytes):
+        """
+        Decode a SignatureFieldset from SSHSIG binary format.
+        Overrides Fieldset.decode to handle the public key field
+        which is encoded as a length-prefixed SSH wire-format key.
+        """
+        cl_instance = cls()
+
+        decoded, data = cl_instance.magic_preamble.from_decode(data)
+        cl_instance.magic_preamble = decoded
+
+        decoded, data = cl_instance.sig_version.from_decode(data)
+        cl_instance.sig_version = decoded
+
+        # public_key is stored as string(ssh-wire-key) in SSHSIG format
+        pubkey_bytes, data = _FIELD.BytestringField.decode(data)
+        key_type, key_data = _FIELD.StringField.decode(pubkey_bytes)
+
+        sshsig_key_map = {
+            "ssh-rsa": "RsaPubkeyField",
+            "ecdsa-sha2-nistp256": "EcdsaPubkeyField",
+            "ecdsa-sha2-nistp384": "EcdsaPubkeyField",
+            "ecdsa-sha2-nistp521": "EcdsaPubkeyField",
+            "ssh-ed25519": "Ed25519PubkeyField",
+        }
+
+        field_cls_name = sshsig_key_map.get(key_type)
+        if field_cls_name is None:
+            raise _EX.InvalidDataException(
+                f"Unknown public key type in signature: {key_type}"
+            )
+
+        field_cls = getattr(_FIELD, field_cls_name)
+        key_value, _ = field_cls.decode(key_data)
+        cl_instance.public_key = field_cls(value=key_value)
+
+        decoded, data = cl_instance.namespace.from_decode(data)
+        cl_instance.namespace = decoded
+
+        decoded, data = cl_instance.reserved.from_decode(data)
+        cl_instance.reserved = decoded
+
+        decoded, data = cl_instance.hash_algorithm.from_decode(data)
+        cl_instance.hash_algorithm = decoded
+
+        decoded, data = cl_instance.signature.from_decode(data)
+        cl_instance.signature = decoded
+
+        return cl_instance, data
 
 class SSHSignature:
     """
@@ -189,9 +240,8 @@ class SSHSignature:
     def __str__(self) -> str:
         table = PrettyTable(["Field", "Value"])
 
-        for item in (self.header, self.fields, self.footer):
-            for row in item.__table__():
-                table.add_row(row)
+        for row in self.fields.__table__():
+            table.add_row(row)
 
         return str(table)
 
@@ -204,7 +254,8 @@ class SSHSignature:
     def set(self, field: str, data):
         if field in self.fields.getattrs():
             self.fields.set(field, data)
-        
+            return
+
         raise _EX.InvalidCertificateFieldException(f"Unknown field {field}")
     
     def verify(
