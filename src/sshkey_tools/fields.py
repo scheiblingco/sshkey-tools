@@ -1679,3 +1679,91 @@ class Ed25519SignatureField(SignatureField):
         """
         self.value = self.private_key.sign(data)
         self.is_signed = True
+
+
+class SshsigField(CertificateField):
+    """
+    Magic preamble field for SSH Signatures.
+    Always encodes/decodes to/from the literal bytes b"SSHSIG".
+    """
+
+    DATA_TYPE = (str, bytes)
+    DEFAULT = "SSHSIG"
+
+    @classmethod
+    def encode(cls, value=None) -> bytes:
+        return b"SSHSIG"
+
+    @staticmethod
+    def decode(data: bytes) -> Tuple[str, bytes]:
+        return "SSHSIG", data[6:]
+
+    def __bytes__(self) -> bytes:
+        return b"SSHSIG"
+
+    def __validate_value__(self) -> Union[bool, Exception]:
+        try:
+            if ensure_bytestring(self.value)[:6] != b"SSHSIG":
+                return _EX.InvalidDataException(
+                    "Invalid SSH signature magic preamble"
+                )
+        except TypeError:
+            return _EX.InvalidDataException("Invalid SSH signature magic preamble")
+        return True
+
+
+class SignatureVersionField(Integer32Field):
+    """
+    Version field for SSH Signatures. Must be 0x01 (1).
+    """
+
+    DEFAULT = 1
+
+    def __validate_value__(self) -> Union[bool, Exception]:
+        if isinstance(self.__validate_type__(self.value), Exception):
+            return _EX.InvalidFieldDataException(
+                f"{self.get_name()} Could not validate value, invalid type"
+            )
+        if self.value != 1:
+            return _EX.InvalidDataException(
+                f"Invalid signature version {self.value}, must be 1"
+            )
+        return True
+
+
+class SignatureNamespaceField(StringField):
+    """
+    Namespace field for SSH Signatures. Must be a non-empty string.
+    """
+
+    DEFAULT = None
+
+    def __validate_value__(self) -> Union[bool, Exception]:
+        if isinstance(self.__validate_type__(self.value), Exception):
+            return _EX.InvalidFieldDataException(
+                f"{self.get_name()} Could not validate value, invalid type"
+            )
+        if not self.value:
+            return _EX.InvalidDataException(
+                "Signature namespace must not be empty"
+            )
+        return True
+
+
+class SignatureHashAlgorithmField(StringField):
+    """
+    Hash algorithm field for SSH Signatures. Must be 'sha256' or 'sha512'.
+    """
+
+    DEFAULT = "sha512"
+
+    def __validate_value__(self) -> Union[bool, Exception]:
+        if isinstance(self.__validate_type__(self.value), Exception):
+            return _EX.InvalidFieldDataException(
+                f"{self.get_name()} Could not validate value, invalid type"
+            )
+        if self.value not in ("sha256", "sha512"):
+            return _EX.InvalidDataException(
+                f"Invalid hash algorithm '{self.value}', must be 'sha256' or 'sha512'"
+            )
+        return True

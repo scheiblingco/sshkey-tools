@@ -234,6 +234,30 @@ def sha512_fingerprint(data: bytes, prefix: bool = True) -> str:
     )
 
 
+def sha256_hash(data: bytes) -> bytes:
+    """Returns the raw SHA-256 digest of the given data.
+
+    Args:
+        data (bytes): The data to hash
+
+    Returns:
+        bytes: The raw SHA-256 digest
+    """
+    return hl.sha256(data).digest()
+
+
+def sha512_hash(data: bytes) -> bytes:
+    """Returns the raw SHA-512 digest of the given data.
+
+    Args:
+        data (bytes): The data to hash
+
+    Returns:
+        bytes: The raw SHA-512 digest
+    """
+    return hl.sha512(data).digest()
+
+
 def nullsafe_getattr(obj, attr: str, default):
     """
     Null-safe getattr, ensuring the result is not None.
