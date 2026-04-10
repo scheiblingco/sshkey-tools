@@ -48,9 +48,5 @@ setup(
         "Operating System :: OS Independent",
     ],
     keywords='python openssh ssh keys sshkey ssh-keygen ssh-certificate certificate parser decoder',
-    entry_points = {
-        'console_scripts': [
-            'sshkey=sshkey_tools.cli:main'
-        ]
-    }
+    entry_points = {}
 )
