@@ -8,6 +8,7 @@ Raises:
     _EX.NoPrivateKeyException: The certificate contains no private key
     _EX.NotSignedException: The certificate is not signed and cannot be exported
 """
+
 from base64 import b64decode, b64encode
 from dataclasses import dataclass
 from typing import Tuple, Union
