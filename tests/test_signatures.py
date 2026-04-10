@@ -220,6 +220,10 @@ class SignatureMethods(unittest.TestCase):
 
 class TestSshkeyToolsSignaturesVerifiedBySshkeygen(SignatureMethods):
     """Sign with sshkey-tools, verify the output with ssh-keygen."""
+    
+    def assertNotStartsWith(self, string, prefix):
+        if string.startswith(prefix):
+            self.fail(f"Expected string not to start with '{prefix}', but got: {string}")
 
     def assertSignAndVerifyWithSshkeygen(self, key_type, namespace="file", hash_alg="sha512"):
         privkey = getattr(self, f"{key_type}_key")
