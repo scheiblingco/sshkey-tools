@@ -2,7 +2,8 @@
   "name": "SSHKey Tools Devcontainer",
   "image": "mcr.microsoft.com/devcontainers/python:3-3",
   "features": {
-    "ghcr.io/devcontainers-contrib/features/coverage-py:2": {}
+    "ghcr.io/devcontainers-contrib/features/coverage-py:2": {},
+    "ghcr.io/devcontainer-community/devcontainer-features/astral.sh-uv:1": {}
   },
   "customizations": {
     "vscode": {
@@ -12,6 +13,8 @@
         ]
     }
   },
-  "onCreateCommand": "curl https://pyenv.run | bash",
-  "postStartCommand": "pyenv init"
+  "containerEnv": {
+    "UV_LINK_MODE": "copy"
+  },
+  "postCreateCommand": "uv sync --extra dev"
 }

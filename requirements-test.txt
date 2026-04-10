@@ -1,9 +1,0 @@
--r requirements.txt
-paramiko
-coverage
-black
-pytest-cov
-faker
-cprint
-pipenv
-pylint

@@ -4,3 +4,47 @@ requires = [
     "wheel"
 ]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "sshkey-tools"
+version = "0.10.2"
+description = "A Python module for generating, parsing and handling OpenSSH keys and certificates"
+readme = "README.md"
+license = { text = "GPL-3.0-or-later" }
+authors = [
+    { name = "Lars Scheibling", email = "lars@scheibling.se" }
+]
+requires-python = ">=3.8"
+keywords = ["python", "openssh", "ssh", "keys", "sshkey", "ssh-keygen", "ssh-certificate", "certificate", "parser", "decoder"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "click~=8.1",
+    "cryptography>=42.0,<44",
+    "bcrypt~=4.2",
+    "PrettyTable~=3.9",
+    "pytimeparse2~=1.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "paramiko",
+    "coverage",
+    "black",
+    "pytest-cov",
+    "faker",
+    "cprint",
+    "pylint",
+]
+
+[project.urls]
+Homepage = "https://github.com/scheiblingco/sshkey-tools"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.dynamic]
+version = { attr = "sshkey_tools.__version__" }
