@@ -1,13 +1,17 @@
 {
-    "build": {
-        "dockerfile": "dev.Dockerfile"
+  "name": "SSHKey Tools Devcontainer",
+  "image": "mcr.microsoft.com/devcontainers/python:0-3.11-bullseye",
+  "features": {
+    "ghcr.io/devcontainers-contrib/features/coverage-py:2": {}
+  },
+  "customizations": {
+    "vscode": {
+        "extensions": [
+            "scheiblingco.code-pypack",
+            "scheiblingco.scheiblingco-default"
+        ]
     },
-    "customizations": {
-        "vscode": {
-            "extensions": [
-                "scheiblingco.code-pypack",
-                "scheiblingco.code-cmd-repeat"
-            ]
-        }
-    }
+  },
+  "onCreateCommand": "curl https://pyenv.run | bash",
+  "postStartCommand": "pyenv init"
 }
