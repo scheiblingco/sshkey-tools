@@ -113,3 +113,9 @@ class DeprecatedClassCalled(ValueError):
     """
     Raised when trying to instantiate a deprecated class
     """
+
+
+class InvalidHashAlgorithmException(ValueError):
+    """
+    Raised when the hash algorithm specified is not supported
+    """
