@@ -777,6 +777,15 @@ class NonceField(BytestringField):
 
     DEFAULT = generate_secure_nonce
     DATA_TYPE = (str, bytes)
+    
+    _was_imported = bool
+    _imported_as = (str, bytes)
+
+    def was_imported(self) -> bool:
+        """
+        Returns whether the certificate was imported or not
+        """
+        return isinstance(self._was_imported, bool) and self._was_imported
 
     def __validate_value__(self) -> Union[bool, Exception]:
         """
@@ -791,6 +800,11 @@ class NonceField(BytestringField):
             return _EX.InvalidFieldDataException(
                 "Expected a nonce of at least 32 bytes"
             )
+
+        if self.was_imported() and self._imported_as == self.value:
+            print("""[Notice] This certificate was imported. Before re-signing,"""
+                  """ it is recommended to change the nonce to a new value to """
+                  """protect the integrity of the private key in the long run.""")
 
         return True
 
