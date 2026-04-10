@@ -1704,9 +1704,7 @@ class SshsigField(CertificateField):
     def __validate_value__(self) -> Union[bool, Exception]:
         try:
             if ensure_bytestring(self.value)[:6] != b"SSHSIG":
-                return _EX.InvalidDataException(
-                    "Invalid SSH signature magic preamble"
-                )
+                return _EX.InvalidDataException("Invalid SSH signature magic preamble")
         except TypeError:
             return _EX.InvalidDataException("Invalid SSH signature magic preamble")
         return True
@@ -1744,9 +1742,7 @@ class SignatureNamespaceField(StringField):
                 f"{self.get_name()} Could not validate value, invalid type"
             )
         if not self.value:
-            return _EX.InvalidDataException(
-                "Signature namespace must not be empty"
-            )
+            return _EX.InvalidDataException("Signature namespace must not be empty")
         return True
 
 

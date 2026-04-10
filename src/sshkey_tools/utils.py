@@ -14,7 +14,6 @@ from uuid import uuid4
 
 from pytimeparse2 import parse as time_parse
 
-
 NoneType = type(None)
 
 
