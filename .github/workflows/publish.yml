@@ -50,12 +50,12 @@ jobs:
           python-version: '3.14'
 
       - name: Install dependencies
-        run: uv tool install pdoc3
-
+        run: |
+          uv sync --extra dev
 
       - name: Rebuild documentation
         run: |
-          uvx pdoc --html src/sshkey_tools/ --force --output-dir docs
+          uvx pdoc3 --html -o docs/ ./src/sshkey_tools --skip-errors
           mv docs/sshkey_tools/* docs/
           rm -r docs/sshkey_tools
 
