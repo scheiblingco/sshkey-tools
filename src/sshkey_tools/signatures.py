@@ -1,5 +1,12 @@
-# Format:
+"""SSH Data signature implementation
 
+Raises:
+    _EX.InvalidDataException: Data is invalid
+    _EX.InvalidHashAlgorithmException: The hash algorithm is invalid
+    _EX.InvalidCertificateFieldException: The certificate field contains invalid data
+"""
+
+# Format:
 # byte[6]   MAGIC_PREAMBLE (SSHSIG)
 # uint32    SIG_VERSION (0x01)
 # string    publickey
@@ -8,8 +15,8 @@
 # string    hash_algorithm
 # string    signature
 from base64 import b64decode, b64encode
-from .cert import Fieldset, dataclass, Union
 from prettytable import PrettyTable
+from .cert import Fieldset, dataclass, Union
 from .utils import concat_to_bytestring, ensure_bytestring
 from . import fields as _FIELD, keys as _KEY, exceptions as _EX, utils as _U
 
@@ -40,6 +47,11 @@ class SignatureFieldset(Fieldset):
     signature: _FIELD.SignatureField = _FIELD.SignatureField.factory
 
     def __bytes__(self):
+        """Returns the data as a bytestring for encoding
+
+        Returns:
+            data: Data bytes
+        """
         return concat_to_bytestring(
             bytes(self.magic_preamble),
             bytes(self.namespace),
@@ -48,6 +60,11 @@ class SignatureFieldset(Fieldset):
         )
 
     def format_pubkey(self):
+        """Format the public key and strip and extra data
+
+        Returns:
+            key: The formatted public key
+        """
         pubkey = self.public_key.value.to_string().split(" ")
 
         return _FIELD.StringField.encode(
@@ -60,6 +77,11 @@ class SignatureFieldset(Fieldset):
         # ))
 
     def bytes_out(self):
+        """Generates the output bytes for the finished signature
+
+        Returns:
+            output: The complete signature
+        """
         return concat_to_bytestring(
             bytes(self.magic_preamble),
             bytes(self.sig_version),
@@ -155,7 +177,8 @@ class SSHSignature:
 
         Args:
             path (str): The path to the file
-            encoding (str, optional): The encoding of the file. None will load the byte content directly. Defaults to 'utf-8'.
+            encoding (str, optional): The encoding of the file. None will load the byte
+                content directly. Defaults to 'utf-8'.
 
         Returns:
             SSHSignature: SSH Signature Object
@@ -212,17 +235,17 @@ class SSHSignature:
         Returns:
             bytes: The signable data
         """
-        hash = b""
+        hash_kind = b""
         if self.fields.hash_algorithm.value == "sha256":
-            hash = _U.sha256_hash(ensure_bytestring(data))
+            hash_kind = _U.sha256_hash(ensure_bytestring(data))
         elif self.fields.hash_algorithm.value == "sha512":
-            hash = _U.sha512_hash(ensure_bytestring(data))
+            hash_kind = _U.sha512_hash(ensure_bytestring(data))
         else:
             raise _EX.InvalidHashAlgorithmException(
                 f"Unknown hash algorithm {self.fields.hash_algorithm}"
             )
 
-        return bytes(self.fields) + _FIELD.StringField.encode(hash)
+        return bytes(self.fields) + _FIELD.StringField.encode(hash_kind)
 
     def get_signable_file(self, path: str) -> bytes:
         """
@@ -249,12 +272,32 @@ class SSHSignature:
         return str(table)
 
     def get(self, field: str):
+        """Get the contents of a field
+
+        Args:
+            field (str): Field name
+
+        Raises:
+            _EX.InvalidCertificateFieldException: Invalid field name
+
+        Returns:
+            data: The field data
+        """
         if field in self.fields.getattrs():
             return self.fields.get(field, None)
 
         raise _EX.InvalidCertificateFieldException(f"Unknown field {field}")
 
     def set(self, field: str, data):
+        """Sets the contents of a field
+
+        Args:
+            field (str): Field name
+            data (any): Data for the field
+
+        Raises:
+            _EX.InvalidCertificateFieldException: Invalid field name
+        """
         if field in self.fields.getattrs():
             self.fields.set(field, data)
             return
@@ -264,20 +307,53 @@ class SSHSignature:
     def verify(
         self, data, public_key: _KEY.PublicKey = None, raise_on_error: bool = False
     ) -> bool:
+        """Verify a SSH Signature
+
+        Args:
+            data (bytes): The signed data
+            public_key (_KEY.PublicKey, optional): The public key to use to verify
+                the signature. If none are specified, the public key from the
+                signature will be used. Defaults to None.
+            raise_on_error (bool, optional): Whether to raise an exception on
+                verification failure. Defaults to False.
+
+        Returns:
+            bool: True if the signature is valid, False otherwise.
+        """
         if not public_key:
             public_key = self.fields.get("public_key", None)
+
+        if raise_on_error and not public_key.verify(
+            self.get_signable(data), self.fields.signature.value
+        ):
+            raise _EX.InvalidSignatureException("Signature verification failed")
 
         public_key.verify(self.get_signable(data), self.fields.signature.value)
 
     def sign(self, data: Union[str, bytes]):
+        """Signs the data
+
+        Args:
+            data (Union[str, bytes]): The data to sign
+        """
         signable = self.get_signable(data)
         self.fields.signature.sign(signable)
 
     def sign_file(self, path: str):
+        """Signs a file at a given path
+
+        Args:
+            path (str): The path to the file to sign
+        """
         signable = self.get_signable_file(path)
         self.fields.signature.sign(signable)
 
     def to_string(self):
+        """Converts the signature data to the text-based signature format
+
+        Returns:
+            string: The encoded signature data
+        """
         content = self.fields.bytes_out()
         content = b64encode(content)
         file_content = b"-----BEGIN SSH SIGNATURE-----\n"
@@ -289,5 +365,10 @@ class SSHSignature:
         return file_content
 
     def to_file(self, path: str):
+        """Save the content of the signature to a file
+
+        Args:
+            path (str): The path to the file
+        """
         with open(path, "wb") as f:
             f.write(self.to_string())
