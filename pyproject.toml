@@ -14,7 +14,7 @@ license = { text = "GPL-3.0-or-later" }
 authors = [
     { name = "Lars Scheibling", email = "lars@scheibling.se" }
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 keywords = ["python", "openssh", "ssh", "keys", "sshkey", "ssh-keygen", "ssh-certificate", "certificate", "parser", "decoder"]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -22,11 +22,10 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "click~=8.1",
-    "cryptography>=42.0,<44",
-    "bcrypt~=4.2",
-    "PrettyTable~=3.9",
-    "pytimeparse2~=1.1",
+    "cryptography~=46.0",
+    "bcrypt~=5.0",
+    "PrettyTable~=3.17",
+    "pytimeparse2~=1.7.1",
 ]
 
 [project.optional-dependencies]
