@@ -561,7 +561,7 @@ class TestCertificates(unittest.TestCase):
         self.assertIsInstance(ecdsa_cert, _CERT.EcdsaCertificate)
         self.assertIsInstance(ed25519_cert, _CERT.Ed25519Certificate)
 
-    def assertCertificateCreated(self, sub_type, ca_type):
+    def getReloadedCertificate(self, sub_type, ca_type):
         sub_pubkey = getattr(self, f"{sub_type}_user")
         ca_privkey = getattr(self, f"{ca_type}_ca")
 
@@ -590,6 +590,11 @@ class TestCertificates(unittest.TestCase):
         reloaded_cert = _CERT.SSHCertificate.from_file(
             f"tests/certificates/{sub_type}_{ca_type}-cert.pub"
         )
+        
+        return certificate, reloaded_cert
+
+    def assertCertificateCreated(self, sub_type, ca_type):
+        certificate, reloaded_cert = self.getReloadedCertificate(sub_type, ca_type)
 
         self.assertEqual(certificate.get_signable(), reloaded_cert.get_signable())
 
@@ -602,6 +607,22 @@ class TestCertificates(unittest.TestCase):
                     )
                 )
                 self.assertCertificateCreated(user_type, ca_type)
+    
+    def test_certificate_import_sets_nonce_imported(self):
+        for ca_type in CERTIFICATE_TYPES:
+            for user_type in CERTIFICATE_TYPES:
+                print(
+                    "Testing certificate import for {} CA and {} user".format(
+                        ca_type, user_type
+                    )
+                )
+                
+                cert, reloaded_cert = self.getReloadedCertificate(user_type, ca_type)
+                
+                self.assertFalse(cert.header.nonce.was_imported())
+                self.assertTrue(reloaded_cert.header.nonce.was_imported())
+                
+                
 
 
 if __name__ == "__main__":
