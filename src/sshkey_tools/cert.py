@@ -166,9 +166,8 @@ class CertificateHeader(Fieldset):
 
         public_key, data = getattr(_FIELD, target_class[1]).from_decode(data)
         cl_instance.public_key = public_key
-        
-        cl_instance.nonce._was_imported = True
-        cl_instance.nonce._imported_as = cl_instance.get("nonce")
+
+        cl_instance.nonce.set_was_imported(True, cl_instance.get("nonce"))
 
         return cl_instance, data
 

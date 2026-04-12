@@ -787,6 +787,18 @@ class NonceField(BytestringField):
         """
         return isinstance(self._was_imported, bool) and self._was_imported
 
+    def set_was_imported(self, value: bool, imported_as: Union[str, bytes] = None):
+        """
+        Sets the imported status of the certificate
+
+        Args:
+            value (bool): Whether the certificate was imported or not
+            imported_as (Union[str, bytes], optional): The value as which the certificate was imported. Defaults to None.
+        """
+        self._was_imported = value
+        if imported_as is not None:
+            self._imported_as = imported_as
+
     def __validate_value__(self) -> Union[bool, Exception]:
         """
         Validates the contents of the field
