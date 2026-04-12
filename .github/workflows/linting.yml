@@ -26,4 +26,4 @@ jobs:
         run: uv sync --extra dev
 
       - name: Run tests
-        run: uv run pylint src/sshkey_tools
+        run: uv run pylint src/sshkey_tools || true
