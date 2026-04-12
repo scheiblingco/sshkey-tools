@@ -715,7 +715,7 @@ wheels = [
 
 [[package]]
 name = "sshkey-tools"
-version = "0.10.2"
+version = "0.12.2"
 source = { editable = "." }
 dependencies = [
     { name = "bcrypt" },
